@@ -1,24 +1,24 @@
-use actix_web::{middleware, web, App, HttpRequest, HttpServer};
+use ntex::web::{self, middleware, App, HttpRequest};
 
 async fn index(_req: HttpRequest) -> &'static str {
     "Hello world!"
 }
 
-#[actix_rt::main]
+#[ntex::main]
 #[cfg(unix)]
 async fn main() -> std::io::Result<()> {
     ::std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
-            .service(
+            .service((
                 web::resource("/index.html")
                     .route(web::get().to(|| async { "Hello world!" })),
-            )
-            .service(web::resource("/").to(index))
+                web::resource("/").to(index),
+            ))
     })
     .bind_uds("/tmp/actix-uds.socket")?
     .run()

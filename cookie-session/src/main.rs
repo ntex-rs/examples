@@ -5,11 +5,12 @@
 //!
 //! [User guide](https://actix.rs/docs/middleware/#user-sessions)
 
-use actix_session::{CookieSession, Session};
-use actix_web::{middleware::Logger, web, App, HttpRequest, HttpServer, Result};
+use ntex::web::{self, middleware::Logger, App, Error, HttpRequest};
+use ntex_session::{CookieSession, Session};
 
 /// simple index handler with session
-async fn index(session: Session, req: HttpRequest) -> Result<&'static str> {
+#[web::get("/")]
+async fn index(session: Session, req: HttpRequest) -> Result<&'static str, Error> {
     println!("{:?}", req);
 
     // RequestSession trait is used for session access
@@ -25,19 +26,19 @@ async fn index(session: Session, req: HttpRequest) -> Result<&'static str> {
     Ok("welcome!")
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
     println!("Starting http server: 127.0.0.1:8080");
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger
             .wrap(Logger::default())
             // cookie session middleware
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
-            .service(web::resource("/").to(index))
+            .service(index)
     })
     .bind("127.0.0.1:8080")?
     .run()

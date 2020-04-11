@@ -30,9 +30,9 @@ mod models {
 }
 
 mod errors {
-    use actix_web::{HttpResponse, ResponseError};
     use deadpool_postgres::PoolError;
     use derive_more::{Display, From};
+    use ntex::web::{HttpResponse, WebResponseError};
     use tokio_pg_mapper::Error as PGMError;
     use tokio_postgres::error::Error as PGError;
 
@@ -45,7 +45,7 @@ mod errors {
     }
     impl std::error::Error for MyError {}
 
-    impl ResponseError for MyError {
+    impl WebResponseError for MyError {
         fn error_response(&self) -> HttpResponse {
             match *self {
                 MyError::NotFound => HttpResponse::NotFound().finish(),
@@ -89,12 +89,12 @@ mod db {
 
 mod handlers {
     use crate::{db, errors::MyError, models::User};
-    use actix_web::{web, Error, HttpResponse};
     use deadpool_postgres::{Client, Pool};
+    use ntex::web::{self, Error, HttpResponse};
 
     pub async fn add_user(
-        user: web::Json<User>,
-        db_pool: web::Data<Pool>,
+        user: web::types::Json<User>,
+        db_pool: web::types::Data<Pool>,
     ) -> Result<HttpResponse, Error> {
         let user_info: User = user.into_inner();
 
@@ -102,23 +102,23 @@ mod handlers {
 
         let new_user = db::add_user(&client, user_info).await?;
 
-        Ok(HttpResponse::Ok().json(new_user))
+        Ok(HttpResponse::Ok().json(&new_user))
     }
 }
 
-use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
 use handlers::add_user;
+use ntex::web::{self, App};
 use tokio_postgres::NoTls;
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     let config = crate::config::Config::from_env().unwrap();
     let pool = config.pg.create_pool(NoTls).unwrap();
 
-    let server = HttpServer::new(move || {
+    let server = web::server(move || {
         App::new()
             .data(pool.clone())
             .service(web::resource("/users").route(web::post().to(add_user)))

@@ -1,15 +1,16 @@
 use std::net::ToSocketAddrs;
 
-use actix_web::client::Client;
-use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use bytes::Bytes;
 use clap::{value_t, Arg};
+use ntex::http::client::Client;
+use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
 use url::Url;
 
 async fn forward(
     req: HttpRequest,
-    body: web::Bytes,
-    url: web::Data<Url>,
-    client: web::Data<Client>,
+    body: Bytes,
+    url: web::types::Data<Url>,
+    client: web::types::Data<Client>,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = url.get_ref().clone();
     new_url.set_path(req.uri().path());
@@ -40,7 +41,7 @@ async fn forward(
     Ok(client_resp.body(res.body().await?))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     let matches = clap::App::new("HTTP Proxy")
         .arg(
@@ -90,7 +91,7 @@ async fn main() -> std::io::Result<()> {
     ))
     .unwrap();
 
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .data(Client::new())
             .data(forward_url.clone())

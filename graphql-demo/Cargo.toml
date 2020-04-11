@@ -7,16 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-actix-web = "2.0.0"
-actix-rt = "1.0.0"
-futures = "0.3.1"
-
+ntex = "0.1.7"
+futures = "0.3.4"
 juniper = "0.14"
-
 mysql = "17"
 r2d2 = "0.8"
 r2d2_mysql = "17.0"
-
 dotenv = "0.15"
 env_logger = "0.7"
 log = "0.4"

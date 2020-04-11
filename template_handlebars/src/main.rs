@@ -1,19 +1,13 @@
 #[macro_use]
-extern crate actix_web;
-
-#[macro_use]
 extern crate serde_json;
 
-use actix_web::web;
-use actix_web::{App, HttpResponse, HttpServer};
-
 use handlebars::Handlebars;
-
+use ntex::web::{self, App, HttpResponse};
 use std::io;
 
 // Macro documentation can be found in the actix_web_codegen crate
-#[get("/")]
-async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
+#[web::get("/")]
+async fn index(hb: web::types::Data<Handlebars<'_>>) -> HttpResponse {
     let data = json!({
         "name": "Handlebars"
     });
@@ -22,10 +16,10 @@ async fn index(hb: web::Data<Handlebars<'_>>) -> HttpResponse {
     HttpResponse::Ok().body(body)
 }
 
-#[get("/{user}/{data}")]
+#[web::get("/{user}/{data}")]
 async fn user(
-    hb: web::Data<Handlebars<'_>>,
-    info: web::Path<(String, String)>,
+    hb: web::types::Data<Handlebars<'_>>,
+    info: web::types::Path<(String, String)>,
 ) -> HttpResponse {
     let data = json!({
         "user": info.0,
@@ -36,7 +30,7 @@ async fn user(
     HttpResponse::Ok().body(body)
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     // Handlebars uses a repository for the compiled templates. This object must be
     // shared between the application threads, and is therefore passed to the
@@ -45,13 +39,12 @@ async fn main() -> io::Result<()> {
     handlebars
         .register_templates_directory(".html", "./static/templates")
         .unwrap();
-    let handlebars_ref = web::Data::new(handlebars);
+    let handlebars_ref = web::types::Data::new(handlebars);
 
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .app_data(handlebars_ref.clone())
-            .service(index)
-            .service(user)
+            .service((index, user))
     })
     .bind("127.0.0.1:8080")?
     .run()

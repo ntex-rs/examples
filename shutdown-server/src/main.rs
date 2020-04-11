@@ -1,21 +1,21 @@
-use actix_web::{get, middleware, post, web, App, HttpResponse, HttpServer};
 use futures::executor;
+use ntex::web::{self, middleware, App, HttpResponse};
 use std::{sync::mpsc, thread};
 
-#[get("/hello")]
+#[web::get("/hello")]
 async fn hello() -> &'static str {
     "Hello world!"
 }
 
-#[post("/stop")]
-async fn stop(stopper: web::Data<mpsc::Sender<()>>) -> HttpResponse {
+#[web::post("/stop")]
+async fn stop(stopper: web::types::Data<mpsc::Sender<()>>) -> HttpResponse {
     // make request that sends message through the Sender
     stopper.send(()).unwrap();
 
     HttpResponse::NoContent().finish()
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=debug,actix_web=debug");
     env_logger::init();
@@ -27,15 +27,14 @@ async fn main() -> std::io::Result<()> {
     let bind = "127.0.0.1:8080";
 
     // start server as normal but don't .await after .run() yet
-    let server = HttpServer::new(move || {
+    let server = web::server(move || {
         // give the server a Sender in .data
         let stopper = tx.clone();
 
         App::new()
             .data(stopper)
             .wrap(middleware::Logger::default())
-            .service(hello)
-            .service(stop)
+            .service((hello, stop))
     })
     .bind(&bind)?
     .run();

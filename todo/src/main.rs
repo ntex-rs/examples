@@ -5,11 +5,11 @@ extern crate log;
 
 use std::{env, io};
 
-use actix_files as fs;
-use actix_session::CookieSession;
-use actix_web::middleware::{errhandlers::ErrorHandlers, Logger};
-use actix_web::{http, web, App, HttpServer};
 use dotenv::dotenv;
+use ntex::web;
+use ntex::web::middleware::Logger;
+use ntex_files as fs;
+use ntex_session::CookieSession;
 use tera::Tera;
 
 mod api;
@@ -20,7 +20,7 @@ mod session;
 
 static SESSION_SIGNING_KEY: &[u8] = &[0; 32];
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
 
@@ -37,26 +37,19 @@ async fn main() -> io::Result<()> {
 
         let session_store = CookieSession::signed(SESSION_SIGNING_KEY).secure(false);
 
-        let error_handlers = ErrorHandlers::new()
-            .handler(
-                http::StatusCode::INTERNAL_SERVER_ERROR,
-                api::internal_server_error,
-            )
-            .handler(http::StatusCode::BAD_REQUEST, api::bad_request)
-            .handler(http::StatusCode::NOT_FOUND, api::not_found);
-
-        App::new()
+        web::App::new()
             .data(templates)
             .data(pool.clone())
             .wrap(Logger::default())
             .wrap(session_store)
-            .wrap(error_handlers)
-            .service(web::resource("/").route(web::get().to(api::index)))
-            .service(web::resource("/todo").route(web::post().to(api::create)))
-            .service(web::resource("/todo/{id}").route(web::post().to(api::update)))
-            .service(fs::Files::new("/static", "static/"))
+            .service((
+                web::resource("/").route(web::get().to(api::index)),
+                web::resource("/todo").route(web::post().to(api::create)),
+                web::resource("/todo/{id}").route(web::post().to(api::update)),
+                fs::Files::new("/static", "static/"),
+            ))
     };
 
     debug!("Starting server");
-    HttpServer::new(app).bind("localhost:8088")?.run().await
+    web::server(app).bind("localhost:8088")?.run().await
 }

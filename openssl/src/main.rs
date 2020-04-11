@@ -1,6 +1,6 @@
 use std::io;
 
-use actix_web::{middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer};
+use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 
 /// simple handle
@@ -11,7 +11,7 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Error> {
         .body("Welcome!"))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=debug");
     env_logger::init();
@@ -25,14 +25,14 @@ async fn main() -> io::Result<()> {
         .unwrap();
     builder.set_certificate_chain_file("cert.pem").unwrap();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
             // register simple handler, handle all methods
             .service(web::resource("/index.html").to(index))
             // with path parameters
-            .service(web::resource("/").route(web::get().to(|| {
+            .service(web::resource("/").route(web::get().to(|| async {
                 HttpResponse::Found()
                     .header("LOCATION", "/index.html")
                     .finish()

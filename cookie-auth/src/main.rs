@@ -1,6 +1,5 @@
-use actix_identity::Identity;
-use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{middleware, web, App, HttpResponse, HttpServer};
+use ntex::web::{self, middleware, App, HttpResponse};
+use ntex_identity::{CookieIdentityPolicy, Identity, IdentityService};
 
 async fn index(id: Identity) -> String {
     format!(
@@ -19,12 +18,12 @@ async fn logout(id: Identity) -> HttpResponse {
     HttpResponse::Found().header("location", "/").finish()
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
@@ -33,9 +32,11 @@ async fn main() -> std::io::Result<()> {
             ))
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
-            .service(web::resource("/login").route(web::post().to(login)))
-            .service(web::resource("/logout").to(logout))
-            .service(web::resource("/").route(web::get().to(index)))
+            .service((
+                web::resource("/login").route(web::post().to(login)),
+                web::resource("/logout").to(logout),
+                web::resource("/").route(web::get().to(index)),
+            ))
     })
     .bind("127.0.0.1:8080")?
     .run()

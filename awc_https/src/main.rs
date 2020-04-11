@@ -1,16 +1,8 @@
-use actix_web::{
-    client::{Client, Connector},
-    web, App, HttpRequest, HttpResponse, HttpServer,
-};
+use ntex::http::client::{Client, Connector};
+use ntex::web::{self, App, HttpResponse};
 use openssl::ssl::{SslConnector, SslMethod};
 
-async fn index(_req: HttpRequest) -> HttpResponse {
-    let builder = SslConnector::builder(SslMethod::tls()).unwrap();
-
-    let client = Client::build()
-        .connector(Connector::new().ssl(builder.build()).finish())
-        .finish();
-
+async fn index(client: web::types::Data<Client>) -> HttpResponse {
     let now = std::time::Instant::now();
     let payload =
         client
@@ -31,12 +23,22 @@ async fn index(_req: HttpRequest) -> HttpResponse {
     HttpResponse::Ok().content_type("image/jpeg").body(payload)
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     let port = 3000;
 
-    HttpServer::new(|| App::new().service(web::resource("/").to(index)))
-        .bind(("0.0.0.0", port))?
-        .run()
-        .await
+    web::server(|| {
+        let builder = SslConnector::builder(SslMethod::tls()).unwrap();
+
+        let client = Client::build()
+            .connector(Connector::default().openssl(builder.build()).finish())
+            .finish();
+
+        App::new()
+            .data(client)
+            .service(web::resource("/").to(index))
+    })
+    .bind(("0.0.0.0", port))?
+    .run()
+    .await
 }

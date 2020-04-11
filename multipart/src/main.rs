@@ -1,14 +1,15 @@
 use std::io::Write;
 
-use actix_multipart::Multipart;
-use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use futures::{StreamExt, TryStreamExt};
+use ntex::web::{self, middleware, App, Error, HttpResponse};
+use ntex_multipart::Multipart;
 
 async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        let content_type = field.content_disposition().unwrap();
-        let filename = content_type.get_filename().unwrap();
+        // let content_type = field.content_disposition().unwrap();
+        // let filename = content_type.get_filename().unwrap();
+        let filename = "somename";
         let filepath = format!("./tmp/{}", filename);
         // File::create is blocking operation, use threadpool
         let mut f = web::block(|| std::fs::File::create(filepath))
@@ -24,7 +25,7 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().into())
 }
 
-fn index() -> HttpResponse {
+async fn index() -> HttpResponse {
     let html = r#"<html>
         <head><title>Upload Test</title></head>
         <body>
@@ -38,14 +39,14 @@ fn index() -> HttpResponse {
     HttpResponse::Ok().body(html)
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     std::fs::create_dir_all("./tmp").unwrap();
 
     let ip = "0.0.0.0:3000";
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new().wrap(middleware::Logger::default()).service(
             web::resource("/")
                 .route(web::get().to(index))

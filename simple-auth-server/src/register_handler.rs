@@ -1,5 +1,5 @@
-use actix_web::{error::BlockingError, web, HttpResponse};
 use diesel::prelude::*;
+use ntex::web::{self, error::BlockingError, HttpResponse};
 use serde::Deserialize;
 
 use crate::errors::ServiceError;
@@ -12,9 +12,9 @@ pub struct UserData {
 }
 
 pub async fn register_user(
-    invitation_id: web::Path<String>,
-    user_data: web::Json<UserData>,
-    pool: web::Data<Pool>,
+    invitation_id: web::types::Path<String>,
+    user_data: web::types::Json<UserData>,
+    pool: web::types::Data<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     let res = web::block(move || {
         query(
@@ -37,7 +37,7 @@ pub async fn register_user(
 fn query(
     invitation_id: String,
     password: String,
-    pool: web::Data<Pool>,
+    pool: web::types::Data<Pool>,
 ) -> Result<SlimUser, crate::errors::ServiceError> {
     use crate::schema::invitations::dsl::{id, invitations};
     use crate::schema::users::dsl::users;

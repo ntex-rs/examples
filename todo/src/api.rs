@@ -1,7 +1,7 @@
-use actix_files::NamedFile;
-use actix_session::Session;
-use actix_web::middleware::errhandlers::ErrorHandlerResponse;
-use actix_web::{dev, error, http, web, Error, HttpResponse, Result};
+// use ntex_files::NamedFile;
+use ntex::http;
+use ntex::web::{self, error, Error, HttpResponse};
+use ntex_session::Session;
 use serde::Deserialize;
 use tera::{Context, Tera};
 
@@ -9,8 +9,8 @@ use crate::db;
 use crate::session::{self, FlashMessage};
 
 pub async fn index(
-    pool: web::Data<db::PgPool>,
-    tmpl: web::Data<Tera>,
+    pool: web::types::Data<db::PgPool>,
+    tmpl: web::types::Data<Tera>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     let tasks = web::block(move || db::get_all_tasks(&pool)).await?;
@@ -38,8 +38,8 @@ pub struct CreateForm {
 }
 
 pub async fn create(
-    params: web::Form<CreateForm>,
-    pool: web::Data<db::PgPool>,
+    params: web::types::Form<CreateForm>,
+    pool: web::types::Data<db::PgPool>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     if params.description.is_empty() {
@@ -67,9 +67,9 @@ pub struct UpdateForm {
 }
 
 pub async fn update(
-    db: web::Data<db::PgPool>,
-    params: web::Path<UpdateParams>,
-    form: web::Form<UpdateForm>,
+    db: web::types::Data<db::PgPool>,
+    params: web::types::Path<UpdateParams>,
+    form: web::types::Form<UpdateForm>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     match form._method.as_ref() {
@@ -77,22 +77,22 @@ pub async fn update(
         "delete" => delete(db, params, session).await,
         unsupported_method => {
             let msg = format!("Unsupported HTTP method: {}", unsupported_method);
-            Err(error::ErrorBadRequest(msg))
+            Err(error::ErrorBadRequest(msg).into())
         }
     }
 }
 
 async fn toggle(
-    pool: web::Data<db::PgPool>,
-    params: web::Path<UpdateParams>,
+    pool: web::types::Data<db::PgPool>,
+    params: web::types::Path<UpdateParams>,
 ) -> Result<HttpResponse, Error> {
     web::block(move || db::toggle_task(params.id, &pool)).await?;
     Ok(redirect_to("/"))
 }
 
 async fn delete(
-    pool: web::Data<db::PgPool>,
-    params: web::Path<UpdateParams>,
+    pool: web::types::Data<db::PgPool>,
+    params: web::types::Path<UpdateParams>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     web::block(move || db::delete_task(params.id, &pool)).await?;
@@ -106,31 +106,31 @@ fn redirect_to(location: &str) -> HttpResponse {
         .finish()
 }
 
-pub fn bad_request<B>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-    let new_resp = NamedFile::open("static/errors/400.html")?
-        .set_status_code(res.status())
-        .into_response(res.request())?;
-    Ok(ErrorHandlerResponse::Response(
-        res.into_response(new_resp.into_body()),
-    ))
-}
+// pub fn bad_request<B>(res: dev::WebResponse<B>) -> Result<ErrorHandlerResponse<B>> {
+//     let new_resp = NamedFile::open("static/errors/400.html")?
+//         .set_status_code(res.status())
+//         .into_response(res.request())?;
+//     Ok(ErrorHandlerResponse::Response(
+//         res.into_response(new_resp.into_body()),
+//     ))
+// }
 
-pub fn not_found<B>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-    let new_resp = NamedFile::open("static/errors/404.html")?
-        .set_status_code(res.status())
-        .into_response(res.request())?;
-    Ok(ErrorHandlerResponse::Response(
-        res.into_response(new_resp.into_body()),
-    ))
-}
+// pub fn not_found<B>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
+//     let new_resp = NamedFile::open("static/errors/404.html")?
+//         .set_status_code(res.status())
+//         .into_response(res.request())?;
+//     Ok(ErrorHandlerResponse::Response(
+//         res.into_response(new_resp.into_body()),
+//     ))
+// }
 
-pub fn internal_server_error<B>(
-    res: dev::ServiceResponse<B>,
-) -> Result<ErrorHandlerResponse<B>> {
-    let new_resp = NamedFile::open("static/errors/500.html")?
-        .set_status_code(res.status())
-        .into_response(res.request())?;
-    Ok(ErrorHandlerResponse::Response(
-        res.into_response(new_resp.into_body()),
-    ))
-}
+// pub fn internal_server_error<B>(
+//     res: dev::ServiceResponse<B>,
+// ) -> Result<ErrorHandlerResponse<B>> {
+//     let new_resp = NamedFile::open("static/errors/500.html")?
+//         .set_status_code(res.status())
+//         .into_response(res.request())?;
+//     Ok(ErrorHandlerResponse::Response(
+//         res.into_response(new_resp.into_body()),
+//     ))
+// }

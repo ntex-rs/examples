@@ -1,25 +1,20 @@
-#![allow(clippy::type_complexity)]
+#![allow(dead_code, clippy::type_complexity)]
 
-use actix_service::Service;
-use actix_web::{web, App, HttpServer};
 use futures::future::FutureExt;
+use ntex::{web, Service};
 
-#[allow(dead_code)]
 mod read_request_body;
-#[allow(dead_code)]
 mod read_response_body;
-#[allow(dead_code)]
 mod redirect;
-#[allow(dead_code)]
 mod simple;
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=debug");
     env_logger::init();
 
-    HttpServer::new(|| {
-        App::new()
+    web::server(|| {
+        web::App::new()
             .wrap(redirect::CheckLogin)
             .wrap(read_request_body::Logging)
             .wrap(read_response_body::Logging)

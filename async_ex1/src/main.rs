@@ -17,13 +17,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io;
 
-use actix_web::{
-    client::Client,
-    error::ErrorBadRequest,
-    web::{self, BytesMut},
-    App, Error, HttpResponse, HttpServer,
-};
+use bytes::BytesMut;
 use futures::StreamExt;
+use ntex::http::client::Client;
+use ntex::web::{self, error::ErrorBadRequest, App, Error, HttpResponse, HttpServer};
 use validator::Validate;
 use validator_derive::Validate;
 
@@ -67,9 +64,10 @@ async fn step_x(data: SomeData, client: &Client) -> Result<SomeData, Error> {
     Ok(body.json)
 }
 
+#[web::post("/something")]
 async fn create_something(
-    some_data: web::Json<SomeData>,
-    client: web::Data<Client>,
+    some_data: web::types::Json<SomeData>,
+    client: web::types::Data<Client>,
 ) -> Result<HttpResponse, Error> {
     let some_data_2 = step_x(some_data.into_inner(), &client).await?;
     let some_data_3 = step_x(some_data_2, &client).await?;
@@ -80,19 +78,16 @@ async fn create_something(
         .body(serde_json::to_string(&d).unwrap()))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
+
     let endpoint = "127.0.0.1:8080";
 
     println!("Starting server at: {:?}", endpoint);
-    HttpServer::new(|| {
-        App::new()
-            .data(Client::default())
-            .service(web::resource("/something").route(web::post().to(create_something)))
-    })
-    .bind(endpoint)?
-    .run()
-    .await
+    HttpServer::new(|| App::new().data(Client::default()).service(create_something))
+        .bind(endpoint)?
+        .run()
+        .await
 }

@@ -1,21 +1,23 @@
-use actix_web::{middleware, web, App, HttpRequest, HttpServer};
+use ntex::web::{self, middleware, App, HttpRequest};
 
 async fn index(req: HttpRequest) -> &'static str {
     println!("REQ: {:?}", req);
     "Hello world!"
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
-            .service(web::resource("/index.html").to(|| async { "Hello world!" }))
-            .service(web::resource("/").to(index))
+            .service((
+                web::resource("/index.html").to(|| async { "Hello world!" }),
+                web::resource("/").to(index),
+            ))
     })
     .bind("127.0.0.1:8080")?
     .run()
@@ -25,10 +27,11 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use actix_web::dev::Service;
-    use actix_web::{http, test, web, App, Error};
+    use ntex::web::{test, App, Error};
+    use ntex::Service;
+    use ntex::{http, web};
 
-    #[actix_rt::test]
+    #[ntex::test]
     async fn test_index() -> Result<(), Error> {
         let app = App::new().route("/", web::get().to(index));
         let mut app = test::init_service(app).await;

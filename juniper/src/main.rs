@@ -2,16 +2,16 @@
 //!
 //! A simple example integrating juniper in actix-web
 use std::io;
-use std::sync::Arc;
 
-use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
+use ntex::web::{self, middleware, App, Error, HttpResponse};
 
 mod schema;
 
 use crate::schema::{create_schema, Schema};
 
+#[web::get("/graphiql")]
 async fn graphiql() -> HttpResponse {
     let html = graphiql_source("http://127.0.0.1:8080/graphql");
     HttpResponse::Ok()
@@ -19,9 +19,10 @@ async fn graphiql() -> HttpResponse {
         .body(html)
 }
 
+#[web::post("/graphql")]
 async fn graphql(
-    st: web::Data<Arc<Schema>>,
-    data: web::Json<GraphQLRequest>,
+    st: web::types::Data<Schema>,
+    data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let user = web::block(move || {
         let res = data.execute(&st, &());
@@ -33,21 +34,20 @@ async fn graphql(
         .body(user))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
     // Create Juniper schema
-    let schema = std::sync::Arc::new(create_schema());
+    let schema = web::types::Data::new(create_schema());
 
     // Start http server
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
-            .data(schema.clone())
+            .app_data(schema.clone())
             .wrap(middleware::Logger::default())
-            .service(web::resource("/graphql").route(web::post().to(graphql)))
-            .service(web::resource("/graphiql").route(web::get().to(graphiql)))
+            .service((graphql, graphiql))
     })
     .bind("127.0.0.1:8080")?
     .run()

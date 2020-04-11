@@ -17,36 +17,34 @@ members = [
    "hello-world",
    "http-proxy",
    "json",
-   "json_decode_error",
    "json_error",
    "jsonrpc",
    "juniper",
    "middleware",
    "multipart",
-   "multipart-s3",
-   "multipart-async-std",
    "openssl",
-   "protobuf",
    "r2d2",
-   "redis",
-   "redis-session",
    "run-in-thread",
    "rustls",
-   "shutdown-server",
    "server-sent-events",
+   "shutdown-server",
    "simple-auth-server",
    "state",
    "static_index",
    "template_askama",
    "template_handlebars",
    "template_tera",
-   "template_yarte",
+   # "template_yarte",
    "todo",
-#   "udp-echo",
    "unix-socket",
-   "web-cors/backend",
-   "websocket",
-   "websocket-chat",
-   "websocket-chat-broker",
-   "websocket-tcp-chat",
+#   "websocket",
+#   "websocket-chat",
+#   "websocket-tcp-chat",
 ]
+
+[patch.crates-io]
+ntex = { path = "../ntex/ntex" }
+ntex-files = { git = "https://github.com/ntex-rs/ntex-extras.git" }
+ntex-session = { git = "https://github.com/ntex-rs/ntex-extras.git" }
+ntex-identity = { git = "https://github.com/ntex-rs/ntex-extras.git" }
+ntex-multipart = { git = "https://github.com/ntex-rs/ntex-extras.git" }

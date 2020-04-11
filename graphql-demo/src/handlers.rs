@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use actix_web::{web, Error, HttpResponse};
 use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
+use ntex::web::{self, Error, HttpResponse};
 
 use crate::db::Pool;
 use crate::schemas::root::{create_schema, Context, Schema};
 
 pub async fn graphql(
-    pool: web::Data<Pool>,
-    schema: web::Data<Arc<Schema>>,
-    data: web::Json<GraphQLRequest>,
+    pool: web::types::Data<Pool>,
+    schema: web::types::Data<Arc<Schema>>,
+    data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let ctx = Context {
         dbpool: pool.get_ref().to_owned(),
@@ -19,8 +19,7 @@ pub async fn graphql(
         let res = data.execute(&schema, &ctx);
         Ok::<_, serde_json::error::Error>(serde_json::to_string(&res)?)
     })
-    .await
-    .map_err(Error::from)?;
+    .await?;
 
     Ok(HttpResponse::Ok()
         .content_type("application/json")

@@ -1,9 +1,7 @@
-use actix_web::{
-    error, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer,
-};
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use json::JsonValue;
+use ntex::web::{self, error, middleware, App, Error, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -13,37 +11,37 @@ struct MyObj {
 }
 
 /// This handler uses json extractor
-async fn index(item: web::Json<MyObj>) -> HttpResponse {
+async fn index(item: web::types::Json<MyObj>) -> HttpResponse {
     println!("model: {:?}", &item);
-    HttpResponse::Ok().json(item.0) // <- send response
+    HttpResponse::Ok().json(&item.0) // <- send response
 }
 
 /// This handler uses json extractor with limit
-async fn extract_item(item: web::Json<MyObj>, req: HttpRequest) -> HttpResponse {
+async fn extract_item(item: web::types::Json<MyObj>, req: HttpRequest) -> HttpResponse {
     println!("request: {:?}", req);
     println!("model: {:?}", item);
 
-    HttpResponse::Ok().json(item.0) // <- send json response
+    HttpResponse::Ok().json(&item.0) // <- send json response
 }
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
 
 /// This handler manually load request payload and parse json object
-async fn index_manual(mut payload: web::Payload) -> Result<HttpResponse, Error> {
+async fn index_manual(mut payload: web::types::Payload) -> Result<HttpResponse, Error> {
     // payload is a stream of Bytes objects
     let mut body = BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk?;
         // limit max size of in-memory payload
         if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(error::ErrorBadRequest("overflow"));
+            return Err(error::ErrorBadRequest("overflow").into());
         }
         body.extend_from_slice(&chunk);
     }
 
     // body is loaded, now we can deserialize serde-json
     let obj = serde_json::from_slice::<MyObj>(&body)?;
-    Ok(HttpResponse::Ok().json(obj)) // <- send response
+    Ok(HttpResponse::Ok().json(&obj)) // <- send response
 }
 
 /// This handler manually load request payload and parse json-rust
@@ -59,25 +57,25 @@ async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, Error> {
         .body(injson.dump()))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
-            .data(web::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
-            .service(web::resource("/extractor").route(web::post().to(index)))
-            .service(
+            .app_data(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
+            .service((
+                web::resource("/extractor").route(web::post().to(index)),
                 web::resource("/extractor2")
-                    .data(web::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
+                    .app_data(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
                     .route(web::post().to(extract_item)),
-            )
-            .service(web::resource("/manual").route(web::post().to(index_manual)))
-            .service(web::resource("/mjsonrust").route(web::post().to(index_mjsonrust)))
-            .service(web::resource("/").route(web::post().to(index)))
+                web::resource("/manual").route(web::post().to(index_manual)),
+                web::resource("/mjsonrust").route(web::post().to(index_mjsonrust)),
+                web::resource("/").route(web::post().to(index)),
+            ))
     })
     .bind("127.0.0.1:8080")?
     .run()
@@ -87,10 +85,10 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use actix_web::dev::Service;
-    use actix_web::{http, test, web, App};
+    use ntex::web::{test, App};
+    use ntex::{http, web, Service};
 
-    #[actix_rt::test]
+    #[ntex::test]
     async fn test_index() -> Result<(), Error> {
         let mut app = test::init_service(
             App::new().service(web::resource("/").route(web::post().to(index))),

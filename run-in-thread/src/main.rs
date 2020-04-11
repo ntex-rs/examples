@@ -1,19 +1,18 @@
 use std::sync::mpsc;
 use std::{thread, time};
 
-use actix_rt::System;
-use actix_web::{dev::Server, middleware, web, App, HttpRequest, HttpServer};
+use ntex::server::Server;
+use ntex::web::{self, middleware, App, HttpRequest};
 
 async fn index(req: HttpRequest) -> &'static str {
     println!("REQ: {:?}", req);
     "Hello world!"
 }
 
-fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
-    let mut sys = System::new("test");
-
+#[ntex::main]
+async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
     // srv is server controller type, `dev::Server`
-    let srv = HttpServer::new(|| {
+    let srv = web::server(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
@@ -27,10 +26,11 @@ fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
     let _ = tx.send(srv.clone());
 
     // run future
-    sys.block_on(srv)
+    srv.await
 }
 
-fn main() {
+#[ntex::main]
+async fn main() {
     std::env::set_var("RUST_LOG", "actix_web=info,actix_server=trace");
     env_logger::init();
 
@@ -48,5 +48,5 @@ fn main() {
 
     println!("STOPPING SERVER");
     // init stop server and wait until server gracefully exit
-    System::new("").block_on(srv.stop(true));
+    srv.stop(true).await;
 }

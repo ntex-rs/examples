@@ -12,8 +12,8 @@ http errors will be chosen, each with an equal chance of being selected:
 
 */
 
-use actix_web::{web, App, Error, HttpResponse, HttpServer, ResponseError};
 use derive_more::Display; // naming it clearly for illustration purposes
+use ntex::web::{self, App, Error, HttpResponse, WebResponseError};
 use rand::{
     distributions::{Distribution, Standard},
     thread_rng, Rng,
@@ -43,7 +43,7 @@ impl Distribution<CustomError> for Standard {
 }
 
 /// Actix web uses `ResponseError` for conversion of errors to a response
-impl ResponseError for CustomError {
+impl WebResponseError for CustomError {
     fn error_response(&self) -> HttpResponse {
         match self {
             CustomError::CustomOne => {
@@ -87,12 +87,12 @@ async fn do_something() -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok().body("Nothing interesting happened. Try again."))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .service(web::resource("/something").route(web::get().to(do_something)))
     })

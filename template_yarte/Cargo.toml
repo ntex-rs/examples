@@ -5,15 +5,10 @@ authors = ["Juan Aguilar Santillana <mhpoin@gmail.com>"]
 publish = false
 edition = "2018"
 
-workspace = ".."
-
 [dependencies]
+ntex = "0.1.7"
 env_logger = "0.7"
-
 yarte = { version = "0.7", features = ["with-actix-web"]  }
-
-actix-rt = "1.0"
-actix-web = "2.0.0"
 
 [build-dependencies]
 yarte = { version = "0.7", features = ["with-actix-web"]  }

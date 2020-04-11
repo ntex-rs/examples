@@ -23,13 +23,13 @@ use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 
-use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
+use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 
 /// simple handle
 async fn index(
-    counter1: web::Data<Mutex<usize>>,
-    counter2: web::Data<Cell<u32>>,
-    counter3: web::Data<AtomicUsize>,
+    counter1: web::types::Data<Mutex<usize>>,
+    counter2: web::types::Data<Cell<u32>>,
+    counter3: web::types::Data<AtomicUsize>,
     req: HttpRequest,
 ) -> HttpResponse {
     println!("{:?}", req);
@@ -48,18 +48,18 @@ async fn index(
     HttpResponse::Ok().body(body)
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
     // Create some global state prior to building the server
     #[allow(clippy::mutex_atomic)] // it's intentional.
-    let counter1 = web::Data::new(Mutex::new(0usize));
-    let counter3 = web::Data::new(AtomicUsize::new(0usize));
+    let counter1 = web::types::Data::new(Mutex::new(0usize));
+    let counter3 = web::types::Data::new(AtomicUsize::new(0usize));
 
     // move is necessary to give closure below ownership of counter1
-    HttpServer::new(move || {
+    web::server(move || {
         // Create some thread-local state
         let counter2 = Cell::new(0u32);
 

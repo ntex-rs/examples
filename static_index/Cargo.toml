@@ -2,13 +2,11 @@
 name = "static_index"
 version = "2.0.0"
 authors = ["Jose Marinez <digeratus@gmail.com>"]
-workspace = ".."
 edition = "2018"
 
 [dependencies]
-futures = "0.3.1"
+futures = "0.3.4"
 env_logger = "0.7"
 
-actix-web = "2.0.0"
-actix-files = "0.2.1"
-actix-rt = "1.0.0"
+ntex = "0.1.7"
+ntex-files = "0.1.0"

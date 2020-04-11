@@ -3,13 +3,13 @@
 
 use std::error;
 use std::pin::Pin;
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 use std::time::Duration;
 
-use actix_rt::time::delay_for;
-use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
 use bytes::Bytes;
 use futures::{Future, FutureExt};
+use ntex::rt::time::delay_for;
+use ntex::web::{self, middleware, App, Error, HttpResponse};
 use serde_json::Value;
 
 #[allow(dead_code)]
@@ -18,7 +18,7 @@ mod convention;
 /// The main handler for JSONRPC server.
 async fn rpc_handler(
     body: Bytes,
-    app_state: web::Data<AppState>,
+    app_state: web::types::Data<AppState>,
 ) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
@@ -37,7 +37,7 @@ async fn rpc_handler(
     let mut result = convention::Response::default();
     result.id = reqjson.id.clone();
 
-    match rpc_select(&app_state, reqjson.method.as_str(), reqjson.params).await {
+    match rpc_select(&*app_state, reqjson.method.as_str(), reqjson.params).await {
         Ok(ok) => result.result = ok,
         Err(e) => result.error = Some(e),
     }
@@ -84,17 +84,6 @@ async fn rpc_select(
     }
 }
 
-pub trait ImplNetwork {
-    fn ping(&self) -> String;
-    fn wait(
-        &self,
-        d: u64,
-    ) -> Pin<Box<dyn Future<Output = Result<String, Box<dyn error::Error>>>>>;
-
-    fn get(&self) -> u32;
-    fn inc(&mut self);
-}
-
 pub struct ObjNetwork {
     c: u32,
 }
@@ -105,7 +94,7 @@ impl ObjNetwork {
     }
 }
 
-impl ImplNetwork for ObjNetwork {
+impl ObjNetwork {
     fn ping(&self) -> String {
         String::from("pong")
     }
@@ -130,28 +119,26 @@ impl ImplNetwork for ObjNetwork {
     }
 }
 
-#[derive(Clone)]
 pub struct AppState {
-    network: Arc<RwLock<dyn ImplNetwork>>,
+    network: RwLock<ObjNetwork>,
 }
 
 impl AppState {
-    pub fn new(network: Arc<RwLock<dyn ImplNetwork>>) -> Self {
+    pub fn new(network: RwLock<ObjNetwork>) -> Self {
         Self { network }
     }
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let network = Arc::new(RwLock::new(ObjNetwork::new()));
+    let app_state = web::types::Data::new(AppState::new(RwLock::new(ObjNetwork::new())));
 
-    HttpServer::new(move || {
-        let app_state = AppState::new(network.clone());
+    web::server(move || {
         App::new()
-            .data(app_state)
+            .app_data(app_state.clone())
             .wrap(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
     })

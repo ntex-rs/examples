@@ -1,25 +1,22 @@
-#[macro_use]
-extern crate actix_web;
+use ntex::web::{self, App, HttpResponse};
 
-use actix_web::{App, HttpResponse, HttpServer, Responder};
-
-#[get("/")]
-async fn index() -> impl Responder {
+#[web::get("/")]
+async fn index() -> HttpResponse {
     println!("GET: /");
     HttpResponse::Ok().body("Hello world!")
 }
 
-#[get("/again")]
-async fn again() -> impl Responder {
+#[web::get("/again")]
+async fn again() -> HttpResponse {
     println!("GET: /again");
     HttpResponse::Ok().body("Hello world again!")
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     println!("Starting actix-web server");
 
-    HttpServer::new(|| App::new().service(index).service(again))
+    web::server(|| App::new().service((index, again)))
         .bind("0.0.0.0:5000")?
         .run()
         .await

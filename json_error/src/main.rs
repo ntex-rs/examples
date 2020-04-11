@@ -2,8 +2,8 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
 
-use actix_web::http::StatusCode;
-use actix_web::{web, App, HttpServer, ResponseError};
+use ntex::http::StatusCode;
+use ntex::web::{self, App, WebResponseError};
 use serde::Serialize;
 use serde_json::{json, to_string_pretty};
 
@@ -19,15 +19,16 @@ impl Display for Error {
     }
 }
 
-impl ResponseError for Error {
+impl WebResponseError for Error {
     // builds the actual response to send back when an error occurs
     fn error_response(&self) -> web::HttpResponse {
         let err_json = json!({ "error": self.msg });
         web::HttpResponse::build(StatusCode::from_u16(self.status).unwrap())
-            .json(err_json)
+            .json(&err_json)
     }
 }
 
+#[web::get("/")]
 async fn index() -> Result<web::HttpResponse, Error> {
     Err(Error {
         msg: "an example error message".to_string(),
@@ -35,16 +36,14 @@ async fn index() -> Result<web::HttpResponse, Error> {
     })
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1:8000";
     println!("Running server on {}", ip_address);
 
-    HttpServer::new(|| {
-        App::new().service(web::resource("/").route(web::get().to(index)))
-    })
-    .bind(ip_address)
-    .expect("Can not bind to port 8000")
-    .run()
-    .await
+    web::server(|| App::new().service(index))
+        .bind(ip_address)
+        .expect("Can not bind to port 8000")
+        .run()
+        .await
 }

@@ -14,16 +14,16 @@ in a thread-pool using `web::block` with two examples:
  */
 use std::io;
 
-use actix_web::{middleware, web, App, Error as AWError, HttpResponse, HttpServer};
 use futures::future::join_all;
+use ntex::web::{self, middleware, App, HttpResponse, HttpServer};
 use r2d2_sqlite::{self, SqliteConnectionManager};
 
 mod db;
-use db::{Pool, Queries};
+use db::{Error, Pool, Queries};
 
 /// Version 1: Calls 4 queries in sequential order, as an asynchronous handler
-#[allow(clippy::eval_order_dependence)] // it's FP?
-async fn asyncio_weather(db: web::Data<Pool>) -> Result<HttpResponse, AWError> {
+#[web::get("/asyncio_weather")]
+async fn asyncio_weather(db: web::types::Data<Pool>) -> Result<HttpResponse, Error> {
     let result = vec![
         db::execute(&db, Queries::GetTopTenHottestYears).await?,
         db::execute(&db, Queries::GetTopTenColdestYears).await?,
@@ -31,12 +31,13 @@ async fn asyncio_weather(db: web::Data<Pool>) -> Result<HttpResponse, AWError> {
         db::execute(&db, Queries::GetTopTenColdestMonths).await?,
     ];
 
-    Ok(HttpResponse::Ok().json(result))
+    Ok(HttpResponse::Ok().json(&result))
 }
 
 /// Version 2: Calls 4 queries in parallel, as an asynchronous handler
 /// Returning Error types turn into None values in the response
-async fn parallel_weather(db: web::Data<Pool>) -> Result<HttpResponse, AWError> {
+#[web::get("/parallel_weather")]
+async fn parallel_weather(db: web::types::Data<Pool>) -> Result<HttpResponse, Error> {
     let fut_result = vec![
         Box::pin(db::execute(&db, Queries::GetTopTenHottestYears)),
         Box::pin(db::execute(&db, Queries::GetTopTenColdestYears)),
@@ -45,12 +46,12 @@ async fn parallel_weather(db: web::Data<Pool>) -> Result<HttpResponse, AWError> 
     ];
     let result: Result<Vec<_>, _> = join_all(fut_result).await.into_iter().collect();
 
-    Ok(HttpResponse::Ok().json(result.map_err(AWError::from)?))
+    Ok(HttpResponse::Ok().json(&result?))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
     // Start N db executor actors (N = number of cores avail)
@@ -63,13 +64,7 @@ async fn main() -> io::Result<()> {
             // store db pool as Data object
             .data(pool.clone())
             .wrap(middleware::Logger::default())
-            .service(
-                web::resource("/asyncio_weather").route(web::get().to(asyncio_weather)),
-            )
-            .service(
-                web::resource("/parallel_weather")
-                    .route(web::get().to(parallel_weather)),
-            )
+            .service((asyncio_weather, parallel_weather))
     })
     .bind("127.0.0.1:8080")?
     .run()

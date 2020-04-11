@@ -1,6 +1,6 @@
-use actix_web::{error::ResponseError, HttpResponse};
 use derive_more::Display;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
+use ntex::web::{HttpResponse, WebResponseError};
 use std::convert::From;
 use uuid::Error as ParseError;
 
@@ -17,16 +17,16 @@ pub enum ServiceError {
 }
 
 // impl ResponseError trait allows to convert our errors into http responses with appropriate data
-impl ResponseError for ServiceError {
+impl WebResponseError for ServiceError {
     fn error_response(&self) -> HttpResponse {
         match self {
             ServiceError::InternalServerError => HttpResponse::InternalServerError()
-                .json("Internal Server Error, Please try later"),
+                .json(&"Internal Server Error, Please try later"),
             ServiceError::BadRequest(ref message) => {
                 HttpResponse::BadRequest().json(message)
             }
             ServiceError::Unauthorized => {
-                HttpResponse::Unauthorized().json("Unauthorized")
+                HttpResponse::Unauthorized().json(&"Unauthorized")
             }
         }
     }

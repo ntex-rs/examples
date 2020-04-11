@@ -1,14 +1,14 @@
 //! Actix web r2d2 example
 use std::io;
 
-use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer};
+use ntex::web::{self, error, middleware, App, Error, HttpResponse};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 
 /// Async request handler. Ddb pool is stored in application state.
 async fn index(
-    path: web::Path<String>,
-    db: web::Data<Pool<SqliteConnectionManager>>,
+    path: web::types::Path<String>,
+    db: web::types::Data<Pool<SqliteConnectionManager>>,
 ) -> Result<HttpResponse, Error> {
     // execute sync code in threadpool
     let res = web::block(move || {
@@ -26,14 +26,14 @@ async fn index(
         })
     })
     .await
-    .map(|user| HttpResponse::Ok().json(user))
-    .map_err(|_| HttpResponse::InternalServerError())?;
+    .map(|user| HttpResponse::Ok().json(&user))
+    .map_err(|e| error::ErrorInternalServerError(e))?;
     Ok(res)
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=debug");
+    std::env::set_var("RUST_LOG", "ntex=debug");
     env_logger::init();
 
     // r2d2 pool
@@ -41,7 +41,7 @@ async fn main() -> io::Result<()> {
     let pool = r2d2::Pool::new(manager).unwrap();
 
     // start http server
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .data(pool.clone()) // <- store db pool in app state
             .wrap(middleware::Logger::default())

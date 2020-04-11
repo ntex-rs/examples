@@ -1,27 +1,21 @@
-#[macro_use]
-extern crate actix_web;
-
 use std::{env, io};
 
-use actix_files as fs;
-use actix_session::{CookieSession, Session};
-use actix_utils::mpsc;
-use actix_web::http::{header, Method, StatusCode};
-use actix_web::{
-    error, guard, middleware, web, App, Error, HttpRequest, HttpResponse, HttpServer,
-    Result,
-};
 use bytes::Bytes;
+use ntex::channel::mpsc;
+use ntex::http::{header, Method, StatusCode};
+use ntex::web::{self, error, guard, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex_files as fs;
+use ntex_session::{CookieSession, Session};
 
 /// favicon handler
-#[get("/favicon")]
-async fn favicon() -> Result<fs::NamedFile> {
+#[web::get("/favicon")]
+async fn favicon() -> Result<fs::NamedFile, Error> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
 /// simple index handler
-#[get("/welcome")]
-async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse> {
+#[web::get("/welcome")]
+async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse, Error> {
     println!("{:?}", req);
 
     // session
@@ -41,12 +35,12 @@ async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse> {
 }
 
 /// 404 handler
-async fn p404() -> Result<fs::NamedFile> {
+async fn p404() -> Result<fs::NamedFile, Error> {
     Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
 }
 
 /// response body
-async fn response_body(path: web::Path<String>) -> HttpResponse {
+async fn response_body(path: web::types::Path<String>) -> HttpResponse {
     let text = format!("Hello {}!", *path);
 
     let (tx, rx_body) = mpsc::channel();
@@ -56,7 +50,10 @@ async fn response_body(path: web::Path<String>) -> HttpResponse {
 }
 
 /// handler with path parameters like `/user/{name}/`
-async fn with_param(req: HttpRequest, path: web::Path<(String,)>) -> HttpResponse {
+async fn with_param(
+    req: HttpRequest,
+    path: web::types::Path<(String,)>,
+) -> HttpResponse {
     println!("{:?}", req);
 
     HttpResponse::Ok()
@@ -64,49 +61,49 @@ async fn with_param(req: HttpRequest, path: web::Path<(String,)>) -> HttpRespons
         .body(format!("Hello {}!", path.0))
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> io::Result<()> {
-    env::set_var("RUST_LOG", "actix_web=debug,actix_server=info");
+    env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // cookie session middleware
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
-            // register favicon
-            .service(favicon)
-            // register simple route, handle all methods
-            .service(welcome)
-            // with path parameters
-            .service(web::resource("/user/{name}").route(web::get().to(with_param)))
-            // async response body
-            .service(
+            .service((
+                // register favicon
+                favicon,
+                // register simple route, handle all methods
+                welcome,
+                // with path parameters
+                web::resource("/user/{name}").route(web::get().to(with_param)),
+                // async response body
                 web::resource("/async-body/{name}").route(web::get().to(response_body)),
-            )
-            .service(
-                web::resource("/test").to(|req: HttpRequest| match *req.method() {
-                    Method::GET => HttpResponse::Ok(),
-                    Method::POST => HttpResponse::MethodNotAllowed(),
-                    _ => HttpResponse::NotFound(),
+                web::resource("/test").to(|req: HttpRequest| async move {
+                    match *req.method() {
+                        Method::GET => HttpResponse::Ok(),
+                        Method::POST => HttpResponse::MethodNotAllowed(),
+                        _ => HttpResponse::NotFound(),
+                    }
                 }),
-            )
-            .service(web::resource("/error").to(|| async {
-                error::InternalError::new(
-                    io::Error::new(io::ErrorKind::Other, "test"),
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                )
-            }))
-            // static files
-            .service(fs::Files::new("/static", "static").show_files_listing())
-            // redirect
-            .service(web::resource("/").route(web::get().to(|req: HttpRequest| {
-                println!("{:?}", req);
-                HttpResponse::Found()
-                    .header(header::LOCATION, "static/welcome.html")
-                    .finish()
-            })))
+                web::resource("/error").to(|| async {
+                    error::InternalError::new(
+                        io::Error::new(io::ErrorKind::Other, "test"),
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                    )
+                }),
+                // static files
+                fs::Files::new("/static", "static").show_files_listing(),
+                // redirect
+                web::resource("/").route(web::get().to(|req: HttpRequest| async move {
+                    println!("{:?}", req);
+                    HttpResponse::Found()
+                        .header(header::LOCATION, "static/welcome.html")
+                        .finish()
+                })),
+            ))
             // default
             .default_service(
                 // 404 for GET request
@@ -116,7 +113,7 @@ async fn main() -> io::Result<()> {
                     .route(
                         web::route()
                             .guard(guard::Not(guard::Get()))
-                            .to(HttpResponse::MethodNotAllowed),
+                            .to(|| async { HttpResponse::MethodNotAllowed() }),
                     ),
             )
     })

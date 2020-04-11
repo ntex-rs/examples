@@ -1,12 +1,12 @@
-use actix_files as fs;
-use actix_web::{middleware, App, HttpServer};
+use ntex::web::{self, middleware, App};
+use ntex_files as fs;
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())

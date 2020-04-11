@@ -5,10 +5,8 @@ authors = ["Gorm Casper <gcasper@gmail.com>", "Sven-Hendrik Haase <svenstaro@gma
 edition = "2018"
 
 [dependencies]
-actix-service = "1.0.0"
-actix-rt = "1.0.0"
-actix-web = "2.0.0"
+ntex = "0.1.7"
 bytes = "0.5"
 env_logger = "0.7"
-futures = "0.3.1"
+futures = "0.3.4"
 pin-project = "0.4.6"

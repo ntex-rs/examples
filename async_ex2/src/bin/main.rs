@@ -1,13 +1,13 @@
-use actix_web::{middleware, App, HttpServer};
+use ntex::web::{self, middleware, App};
 
 use async_ex2::appconfig::config_app;
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
+    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    HttpServer::new(|| {
+    web::server(|| {
         App::new()
             .configure(config_app)
             .wrap(middleware::Logger::default())

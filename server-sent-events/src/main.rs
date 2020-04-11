@@ -3,18 +3,18 @@ use std::sync::Mutex;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use actix_web::web::{Bytes, Data, Path};
-use actix_web::{web, App, Error, HttpResponse, HttpServer, Responder};
+use bytes::Bytes;
 use futures::{Stream, StreamExt};
+use ntex::web::{self, App, Error, HttpResponse};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{interval_at, Instant};
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
     let data = Broadcaster::create();
 
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .app_data(data.clone())
             .route("/", web::get().to(index))
@@ -26,7 +26,7 @@ async fn main() -> std::io::Result<()> {
     .await
 }
 
-async fn index() -> impl Responder {
+async fn index() -> HttpResponse {
     let content = include_str!("index.html");
 
     HttpResponse::Ok()
@@ -34,7 +34,7 @@ async fn index() -> impl Responder {
         .body(content)
 }
 
-async fn new_client(broadcaster: Data<Mutex<Broadcaster>>) -> impl Responder {
+async fn new_client(broadcaster: web::types::Data<Mutex<Broadcaster>>) -> HttpResponse {
     let rx = broadcaster.lock().unwrap().new_client();
 
     HttpResponse::Ok()
@@ -44,9 +44,9 @@ async fn new_client(broadcaster: Data<Mutex<Broadcaster>>) -> impl Responder {
 }
 
 async fn broadcast(
-    msg: Path<String>,
-    broadcaster: Data<Mutex<Broadcaster>>,
-) -> impl Responder {
+    msg: web::types::Path<String>,
+    broadcaster: web::types::Data<Mutex<Broadcaster>>,
+) -> HttpResponse {
     broadcaster.lock().unwrap().send(&msg.into_inner());
 
     HttpResponse::Ok().body("msg sent")
@@ -57,9 +57,9 @@ struct Broadcaster {
 }
 
 impl Broadcaster {
-    fn create() -> Data<Mutex<Self>> {
+    fn create() -> web::types::Data<Mutex<Self>> {
         // Data ≃ Arc
-        let me = Data::new(Mutex::new(Broadcaster::new()));
+        let me = web::types::Data::new(Mutex::new(Broadcaster::new()));
 
         // ping clients every 10 seconds to see if they are alive
         Broadcaster::spawn_ping(me.clone());
@@ -73,8 +73,8 @@ impl Broadcaster {
         }
     }
 
-    fn spawn_ping(me: Data<Mutex<Self>>) {
-        actix_rt::spawn(async move {
+    fn spawn_ping(me: web::types::Data<Mutex<Self>>) {
+        ntex::rt::spawn(async move {
             let mut task = interval_at(Instant::now(), Duration::from_secs(10));
             while let Some(_) = task.next().await {
                 me.lock().unwrap().remove_stale_clients();
