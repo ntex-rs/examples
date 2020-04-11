@@ -32,7 +32,7 @@ mod models {
 mod errors {
     use deadpool_postgres::PoolError;
     use derive_more::{Display, From};
-    use ntex::web::{HttpResponse, WebResponseError};
+    use ntex::web::{HttpRequest, HttpResponse, WebResponseError};
     use tokio_pg_mapper::Error as PGMError;
     use tokio_postgres::error::Error as PGError;
 
@@ -46,7 +46,7 @@ mod errors {
     impl std::error::Error for MyError {}
 
     impl WebResponseError for MyError {
-        fn error_response(&self) -> HttpResponse {
+        fn error_response(&self, _: &HttpRequest) -> HttpResponse {
             match *self {
                 MyError::NotFound => HttpResponse::NotFound().finish(),
                 MyError::PoolError(ref err) => {

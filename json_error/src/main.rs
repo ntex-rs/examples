@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
 
 use ntex::http::StatusCode;
-use ntex::web::{self, App, WebResponseError};
+use ntex::web::{self, App, HttpRequest, WebResponseError};
 use serde::Serialize;
 use serde_json::{json, to_string_pretty};
 
@@ -21,7 +21,7 @@ impl Display for Error {
 
 impl WebResponseError for Error {
     // builds the actual response to send back when an error occurs
-    fn error_response(&self) -> web::HttpResponse {
+    fn error_response(&self, _: &HttpRequest) -> web::HttpResponse {
         let err_json = json!({ "error": self.msg });
         web::HttpResponse::build(StatusCode::from_u16(self.status).unwrap())
             .json(&err_json)

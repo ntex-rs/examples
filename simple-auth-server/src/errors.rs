@@ -1,6 +1,6 @@
 use derive_more::Display;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
-use ntex::web::{HttpResponse, WebResponseError};
+use ntex::web::{HttpRequest, HttpResponse, WebResponseError};
 use std::convert::From;
 use uuid::Error as ParseError;
 
@@ -18,7 +18,7 @@ pub enum ServiceError {
 
 // impl ResponseError trait allows to convert our errors into http responses with appropriate data
 impl WebResponseError for ServiceError {
-    fn error_response(&self) -> HttpResponse {
+    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
         match self {
             ServiceError::InternalServerError => HttpResponse::InternalServerError()
                 .json(&"Internal Server Error, Please try later"),

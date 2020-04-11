@@ -13,7 +13,7 @@ http errors will be chosen, each with an equal chance of being selected:
 */
 
 use derive_more::Display; // naming it clearly for illustration purposes
-use ntex::web::{self, App, Error, HttpResponse, WebResponseError};
+use ntex::web::{self, App, Error, HttpRequest, HttpResponse, WebResponseError};
 use rand::{
     distributions::{Distribution, Standard},
     thread_rng, Rng,
@@ -44,7 +44,7 @@ impl Distribution<CustomError> for Standard {
 
 /// Actix web uses `ResponseError` for conversion of errors to a response
 impl WebResponseError for CustomError {
-    fn error_response(&self) -> HttpResponse {
+    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
         match self {
             CustomError::CustomOne => {
                 println!("do some stuff related to CustomOne error");
