@@ -43,7 +43,7 @@ members = [
 ]
 
 [patch.crates-io]
-ntex = { path = "../ntex/ntex" }
+ntex = { git = "https://github.com/ntex-rs/ntex.git" }
 ntex-files = { git = "https://github.com/ntex-rs/ntex-extras.git" }
 ntex-session = { git = "https://github.com/ntex-rs/ntex-extras.git" }
 ntex-identity = { git = "https://github.com/ntex-rs/ntex-extras.git" }
