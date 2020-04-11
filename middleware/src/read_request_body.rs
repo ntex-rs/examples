@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::rc::Rc;
 use std::task::{Context, Poll};
@@ -12,44 +11,40 @@ use ntex::{Service, Transform};
 
 pub struct Logging;
 
-impl<S: 'static, B, Err> Transform<S> for Logging
+impl<S: 'static, Err> Transform<S> for Logging
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>,
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
     S::Future: 'static,
-    B: 'static,
     Err: ErrorRenderer,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type InitError = ();
-    type Transform = LoggingMiddleware<S, Err>;
+    type Transform = LoggingMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
         ok(LoggingMiddleware {
             service: Rc::new(service),
-            _t: PhantomData,
         })
     }
 }
 
-pub struct LoggingMiddleware<S, Err> {
+pub struct LoggingMiddleware<S> {
     // This is special: We need this to avoid lifetime issues.
     service: Rc<S>,
-    _t: PhantomData<Err>,
 }
 
-impl<S, B, Err> Service for LoggingMiddleware<S, Err>
+impl<S, Err> Service for LoggingMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>
         + 'static,
     S::Future: 'static,
-    B: 'static,
     Err: ErrorRenderer,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 

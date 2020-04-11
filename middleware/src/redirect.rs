@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::task::{Context, Poll};
 
 use futures::future::{ok, Either, Ready};
@@ -8,36 +7,32 @@ use ntex::{http, Service, Transform};
 
 pub struct CheckLogin;
 
-impl<S, B, Err> Transform<S> for CheckLogin
+impl<S, Err> Transform<S> for CheckLogin
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>,
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
     S::Future: 'static,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type InitError = ();
-    type Transform = CheckLoginMiddleware<S, Err>;
+    type Transform = CheckLoginMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(CheckLoginMiddleware {
-            service,
-            _t: PhantomData,
-        })
+        ok(CheckLoginMiddleware { service })
     }
 }
-pub struct CheckLoginMiddleware<S, Err> {
+pub struct CheckLoginMiddleware<S> {
     service: S,
-    _t: PhantomData<Err>,
 }
 
-impl<S, B, Err> Service for CheckLoginMiddleware<S, Err>
+impl<S, Err> Service for CheckLoginMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>,
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type Future = Either<S::Future, Ready<Result<Self::Response, Self::Error>>>;
 

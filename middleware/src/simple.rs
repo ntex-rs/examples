@@ -1,4 +1,3 @@
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -17,40 +16,34 @@ pub struct SayHi;
 // Middleware factory is `Transform` trait from actix-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S, B, Err> Transform<S> for SayHi
+impl<S, Err> Transform<S> for SayHi
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>,
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
     S::Future: 'static,
-    B: 'static,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type InitError = ();
-    type Transform = SayHiMiddleware<S, Err>;
+    type Transform = SayHiMiddleware<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(SayHiMiddleware {
-            service,
-            _t: PhantomData,
-        })
+        ok(SayHiMiddleware { service })
     }
 }
 
-pub struct SayHiMiddleware<S, Err> {
+pub struct SayHiMiddleware<S> {
     service: S,
-    _t: PhantomData<Err>,
 }
 
-impl<S, B, Err> Service for SayHiMiddleware<S, Err>
+impl<S, Err> Service for SayHiMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse<B>, Error = Error>,
+    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
     S::Future: 'static,
-    B: 'static,
 {
     type Request = WebRequest<Err>;
-    type Response = WebResponse<B>;
+    type Response = WebResponse;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
 
