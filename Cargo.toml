@@ -21,6 +21,7 @@ members = [
    "jsonrpc",
    "juniper",
    "middleware",
+   "mongodb",
    "multipart",
    "openssl",
    "r2d2",
