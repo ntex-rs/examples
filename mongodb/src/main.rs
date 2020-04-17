@@ -99,8 +99,7 @@ async fn main() -> Result<()> {
             .data(AppState {
                 client: client.clone(),
             })
-            .service(index)
-            .service(keyword)
+            .service((index, keyword))
     })
     .bind("localhost:8088")?
     .run()
