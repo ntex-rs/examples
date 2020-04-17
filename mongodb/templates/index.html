@@ -1,0 +1,33 @@
+<html>
+    <head>
+        <title>Keywords</title>
+    </head>
+
+    <body>
+        <script type="text/javascript">
+            function submitForm() {{
+                var id = document.getElementById("submit");
+                id.setAttribute('disabled', 'disabled');
+
+			    var keyword = document.getElementById("keyword").value;
+
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/keyword", true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onload = function() {{
+                    window.location.replace("/");
+                }};
+                xhr.send(JSON.stringify({{
+                    keyword: keyword
+                }}));
+             }}
+        </script>
+
+       <input type="text" id="keyword">
+       <input type="button" value="Submit" id="submit" onClick="submitForm()">
+       <br>
+       <br>
+
+       <b>Keywords</b>: {}
+    </body>
+</html>	
