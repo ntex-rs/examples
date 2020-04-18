@@ -1,6 +1,6 @@
 # Casbin
 
-Basic integration of [Casbin-RS](https://github.com/casbin/casbin-rs) with [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) for Actix web.
+Basic integration of [Casbin-RS](https://github.com/casbin/casbin-rs) with [RBAC](https://en.wikipedia.org/wiki/Role-based_access_control) for ntex.
 
 ## Usage
 
@@ -23,5 +23,4 @@ In this example, you can get the the successful result at `http://localhost:8080
 
 ## Others
 
-- Original location of this demo: <https://github.com/PsiACE/actix-casbin-example>
 - For more related examples of [Casbin-RS](https://github.com/casbin/casbin-rs): <https://github.com/casbin-rs/examples>
