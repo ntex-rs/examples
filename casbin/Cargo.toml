@@ -1,10 +1,11 @@
 [package]
-name = "actix-casbin-example"
+name = "ntex-casbin-example"
 version = "0.1.0"
 authors = ["Chojan Shang <psiace@outlook.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
-casbin = "0.4"
+ntex = "0.1.11"
+casbin = "0.6"
+dotenv = "0.15"
 loge = { version = "0.4", default-features = false, features = ["colored", "chrono"] }

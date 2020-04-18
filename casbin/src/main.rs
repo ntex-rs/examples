@@ -1,5 +1,4 @@
-use casbin::{DefaultModel, Enforcer, FileAdapter, RbacApi};
-use std::boxed::Box;
+use casbin::{CoreApi, DefaultModel, Enforcer, FileAdapter, RbacApi};
 use std::io;
 use std::sync::RwLock;
 
@@ -30,8 +29,7 @@ async fn fail(
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
-    std::env::set_var("LOGE_FORMAT", "target");
+    dotenv::dotenv().ok();
 
     loge::init();
 
@@ -40,9 +38,7 @@ async fn main() -> io::Result<()> {
         .unwrap();
     let adapter = FileAdapter::new("rbac/rbac_policy.csv");
 
-    let e = Enforcer::new(Box::new(model), Box::new(adapter))
-        .await
-        .unwrap();
+    let e = Enforcer::new(model, adapter).await.unwrap();
     let e = web::types::Data::new(RwLock::new(e)); // wrap enforcer into actix-state
 
     // move is necessary to give closure below ownership of counter
