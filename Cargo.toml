@@ -12,7 +12,7 @@ members = [
    "diesel",
    "docker_sample",
    "error_handling",
-   "form",
+ #  "form",
    "graphql-demo",
    "hello-world",
    "http-proxy",
@@ -29,7 +29,6 @@ members = [
    "rustls",
    "server-sent-events",
    "shutdown-server",
-#
 #   "simple-auth-server",
    "state",
    "static_index",

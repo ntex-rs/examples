@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 ntex = "0.1.7"
 env_logger = "0.7"
+
+[dev-dependencies]
+bytes = "0.5.4"

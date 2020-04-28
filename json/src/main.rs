@@ -85,12 +85,13 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
     use ntex::web::{test, App};
     use ntex::{http, web, Service};
 
     #[ntex::test]
     async fn test_index() -> Result<(), Error> {
-        let mut app = test::init_service(
+        let app = test::init_service(
             App::new().service(web::resource("/").route(web::post().to(index))),
         )
         .await;
@@ -106,12 +107,9 @@ mod tests {
 
         assert_eq!(resp.status(), http::StatusCode::OK);
 
-        let response_body = match resp.response().body().as_ref() {
-            Some(actix_web::body::Body::Bytes(bytes)) => bytes,
-            _ => panic!("Response error"),
-        };
+        let bytes = test::read_body(resp).await;
 
-        assert_eq!(response_body, r##"{"name":"my-name","number":43}"##);
+        assert_eq!(bytes, Bytes::from(r##"{"name":"my-name","number":43}"##));
 
         Ok(())
     }

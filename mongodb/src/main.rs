@@ -2,14 +2,14 @@
 
 mod error;
 
-use ntex::{
-    http::StatusCode,
-    web::types::{Data, Json},
-    web::{self, App, HttpServer, HttpResponse},
-};
 use bson::{doc, Bson};
 use futures::TryStreamExt;
 use mongodb::{options::FindOptions, Client};
+use ntex::{
+    http::StatusCode,
+    web::types::{Data, Json},
+    web::{self, App, HttpResponse, HttpServer},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::Result;

@@ -27,6 +27,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
     use ntex::web::{test, App, Error};
     use ntex::Service;
     use ntex::{http, web};
@@ -34,19 +35,16 @@ mod tests {
     #[ntex::test]
     async fn test_index() -> Result<(), Error> {
         let app = App::new().route("/", web::get().to(index));
-        let mut app = test::init_service(app).await;
+        let app = test::init_service(app).await;
 
         let req = test::TestRequest::get().uri("/").to_request();
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), http::StatusCode::OK);
 
-        let response_body = match resp.response().body().as_ref() {
-            Some(actix_web::body::Body::Bytes(bytes)) => bytes,
-            _ => panic!("Response error"),
-        };
+        let bytes = test::read_body(resp).await;
 
-        assert_eq!(response_body, r##"Hello world!"##);
+        assert_eq!(bytes, Bytes::from(r##"Hello world!"##));
 
         Ok(())
     }
