@@ -1,37 +1,53 @@
 use std::collections::HashMap;
 
-use actix_web::{get, middleware::Logger, web, App, HttpServer, Responder};
-use yarte::Template;
+use ntex::web::{
+    self, error::ErrorInternalServerError, middleware, App, Error, HttpResponse,
+};
+use yarte::TemplateMin;
 
-#[derive(Template)]
-#[template(path = "index.hbs", err = "Some error message", mode = "html-min")]
+#[derive(TemplateMin)]
+#[template(path = "index")]
 struct IndexTemplate {
-    query: web::Query<HashMap<String, String>>,
+    query: web::types::Query<HashMap<String, String>>,
 }
 
-#[get("/")]
-async fn index(query: web::Query<HashMap<String, String>>) -> impl Responder {
+#[web::get("/")]
+async fn index(
+    query: web::types::Query<HashMap<String, String>>,
+) -> Result<HttpResponse, Error> {
     IndexTemplate { query }
+        .call()
+        .map(|body| {
+            HttpResponse::Ok()
+                .content_type("text/html; charset=utf-8")
+                .body(body)
+        })
+        .map_err(|_| ErrorInternalServerError("Some error message").into())
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
     // start http server
-    HttpServer::new(move || App::new().wrap(Logger::default()).service(index))
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await
+    web::server(move || {
+        App::new()
+            .wrap(middleware::Logger::default()) // enable logger
+            .service(index)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use actix_web::{http, test as atest, web::Bytes};
+    use bytes::Bytes;
+    use ntex::{http, web::test as atest};
 
-    #[actix_rt::test]
+    #[ntex::test]
     async fn test() {
         let mut app = atest::init_service(App::new().service(index)).await;
 
@@ -49,17 +65,11 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html>\
-                 <html>\
-                 <head><meta charset=\"utf-8\"><title>Actix web</title></head><body>\
-                 <h1 id=\"welcome\" class=\"welcome\">Welcome!</h1><div>\
-                 <h3>What is your name?</h3>\
-                 <form>\
-                 Name: <input type=\"text\" name=\"name\">\
-                 <br>Last name: <input type=\"text\" name=\"lastname\">\
-                 <br><p><input type=\"submit\"></p></form>\
-                 </div>\
-                 </body></html>"
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
+                 web</title></head><body><h1 id=\"welcome\" \
+                 class=\"welcome\">Welcome!</h1><div><h3>What is your name?</h3><form>Name: \
+                 <input type=\"text\" name=\"name\"><br>Last name: <input type=\"text\" \
+                 name=\"lastname\"><br><p><input type=\"submit\"></p></form></div></body></html>"
                     .as_ref()
             )
         );
@@ -78,12 +88,9 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html>\
-                 <html>\
-                 <head><meta charset=\"utf-8\"><title>Actix web</title></head>\
-                 <body>\
-                 <h1>Hi, foo bar!</h1><p id=\"hi\" class=\"welcome\">Welcome</p>\
-                 </body></html>"
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
+                 web</title></head><body><h1>Hi, foo bar!</h1><p id=\"hi\" \
+                 class=\"welcome\">Welcome</p></body></html>"
                     .as_ref()
             )
         );
@@ -111,17 +118,11 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html>\
-                 <html>\
-                 <head><meta charset=\"utf-8\"><title>Actix web</title></head><body>\
-                 <h1 id=\"welcome\" class=\"welcome\">Welcome!</h1><div>\
-                 <h3>What is your name?</h3>\
-                 <form>\
-                 Name: <input type=\"text\" name=\"name\">\
-                 <br>Last name: <input type=\"text\" name=\"lastname\">\
-                 <br><p><input type=\"submit\"></p></form>\
-                 </div>\
-                 </body></html>"
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
+                 web</title></head><body><h1 id=\"welcome\" \
+                 class=\"welcome\">Welcome!</h1><div><h3>What is your name?</h3><form>Name: \
+                 <input type=\"text\" name=\"name\"><br>Last name: <input type=\"text\" \
+                 name=\"lastname\"><br><p><input type=\"submit\"></p></form></div></body></html>"
                     .as_ref()
             )
         );

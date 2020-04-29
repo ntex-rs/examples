@@ -82,10 +82,9 @@ mod tests {
 
     use ntex::http::body::{Body, ResponseBody};
     use ntex::http::header::{HeaderValue, CONTENT_TYPE};
-    use ntex::http::StatusCode;
+    use ntex::http::{StatusCode};
     use ntex::web::test::{self, TestRequest};
     use ntex::web::types::Form;
-    use ntex::web::HttpResponseBuilder;
     use ntex::Service;
 
     trait BodyTest {
@@ -195,12 +194,7 @@ mod tests {
             name: "John".to_string(),
         });
         let result = handle_post_3(req.clone(), params).await;
-        let resp = match test::respond_to(result, &req).await {
-            Ok(t) => t,
-            Err(_) => {
-                HttpResponseBuilder::new(StatusCode::INTERNAL_SERVER_ERROR).finish()
-            }
-        };
+        let resp = test::respond_to(result, &req).await;
 
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(

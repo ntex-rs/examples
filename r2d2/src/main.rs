@@ -27,7 +27,7 @@ async fn index(
     })
     .await
     .map(|user| HttpResponse::Ok().json(&user))
-    .map_err(|e| error::ErrorInternalServerError(e))?;
+    .map_err(error::ErrorInternalServerError)?;
     Ok(res)
 }
 

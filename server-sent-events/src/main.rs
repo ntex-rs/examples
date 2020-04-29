@@ -79,7 +79,7 @@ impl Broadcaster {
             while let Some(_) = task.next().await {
                 me.lock().unwrap().remove_stale_clients();
             }
-        })
+        });
     }
 
     fn remove_stale_clients(&mut self) {
