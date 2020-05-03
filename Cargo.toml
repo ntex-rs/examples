@@ -12,7 +12,7 @@ members = [
    "diesel",
    "docker_sample",
    "error_handling",
- #  "form",
+   "form",
    "graphql-demo",
    "hello-world",
    "http-proxy",
@@ -38,7 +38,7 @@ members = [
    "template_yarte",
    "todo",
    "unix-socket",
-#   "websocket",
+   "websocket",
 #   "websocket-chat",
 #   "websocket-tcp-chat",
 ]

@@ -2,112 +2,73 @@
 use std::time::Duration;
 use std::{io, thread};
 
-use actix::io::SinkWrite;
-use actix::*;
-use actix_codec::Framed;
-use awc::{
-    error::WsProtocolError,
-    ws::{Codec, Frame, Message},
-    BoxedSocket, Client,
-};
 use bytes::Bytes;
-use futures::stream::{SplitSink, StreamExt};
+use futures::channel::mpsc;
+use futures::SinkExt;
+use ntex::http::client::{ws, Client};
+use ntex::rt;
 
-fn main() {
-    ::std::env::set_var("RUST_LOG", "actix_web=info");
+/// How often heartbeat pings are sent
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+
+/// Websockets handler service
+async fn service(frame: ws::Frame) -> Result<Option<ws::Message>, io::Error> {
+    match frame {
+        ws::Frame::Text(text) => {
+            println!("Server: {:?}", text);
+        }
+        ws::Frame::Ping(msg) => {
+            // send pong response
+            println!("Got server ping: {:?}", msg);
+            return Ok(Some(ws::Message::Pong(msg)));
+        }
+        _ => (),
+    }
+    Ok(None)
+}
+
+#[ntex::main]
+async fn main() {
+    std::env::set_var("RUST_LOG", "ntex=trace");
     env_logger::init();
 
-    let sys = System::new("websocket-client");
+    // open websockets connection over http transport
+    let (response, framed) = Client::new()
+        .ws("http://127.0.0.1:8080/ws/")
+        .connect()
+        .await
+        .unwrap();
 
-    Arbiter::spawn(async {
-        let (response, framed) = Client::new()
-            .ws("http://127.0.0.1:8080/ws/")
-            .connect()
-            .await
-            .map_err(|e| {
-                println!("Error: {}", e);
-            })
-            .unwrap();
+    println!("Got response: {:?}", response);
 
-        println!("{:?}", response);
-        let (sink, stream) = framed.split();
-        let addr = ChatClient::create(|ctx| {
-            ChatClient::add_stream(stream, ctx);
-            ChatClient(SinkWrite::new(sink, ctx))
-        });
+    let (mut tx, rx) = mpsc::unbounded();
 
-        // start console loop
-        thread::spawn(move || loop {
-            let mut cmd = String::new();
-            if io::stdin().read_line(&mut cmd).is_err() {
-                println!("error");
-                return;
-            }
-            addr.do_send(ClientCommand(cmd));
-        });
-    });
-    sys.run().unwrap();
-}
-
-struct ChatClient(SinkWrite<Message, SplitSink<Framed<BoxedSocket, Codec>, Message>>);
-
-#[derive(Message)]
-#[rtype(result = "()")]
-struct ClientCommand(String);
-
-impl Actor for ChatClient {
-    type Context = Context<Self>;
-
-    fn started(&mut self, ctx: &mut Context<Self>) {
-        // start heartbeats otherwise server will disconnect after 10 seconds
-        self.hb(ctx)
-    }
-
-    fn stopped(&mut self, _: &mut Context<Self>) {
-        println!("Disconnected");
-
-        // Stop application on disconnect
-        System::current().stop();
-    }
-}
-
-impl ChatClient {
-    fn hb(&self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::new(1, 0), |act, ctx| {
-            act.0.write(Message::Ping(Bytes::from_static(b""))).unwrap();
-            act.hb(ctx);
-
-            // client should also check for a timeout here, similar to the
-            // server code
-        });
-    }
-}
-
-/// Handle stdin commands
-impl Handler<ClientCommand> for ChatClient {
-    type Result = ();
-
-    fn handle(&mut self, msg: ClientCommand, _ctx: &mut Context<Self>) {
-        self.0.write(Message::Text(msg.0)).unwrap();
-    }
-}
-
-/// Handle server websocket messages
-impl StreamHandler<Result<Frame, WsProtocolError>> for ChatClient {
-    fn handle(&mut self, msg: Result<Frame, WsProtocolError>, _: &mut Context<Self>) {
-        if let Ok(Frame::Text(txt)) = msg {
-            println!("Server: {:?}", txt)
+    // start console read loop
+    let mut tx2 = tx.clone();
+    thread::spawn(move || loop {
+        let mut cmd = String::new();
+        if io::stdin().read_line(&mut cmd).is_err() {
+            println!("error");
+            return;
         }
-    }
 
-    fn started(&mut self, _ctx: &mut Context<Self>) {
-        println!("Connected");
-    }
+        // send text to server
+        if futures::executor::block_on(tx2.send(ws::Message::Text(cmd))).is_err() {
+            return;
+        }
+    });
 
-    fn finished(&mut self, ctx: &mut Context<Self>) {
-        println!("Server disconnected");
-        ctx.stop()
-    }
+    // start heartbeat task
+    rt::spawn(async move {
+        rt::time::delay_for(HEARTBEAT_INTERVAL).await;
+        // send ping
+        if tx.send(ws::Message::Ping(Bytes::new())).await.is_err() {
+            return;
+        }
+    });
+
+    // run ws protocol dispatcher
+    let _ = ws::start(framed, rx, service).await;
+
+    println!("Disconnected");
 }
-
-impl actix::io::WriteHandler<WsProtocolError> for ChatClient {}

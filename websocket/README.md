@@ -8,7 +8,7 @@ Simple echo websocket server.
 
 ```bash
 cd examples/websocket
-cargo run --bin websocket-server
+cargo run --bin server
 # Started http server: 127.0.0.1:8080
 ```
 
@@ -20,7 +20,7 @@ cargo run --bin websocket-server
 
 ```bash
 cd examples/websocket
-cargo run --bin websocket-client
+cargo run --bin client
 ```
 
 ### python client
