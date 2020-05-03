@@ -1,11 +1,19 @@
+use std::cell::RefCell;
+use std::io;
+use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use actix::*;
-use actix_files as fs;
-use actix_web::{web, App, Error, HttpRequest, HttpResponse, HttpServer};
-use actix_web_actors::ws;
+use bytes::Bytes;
+use futures::channel::mpsc;
+use futures::future::ready;
+use futures::{SinkExt, StreamExt};
+use ntex::rt;
+use ntex::service::{fn_factory_with_config, fn_service, map_config, Service};
+use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
+use ntex_files as fs;
 
 mod server;
+use self::server::{ClientMessage, ServerMessage};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -15,20 +23,19 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Entry point for our route
 async fn chat_route(
     req: HttpRequest,
-    stream: web::Payload,
-    srv: web::Data<Addr<server::ChatServer>>,
+    pl: web::types::Payload,
+    srv: web::types::Data<mpsc::UnboundedSender<ServerMessage>>,
 ) -> Result<HttpResponse, Error> {
+    let srv = srv.as_ref().clone();
     ws::start(
-        WsChatSession {
-            id: 0,
-            hb: Instant::now(),
-            room: "Main".to_owned(),
-            name: None,
-            addr: srv.get_ref().clone(),
-        },
-        &req,
-        stream,
+        req,
+        pl,
+        // inject chat server send to a ws_service factory
+        map_config(fn_factory_with_config(ws_service), move |cfg| {
+            (cfg, srv.clone())
+        }),
     )
+    .await
 }
 
 struct WsChatSession {
@@ -41,84 +48,69 @@ struct WsChatSession {
     room: String,
     /// peer name
     name: Option<String>,
-    /// Chat server
-    addr: Addr<server::ChatServer>,
+    /// server connectino
+    server: mpsc::UnboundedSender<ServerMessage>,
 }
 
-impl Actor for WsChatSession {
-    type Context = ws::WebsocketContext<Self>;
-
-    /// Method is called on actor start.
-    /// We register ws session with ChatServer
-    fn started(&mut self, ctx: &mut Self::Context) {
-        // we'll start heartbeat process on session start.
-        self.hb(ctx);
-
-        // register self in chat server. `AsyncContext::wait` register
-        // future within context, but context waits until this future resolves
-        // before processing any other events.
-        // HttpContext::state() is instance of WsChatSessionState, state is shared
-        // across all routes within application
-        let addr = ctx.address();
-        self.addr
-            .send(server::Connect {
-                addr: addr.recipient(),
-            })
-            .into_actor(self)
-            .then(|res, act, ctx| {
-                match res {
-                    Ok(res) => act.id = res,
-                    // something is wrong with chat server
-                    _ => ctx.stop(),
-                }
-                fut::ready(())
-            })
-            .wait(ctx);
-    }
-
-    fn stopping(&mut self, _: &mut Self::Context) -> Running {
+impl Drop for WsChatSession {
+    fn drop(&mut self) {
         // notify chat server
-        self.addr.do_send(server::Disconnect { id: self.id });
-        Running::Stop
+        let _ = self.server.send(ServerMessage::Disconnect(self.id));
     }
 }
 
-/// Handle messages from chat server, we simply send it to peer websocket
-impl Handler<server::Message> for WsChatSession {
-    type Result = ();
+/// WebSockets service factory
+async fn ws_service(
+    (sink, mut server): (ws::WebSocketsSink, mpsc::UnboundedSender<ServerMessage>),
+) -> Result<
+    impl Service<Request = ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
+    web::Error,
+> {
+    let (tx, mut rx) = mpsc::unbounded();
 
-    fn handle(&mut self, msg: server::Message, ctx: &mut Self::Context) {
-        ctx.text(msg.0);
-    }
-}
+    // register self in chat server.
+    server.send(ServerMessage::Connect(tx)).await.unwrap();
 
-/// WebSocket message handler
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
-    fn handle(
-        &mut self,
-        msg: Result<ws::Message, ws::ProtocolError>,
-        ctx: &mut Self::Context,
-    ) {
-        let msg = match msg {
-            Err(_) => {
-                ctx.stop();
-                return;
-            }
-            Ok(msg) => msg,
-        };
+    // read first message from server, it shoould contain session id
+    let id = if let Some(ClientMessage::Id(id)) = rx.next().await {
+        id
+    } else {
+        panic!();
+    };
 
-        println!("WEBSOCKET MESSAGE: {:?}", msg);
-        match msg {
-            ws::Message::Ping(msg) => {
-                self.hb = Instant::now();
-                ctx.pong(&msg);
+    // create chat session
+    let state = Rc::new(RefCell::new(WsChatSession {
+        id,
+        hb: Instant::now(),
+        server: server.clone(),
+        room: "Main".to_owned(),
+        name: None,
+    }));
+
+    // start server messages handlerr
+    rt::spawn(messages(sink.clone(), rx));
+
+    // start heartbeat task
+    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone()));
+
+    // websockets handler service
+    Ok(fn_service(move |frame| {
+        println!("WEBSOCKET MESSAGE: {:?}", frame);
+
+        let item = match frame {
+            ws::Frame::Ping(msg) => {
+                (*state.borrow_mut()).hb = Instant::now();
+                Some(ws::Message::Pong(msg))
             }
-            ws::Message::Pong(_) => {
-                self.hb = Instant::now();
+            // update heartbeat
+            ws::Frame::Pong(msg) => {
+                (*state.borrow_mut()).hb = Instant::now();
+                None
             }
-            ws::Message::Text(text) => {
-                let m = text.trim();
-                // we check for /sss type of messages
+            ws::Frame::Text(text) => {
+                let m = String::from_utf8(Vec::from(&text[..])).unwrap();
+
+                // we check for `/sss` type of messages
                 if m.starts_with('/') {
                     let v: Vec<&str> = m.splitn(2, ' ').collect();
                     match v[0] {
@@ -126,112 +118,141 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsChatSession {
                             // Send ListRooms message to chat server and wait for
                             // response
                             println!("List rooms");
-                            self.addr
-                                .send(server::ListRooms)
-                                .into_actor(self)
-                                .then(|res, _, ctx| {
-                                    match res {
-                                        Ok(rooms) => {
-                                            for room in rooms {
-                                                ctx.text(room);
-                                            }
-                                        }
-                                        _ => println!("Something is wrong"),
-                                    }
-                                    fut::ready(())
-                                })
-                                .wait(ctx)
-                            // .wait(ctx) pauses all events in context,
-                            // so actor wont receive any new messages until it get list
-                            // of rooms back
+                            let mut srv = server.clone();
+                            rt::spawn(async move {
+                                let _ = srv.send(ServerMessage::ListRooms(id)).await;
+                            });
+                            None
                         }
                         "/join" => {
                             if v.len() == 2 {
-                                self.room = v[1].to_owned();
-                                self.addr.do_send(server::Join {
-                                    id: self.id,
-                                    name: self.room.clone(),
+                                let room = v[1].to_owned();
+                                state.borrow_mut().room = room.clone();
+                                let mut srv = server.clone();
+                                rt::spawn(async move {
+                                    let _ = srv
+                                        .send(ServerMessage::Join { id, name: room })
+                                        .await;
                                 });
-
-                                ctx.text("joined");
+                                None
                             } else {
-                                ctx.text("!!! room name is required");
+                                Some(ws::Message::Text(
+                                    "!!! room name is required".to_string(),
+                                ))
                             }
                         }
                         "/name" => {
                             if v.len() == 2 {
-                                self.name = Some(v[1].to_owned());
+                                state.borrow_mut().name = Some(v[1].to_owned());
+                                None
                             } else {
-                                ctx.text("!!! name is required");
+                                Some(ws::Message::Text(
+                                    "!!! name is required".to_string(),
+                                ))
                             }
                         }
-                        _ => ctx.text(format!("!!! unknown command: {:?}", m)),
+                        _ => Some(ws::Message::Text(format!(
+                            "!!! unknown command: {:?}",
+                            m
+                        ))),
                     }
                 } else {
-                    let msg = if let Some(ref name) = self.name {
+                    let msg = if let Some(ref name) = state.borrow().name {
                         format!("{}: {}", name, m)
                     } else {
                         m.to_owned()
                     };
                     // send message to chat server
-                    self.addr.do_send(server::ClientMessage {
-                        id: self.id,
+                    let mut srv = server.clone();
+                    let msg = ServerMessage::Message {
+                        id,
                         msg,
-                        room: self.room.clone(),
-                    })
+                        room: state.borrow().room.clone(),
+                    };
+                    rt::spawn(async move { srv.send(msg).await });
+                    None
                 }
             }
-            ws::Message::Binary(_) => println!("Unexpected binary"),
-            ws::Message::Close(_) => {
-                ctx.stop();
+            ws::Frame::Binary(_) => None,
+            ws::Frame::Close(reason) => Some(ws::Message::Close(reason)),
+            _ => Some(ws::Message::Close(None)),
+        };
+        ready(Ok(item))
+    }))
+}
+
+/// Handle messages from chat server, we simply send it to peer websocket
+async fn messages(
+    mut sink: ws::WebSocketsSink,
+    mut server: mpsc::UnboundedReceiver<ClientMessage>,
+) {
+    while let Some(msg) = server.next().await {
+        println!("GOT server message: {:?}", msg);
+        match msg {
+            ClientMessage::Id(_) => (),
+            ClientMessage::Message(text) => {
+                let _ = sink.send(Ok(ws::Message::Text(text))).await;
             }
-            ws::Message::Continuation(_) => {
-                ctx.stop();
+            ClientMessage::Rooms(rooms) => {
+                for room in rooms {
+                    let _ = sink.send(Ok(ws::Message::Text(room))).await;
+                }
             }
-            ws::Message::Nop => (),
         }
     }
 }
 
-impl WsChatSession {
-    /// helper method that sends ping to client every second.
-    ///
-    /// also this method checks heartbeats from client
-    fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
-        ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
-            // check client heartbeats
-            if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                // heartbeat timed out
-                println!("Websocket Client heartbeat failed, disconnecting!");
+/// helper method that sends ping to client every second.
+///
+/// also this method checks heartbeats from client
+async fn heartbeat(
+    state: Rc<RefCell<WsChatSession>>,
+    mut sink: ws::WebSocketsSink,
+    mut server: mpsc::UnboundedSender<ServerMessage>,
+) {
+    loop {
+        rt::time::delay_for(HEARTBEAT_INTERVAL).await;
 
-                // notify chat server
-                act.addr.do_send(server::Disconnect { id: act.id });
+        // check client heartbeats
+        if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
+            // heartbeat timed out
+            println!("Websocket Client heartbeat failed, disconnecting!");
 
-                // stop actor
-                ctx.stop();
+            // notify chat server
+            let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
-                // don't try to send a ping
+            // disconnect connection
+            let _ = sink.send(Err(Box::new(io::Error::new(
+                io::ErrorKind::Other,
+                "timeuot",
+            ))));
+            return;
+        } else {
+            // send ping
+            if sink
+                .send(Ok(ws::Message::Ping(Bytes::new())))
+                .await
+                .is_err()
+            {
                 return;
             }
-
-            ctx.ping(b"");
-        });
+        }
     }
 }
 
-#[actix_rt::main]
+#[ntex::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     // Start chat server actor
-    let server = server::ChatServer::default().start();
+    let server = server::start();
 
     // Create Http server with websocket support
-    HttpServer::new(move || {
+    web::server(move || {
         App::new()
             .data(server.clone())
             // redirect to websocket.html
-            .service(web::resource("/").route(web::get().to(|| {
+            .service(web::resource("/").route(web::get().to(|| async {
                 HttpResponse::Found()
                     .header("LOCATION", "/static/websocket.html")
                     .finish()

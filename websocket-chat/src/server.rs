@@ -1,65 +1,52 @@
-//! `ChatServer` is an actor. It maintains list of connection client session.
+//! `ChatServer` maintains list of connection client session.
 //! And manages available rooms. Peers send messages to other peers in same
 //! room through `ChatServer`.
 
-use actix::prelude::*;
 use rand::{self, rngs::ThreadRng, Rng};
 use std::collections::{HashMap, HashSet};
 
+use futures::channel::mpsc::{self, UnboundedSender};
+use futures::{SinkExt, StreamExt};
+use ntex::rt;
+
 /// Chat server sends this messages to session
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Message(pub String);
+#[derive(Debug)]
+pub enum ClientMessage {
+    Id(usize),
+    Message(String),
+    Rooms(Vec<String>),
+}
 
 /// Message for chat server communications
-
-/// New chat session is created
-#[derive(Message)]
-#[rtype(usize)]
-pub struct Connect {
-    pub addr: Recipient<Message>,
-}
-
-/// Session is disconnected
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Disconnect {
-    pub id: usize,
-}
-
-/// Send message to specific room
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct ClientMessage {
-    /// Id of the client session
-    pub id: usize,
-    /// Peer message
-    pub msg: String,
-    /// Room name
-    pub room: String,
-}
-
-/// List of available rooms
-pub struct ListRooms;
-
-impl actix::Message for ListRooms {
-    type Result = Vec<String>;
-}
-
-/// Join room, if room does not exists create new one.
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct Join {
-    /// Client id
-    pub id: usize,
-    /// Room name
-    pub name: String,
+pub enum ServerMessage {
+    /// New chat session is created
+    Connect(UnboundedSender<ClientMessage>),
+    /// Client session is closed
+    Disconnect(usize),
+    /// Send message to specific room
+    Message {
+        /// Id of the client session
+        id: usize,
+        /// Peer message
+        msg: String,
+        /// Room name
+        room: String,
+    },
+    /// List of available rooms
+    ListRooms(usize),
+    /// Join room, if room does not exists create new one.
+    Join {
+        /// Client id
+        id: usize,
+        /// Room name
+        name: String,
+    },
 }
 
 /// `ChatServer` manages chat rooms and responsible for coordinating chat
 /// session. implementation is super primitive
 pub struct ChatServer {
-    sessions: HashMap<usize, Recipient<Message>>,
+    sessions: HashMap<usize, UnboundedSender<ClientMessage>>,
     rooms: HashMap<String, HashSet<usize>>,
     rng: ThreadRng,
 }
@@ -80,127 +67,131 @@ impl Default for ChatServer {
 
 impl ChatServer {
     /// Send message to all users in the room
-    fn send_message(&self, room: &str, message: &str, skip_id: usize) {
+    fn send_message(&mut self, room: &str, message: &str, skip_id: usize) {
         if let Some(sessions) = self.rooms.get(room) {
             for id in sessions {
                 if *id != skip_id {
                     if let Some(addr) = self.sessions.get(id) {
-                        let _ = addr.do_send(Message(message.to_owned()));
+                        let msg = message.to_owned();
+                        let mut addr = addr.clone();
+                        rt::spawn(async move {
+                            let _ = addr.send(ClientMessage::Message(msg)).await;
+                        });
                     }
                 }
             }
         }
     }
-}
 
-/// Make actor from `ChatServer`
-impl Actor for ChatServer {
-    /// We are going to use simple Context, we just need ability to communicate
-    /// with other actors.
-    type Context = Context<Self>;
-}
+    /// Handler for server messages.
+    fn handle(&mut self, msg: ServerMessage) {
+        match msg {
+            // Register new session and assign unique id to this session
+            ServerMessage::Connect(mut sender) => {
+                println!("Someone joined");
 
-/// Handler for Connect message.
-///
-/// Register new session and assign unique id to this session
-impl Handler<Connect> for ChatServer {
-    type Result = usize;
+                // notify all users in same room
+                self.send_message(&"Main".to_owned(), "Someone joined", 0);
 
-    fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
-        println!("Someone joined");
+                // register session with random id
+                let id = self.rng.gen::<usize>();
+                self.sessions.insert(id, sender.clone());
 
-        // notify all users in same room
-        self.send_message(&"Main".to_owned(), "Someone joined", 0);
+                // auto join session to Main room
+                self.rooms
+                    .entry("Main".to_owned())
+                    .or_insert(HashSet::new())
+                    .insert(id);
 
-        // register session with random id
-        let id = self.rng.gen::<usize>();
-        self.sessions.insert(id, msg.addr);
+                // send id back
+                rt::spawn(async move {
+                    let _ = sender.send(ClientMessage::Id(id)).await;
+                });
+            }
 
-        // auto join session to Main room
-        self.rooms
-            .entry("Main".to_owned())
-            .or_insert(HashSet::new())
-            .insert(id);
+            // Handler for Disconnect message.
+            ServerMessage::Disconnect(id) => {
+                println!("Someone disconnected");
 
-        // send id back
-        id
-    }
-}
+                let mut rooms: Vec<String> = Vec::new();
 
-/// Handler for Disconnect message.
-impl Handler<Disconnect> for ChatServer {
-    type Result = ();
-
-    fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
-        println!("Someone disconnected");
-
-        let mut rooms: Vec<String> = Vec::new();
-
-        // remove address
-        if self.sessions.remove(&msg.id).is_some() {
-            // remove session from all rooms
-            for (name, sessions) in &mut self.rooms {
-                if sessions.remove(&msg.id) {
-                    rooms.push(name.to_owned());
+                // remove address
+                if self.sessions.remove(&id).is_some() {
+                    // remove session from all rooms
+                    for (name, sessions) in &mut self.rooms {
+                        if sessions.remove(&id) {
+                            rooms.push(name.to_owned());
+                        }
+                    }
+                }
+                // send message to other users
+                for room in rooms {
+                    self.send_message(&room, "Someone disconnected", 0);
                 }
             }
-        }
-        // send message to other users
-        for room in rooms {
-            self.send_message(&room, "Someone disconnected", 0);
-        }
-    }
-}
 
-/// Handler for Message message.
-impl Handler<ClientMessage> for ChatServer {
-    type Result = ();
+            // Handler for Message message.
+            ServerMessage::Message { id, msg, room } => {
+                self.send_message(&room, msg.as_str(), id);
+            }
 
-    fn handle(&mut self, msg: ClientMessage, _: &mut Context<Self>) {
-        self.send_message(&msg.room, msg.msg.as_str(), msg.id);
-    }
-}
+            // Handler for `ListRooms` message.
+            ServerMessage::ListRooms(id) => {
+                let mut rooms = Vec::new();
 
-/// Handler for `ListRooms` message.
-impl Handler<ListRooms> for ChatServer {
-    type Result = MessageResult<ListRooms>;
+                for key in self.rooms.keys() {
+                    rooms.push(key.to_owned())
+                }
 
-    fn handle(&mut self, _: ListRooms, _: &mut Context<Self>) -> Self::Result {
-        let mut rooms = Vec::new();
+                if let Some(addr) = self.sessions.get(&id) {
+                    let mut addr = addr.clone();
+                    rt::spawn(async move {
+                        let _ = addr.send(ClientMessage::Rooms(rooms)).await;
+                    });
+                }
+            }
 
-        for key in self.rooms.keys() {
-            rooms.push(key.to_owned())
-        }
+            // Join room, send disconnect message to old room
+            // send join message to new room
+            ServerMessage::Join { id, name } => {
+                let mut rooms = Vec::new();
 
-        MessageResult(rooms)
-    }
-}
+                // remove session from all rooms
+                for (n, sessions) in &mut self.rooms {
+                    if sessions.remove(&id) {
+                        rooms.push(n.to_owned());
+                    }
+                }
+                // send message to other users
+                for room in rooms {
+                    self.send_message(&room, "Someone disconnected", 0);
+                }
 
-/// Join room, send disconnect message to old room
-/// send join message to new room
-impl Handler<Join> for ChatServer {
-    type Result = ();
+                self.rooms
+                    .entry(name.clone())
+                    .or_insert(HashSet::new())
+                    .insert(id);
 
-    fn handle(&mut self, msg: Join, _: &mut Context<Self>) {
-        let Join { id, name } = msg;
-        let mut rooms = Vec::new();
-
-        // remove session from all rooms
-        for (n, sessions) in &mut self.rooms {
-            if sessions.remove(&id) {
-                rooms.push(n.to_owned());
+                self.send_message(&name, "Someone connected", id);
             }
         }
-        // send message to other users
-        for room in rooms {
-            self.send_message(&room, "Someone disconnected", 0);
-        }
-
-        self.rooms
-            .entry(name.clone())
-            .or_insert(HashSet::new())
-            .insert(id);
-
-        self.send_message(&name, "Someone connected", id);
     }
+}
+
+pub fn start() -> UnboundedSender<ServerMessage> {
+    let (tx, mut rx) = mpsc::unbounded();
+
+    rt::Arbiter::new().exec_fn(move || {
+        rt::spawn(async move {
+            let mut srv = ChatServer::default();
+
+            while let Some(msg) = rx.next().await {
+                srv.handle(msg);
+            }
+
+            rt::Arbiter::current().stop();
+        });
+    });
+
+    tx
 }

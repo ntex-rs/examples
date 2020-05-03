@@ -82,7 +82,7 @@ mod tests {
 
     use ntex::http::body::{Body, ResponseBody};
     use ntex::http::header::{HeaderValue, CONTENT_TYPE};
-    use ntex::http::{StatusCode};
+    use ntex::http::StatusCode;
     use ntex::web::test::{self, TestRequest};
     use ntex::web::types::Form;
     use ntex::Service;
