@@ -13,6 +13,7 @@ use futures::SinkExt;
 use ntex::rt;
 use ntex::service::{fn_factory_with_config, fn_service, Service};
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
+use ntex_files as fs;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -99,6 +100,8 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             // websocket route
             .service(web::resource("/ws/").route(web::get().to(ws_index)))
+            // static files
+            .service(fs::Files::new("/", "static/").index_file("index.html"))
     })
     // start http server on 127.0.0.1:8080
     .bind("127.0.0.1:8080")?

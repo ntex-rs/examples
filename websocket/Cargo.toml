@@ -14,6 +14,7 @@ path = "src/client.rs"
 
 [dependencies]
 ntex = "0.1.15"
+ntex-files = "0.1.0"
 env_logger = "0.7"
 futures = "0.3.4"
 bytes = "0.5.4"
