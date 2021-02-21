@@ -9,7 +9,7 @@ name = "websocket-chat-server"
 path = "src/main.rs"
 
 [dependencies]
-ntex = "0.1.15"
+ntex = "0.2.0-b.14"
 ntex-files = "0.1.0"
 
 rand = "0.7"

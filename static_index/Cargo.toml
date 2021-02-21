@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 futures = "0.3.4"
-env_logger = "0.7"
+env_logger = "0.8"
 
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 ntex-files = "0.1.0"

@@ -9,7 +9,7 @@ name = "rustls-server"
 path = "src/main.rs"
 
 [dependencies]
-env_logger = "0.7"
-rustls = "0.17"
-ntex = { version = "0.1.7", features = ["rustls"] }
+env_logger = "0.8"
+rustls = "0.19"
+ntex = { version = "0.2.0-b.14", features = ["rustls"] }
 ntex-files = "0.1.0"

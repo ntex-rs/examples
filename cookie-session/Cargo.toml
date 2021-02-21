@@ -5,7 +5,7 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 ntex-session = "0.1.0"
 futures = "0.3.4"
 time = "0.1"

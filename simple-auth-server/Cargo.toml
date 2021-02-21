@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 ntex-identity = "0.1.0"
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 argonautica = "0.2.0"
 chrono = { version = "0.4.6", features = ["serde"] }
 derive_more = "0.99.0"

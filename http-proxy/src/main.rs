@@ -99,7 +99,7 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::route().to(forward))
     })
     .bind((listen_addr, listen_port))?
-    .system_exit()
+    .stop_runtime()
     .run()
     .await
 }

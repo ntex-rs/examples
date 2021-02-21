@@ -6,7 +6,7 @@ edition = "2018"
 workspace = ".."
 
 [dependencies]
-ntex = "0.1.8"
+ntex = "0.2.0-b.14"
 config = "0.10.1"
 deadpool-postgres = "0.5.0"
 derive_more = "0.99.5"

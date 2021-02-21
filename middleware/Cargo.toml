@@ -5,7 +5,7 @@ authors = ["Gorm Casper <gcasper@gmail.com>", "Sven-Hendrik Haase <svenstaro@gma
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 bytes = "0.5"
 env_logger = "0.7"
 futures = "0.3.4"

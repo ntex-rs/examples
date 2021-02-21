@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 futures = "0.3.4"
 juniper = "0.14"
 mysql = "17"

@@ -5,11 +5,11 @@ version = "2.0.0"
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 ntex-files = "0.1.0"
 ntex-session = "0.1.0"
 dotenv = "0.15"
-env_logger = "0.7"
+env_logger = "0.8"
 futures = "0.3.4"
 log = "0.4.3"
 serde = { version = "1.0.69", features = ["derive"] }

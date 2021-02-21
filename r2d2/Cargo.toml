@@ -5,10 +5,10 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 
-futures = "0.3.4"
-env_logger = "0.7"
+futures = "0.3.12"
+env_logger = "0.8"
 uuid = { version = "0.8", features = ["v4"] }
 
 r2d2 = "0.8"

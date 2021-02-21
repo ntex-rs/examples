@@ -5,8 +5,8 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>", "Rotem Yaari <vmalloc@gmail.com>"
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
-bytes = "0.5.4"
+ntex = "0.2.0-b.14"
+bytes = "0.5.6"
 clap = "2.32.0"
 futures = "0.3.4"
 failure = "0.1.3"

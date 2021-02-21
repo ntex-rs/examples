@@ -5,6 +5,6 @@ authors = ["Alexandru Tiniuc <tiniuc.alexandru@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.1.7"
+ntex = "0.2.0-b.14"
 handlebars = { version = "3.0.0", features = ["dir_source"] }
 serde_json = "1.0"
