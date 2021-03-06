@@ -1,18 +1,12 @@
 //! Simple echo websocket server.
 //! Open `http://localhost:8080/ws/index.html` in browser
 
-use std::cell::RefCell;
-use std::io;
-use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use bytes::Bytes;
-use futures::future::ready;
-use futures::SinkExt;
-
-use ntex::rt;
+use futures::{future::ready, SinkExt};
 use ntex::service::{fn_factory_with_config, fn_service, Service};
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
+use ntex::{rt, util::Bytes};
 use ntex_files as fs;
 
 /// How often heartbeat pings are sent

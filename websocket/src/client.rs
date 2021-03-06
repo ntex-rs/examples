@@ -1,32 +1,15 @@
 //! Simple websocket client.
 use std::{io, thread, time::Duration};
 
-use bytes::Bytes;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use ntex::http::client::{ws, Client};
-use ntex::rt;
+use ntex::{rt, util::Bytes};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
-/// Websockets handler service
-async fn service(frame: ws::Frame) -> Result<Option<ws::Message>, io::Error> {
-    match frame {
-        ws::Frame::Text(text) => {
-            println!("Server: {:?}", text);
-        }
-        ws::Frame::Ping(msg) => {
-            // send pong response
-            println!("Got server ping: {:?}", msg);
-            return Ok(Some(ws::Message::Pong(msg)));
-        }
-        _ => (),
-    }
-    Ok(None)
-}
-
 #[ntex::main]
-async fn main() {
+async fn main() -> Result<(), io::Error> {
     std::env::set_var("RUST_LOG", "ntex=trace");
     env_logger::init();
 
@@ -69,14 +52,32 @@ async fn main() {
     let sink = con.sink();
     rt::spawn(async move {
         rt::time::delay_for(HEARTBEAT_INTERVAL).await;
-        // send ping
         if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
             return;
         }
     });
 
-    // run ws protocol dispatcher
-    let _ = con.start::<_, _, ()>(service).await;
+    // run ws dispatcher
+    let sink = con.sink();
+    let mut rx = con.start_default();
+
+    while let Some(frame) = rx.next().await {
+        match frame {
+            Ok(ws::Frame::Text(text)) => {
+                println!("Server: {:?}", text);
+            }
+            Ok(ws::Frame::Ping(msg)) => {
+                // send pong response
+                println!("Got server ping: {:?}", msg);
+                sink.send(ws::Message::Pong(msg))
+                    .await
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            }
+            Err(_) => break,
+            _ => (),
+        }
+    }
 
     println!("Disconnected");
+    Ok(())
 }

@@ -1,15 +1,9 @@
-use std::cell::RefCell;
-use std::io;
-use std::rc::Rc;
-use std::time::{Duration, Instant};
+use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use bytes::Bytes;
-use futures::channel::mpsc;
-use futures::future::ready;
-use futures::{SinkExt, StreamExt};
-use ntex::rt;
+use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
 use ntex::service::{fn_factory_with_config, fn_service, map_config, Service};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
+use ntex::{rt, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 mod server;
@@ -87,13 +81,13 @@ async fn ws_service(
         name: None,
     }));
 
-    // start server messages handlerr
+    // start server messages handler, it reads chat messages and sends to the peer
     rt::spawn(messages(sink.clone(), rx));
 
     // start heartbeat task
     rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone()));
 
-    // websockets handler service
+    // handler service for incoming websockets frames
     Ok(fn_service(move |frame| {
         println!("WEBSOCKET MESSAGE: {:?}", frame);
 
@@ -103,7 +97,7 @@ async fn ws_service(
                 Some(ws::Message::Pong(msg))
             }
             // update heartbeat
-            ws::Frame::Pong(msg) => {
+            ws::Frame::Pong(_) => {
                 (*state.borrow_mut()).hb = Instant::now();
                 None
             }
@@ -136,9 +130,9 @@ async fn ws_service(
                                 });
                                 None
                             } else {
-                                Some(ws::Message::Text(
-                                    "!!! room name is required".to_string(),
-                                ))
+                                Some(ws::Message::Text(ByteString::from_static(
+                                    "!!! room name is required",
+                                )))
                             }
                         }
                         "/name" => {
@@ -146,15 +140,14 @@ async fn ws_service(
                                 state.borrow_mut().name = Some(v[1].to_owned());
                                 None
                             } else {
-                                Some(ws::Message::Text(
-                                    "!!! name is required".to_string(),
-                                ))
+                                Some(ws::Message::Text(ByteString::from_static(
+                                    "!!! name is required",
+                                )))
                             }
                         }
-                        _ => Some(ws::Message::Text(format!(
-                            "!!! unknown command: {:?}",
-                            m
-                        ))),
+                        _ => Some(ws::Message::Text(
+                            format!("!!! unknown command: {:?}", m).into(),
+                        )),
                     }
                 } else {
                     let msg = if let Some(ref name) = state.borrow().name {
@@ -181,21 +174,21 @@ async fn ws_service(
     }))
 }
 
-/// Handle messages from chat server, we simply send it to peer websocket
+/// Handle messages from chat server, we simply send it to the peer websocket connection
 async fn messages(
     mut sink: ws::WebSocketsSink,
     mut server: mpsc::UnboundedReceiver<ClientMessage>,
 ) {
     while let Some(msg) = server.next().await {
-        println!("GOT server message: {:?}", msg);
+        println!("GOT chat server message: {:?}", msg);
         match msg {
             ClientMessage::Id(_) => (),
             ClientMessage::Message(text) => {
-                let _ = sink.send(Ok(ws::Message::Text(text))).await;
+                let _ = sink.send(Ok(ws::Message::Text(text.into()))).await;
             }
             ClientMessage::Rooms(rooms) => {
                 for room in rooms {
-                    let _ = sink.send(Ok(ws::Message::Text(room))).await;
+                    let _ = sink.send(Ok(ws::Message::Text(room.into()))).await;
                 }
             }
         }
