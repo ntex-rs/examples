@@ -6,7 +6,7 @@ edition = "2018"
 description = "Send a request to the server to shut it down"
 
 [dependencies]
-ntex = "0.2.0-b.14"
+ntex = "0.3"
 env_logger = "0.8"
 futures = "0.3"
-tokio = { version = "0.2.11", features = ["signal"] }
+tokio = { version = "1", features = ["signal"] }

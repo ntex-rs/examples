@@ -5,6 +5,6 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.2.0-b.14"
-ntex-identity = "0.1.0"
-env_logger = "0.7"
+ntex = "0.3"
+ntex-identity = "0.1"
+env_logger = "0.8"

@@ -4,7 +4,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 
 use bytes::Bytes;
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use ntex::web::{self, App, Error, HttpResponse};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::{interval_at, Instant};
@@ -76,9 +76,8 @@ impl Broadcaster {
     fn spawn_ping(me: web::types::Data<Mutex<Self>>) {
         ntex::rt::spawn(async move {
             let mut task = interval_at(Instant::now(), Duration::from_secs(10));
-            while let Some(_) = task.next().await {
-                me.lock().unwrap().remove_stale_clients();
-            }
+            task.tick().await;
+            me.lock().unwrap().remove_stale_clients();
         });
     }
 
@@ -124,7 +123,7 @@ impl Stream for Client {
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.0).poll_next(cx) {
+        match Pin::new(&mut self.0).poll_recv(cx) {
             Poll::Ready(Some(v)) => Poll::Ready(Some(Ok(v))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,

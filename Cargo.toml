@@ -6,7 +6,6 @@ members = [
    "async_pg",
    "awc_https",
    "basics",
-   "casbin",
    "cookie-auth",
    "cookie-session",
    "diesel",
@@ -21,7 +20,6 @@ members = [
    "jsonrpc",
    "juniper",
    "middleware",
-   "mongodb",
    "multipart",
    "openssl",
    "r2d2",
@@ -39,7 +37,7 @@ members = [
    "todo",
    "unix-socket",
    "websocket",
-   "websocket-chat",
+#   "websocket-chat",
 #   "websocket-tcp-chat",
 ]
 

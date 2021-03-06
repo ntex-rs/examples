@@ -5,12 +5,12 @@ authors = ["Darin Gordon <dkcdkg@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.2.0-b.14"
+ntex = "0.3"
 env_logger = "0.8"
-futures = "0.3.4"
-derive_more = "0.99.5"
-num_cpus = "1.10.0"
-r2d2 = "0.8.2"
+futures = "0.3"
+derive_more = "0.99"
+num_cpus = "1.13"
+r2d2 = "0.8"
 r2d2_sqlite = "0.14"
 rusqlite = "0.21"
 serde = { version = "1.0", features = ["derive"] }

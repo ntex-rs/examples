@@ -5,6 +5,6 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.2.0-b.14", features = ["openssl"] }
-env_logger = "0.7"
+ntex = { version = "0.3", features = ["openssl"] }
+env_logger = "0.8"
 openssl = "0.10"

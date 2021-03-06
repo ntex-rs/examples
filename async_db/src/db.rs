@@ -1,6 +1,7 @@
 use derive_more::{Display, From};
 use futures::{Future, TryFutureExt};
-use ntex::web::{self, error::BlockingError, WebResponseError};
+use ntex::http::error::BlockingError;
+use ntex::web::{self, WebResponseError};
 use rusqlite::{Statement, NO_PARAMS};
 use serde::{Deserialize, Serialize};
 use std::{thread::sleep, time::Duration};

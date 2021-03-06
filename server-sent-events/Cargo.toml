@@ -5,8 +5,8 @@ authors = ["Arve Seljebu"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.2.0-b.14"
-bytes = "0.5.4"
-env_logger = "0.7"
-futures = "0.3.4"
-tokio = "0.2"
+ntex = "0.3"
+bytes = "1.0"
+env_logger = "0.8"
+futures = "0.3"
+tokio = "1"

@@ -47,9 +47,9 @@ async fn ws_service(
                 (*state.borrow_mut()).hb = Instant::now();
                 ws::Message::Pong(msg)
             }
-            ws::Frame::Text(text) => {
-                ws::Message::Text(String::from_utf8(Vec::from(text.as_ref())).unwrap())
-            }
+            ws::Frame::Text(text) => ws::Message::Text(
+                String::from_utf8(Vec::from(text.as_ref())).unwrap().into(),
+            ),
             ws::Frame::Binary(bin) => ws::Message::Binary(bin),
             ws::Frame::Close(reason) => ws::Message::Close(reason),
             _ => ws::Message::Close(None),

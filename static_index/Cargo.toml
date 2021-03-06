@@ -5,8 +5,8 @@ authors = ["Jose Marinez <digeratus@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-futures = "0.3.4"
+futures = "0.3"
 env_logger = "0.8"
 
-ntex = "0.2.0-b.14"
-ntex-files = "0.1.0"
+ntex = "0.3"
+ntex-files = "0.1"
