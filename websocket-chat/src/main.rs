@@ -3,7 +3,7 @@ use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
 use ntex::service::{fn_factory_with_config, fn_service, map_config, Service};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{rt, util::ByteString, util::Bytes};
+use ntex::{channel::oneshot, rt, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 mod server;
@@ -85,7 +85,8 @@ async fn ws_service(
     rt::spawn(messages(sink.clone(), rx));
 
     // start heartbeat task
-    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone()));
+    let (tx, rx) = oneshot::channel();
+    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx));
 
     // handler service for incoming websockets frames
     Ok(fn_service(move |frame| {
@@ -171,6 +172,9 @@ async fn ws_service(
             _ => Some(ws::Message::Close(None)),
         };
         ready(Ok(item))
+    })
+    .on_shutdown(move || {
+        let _ = tx.send(());
     }))
 }
 
@@ -202,31 +206,38 @@ async fn heartbeat(
     state: Rc<RefCell<WsChatSession>>,
     mut sink: ws::WebSocketsSink,
     mut server: mpsc::UnboundedSender<ServerMessage>,
+    mut rx: oneshot::Receiver<()>,
 ) {
     loop {
-        rt::time::delay_for(HEARTBEAT_INTERVAL).await;
+        match select(Box::pin(rt::time::delay_for(HEARTBEAT_INTERVAL)), &mut rx).await {
+            Either::Left(_) => {
+                // check client heartbeats
+                if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
+                    // heartbeat timed out
+                    println!("Websocket Client heartbeat failed, disconnecting!");
 
-        // check client heartbeats
-        if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
-            // heartbeat timed out
-            println!("Websocket Client heartbeat failed, disconnecting!");
+                    // notify chat server
+                    let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
-            // notify chat server
-            let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
-
-            // disconnect connection
-            let _ = sink.send(Err(Box::new(io::Error::new(
-                io::ErrorKind::Other,
-                "timeuot",
-            ))));
-            return;
-        } else {
-            // send ping
-            if sink
-                .send(Ok(ws::Message::Ping(Bytes::new())))
-                .await
-                .is_err()
-            {
+                    // disconnect connection
+                    let _ = sink.send(Err(Box::new(io::Error::new(
+                        io::ErrorKind::Other,
+                        "timeuot",
+                    ))));
+                    return;
+                } else {
+                    // send ping
+                    if sink
+                        .send(Ok(ws::Message::Ping(Bytes::new())))
+                        .await
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+            }
+            Either::Right(_) => {
+                println!("Connection is dropped, stop heartbeat task");
                 return;
             }
         }
