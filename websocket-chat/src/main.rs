@@ -238,6 +238,10 @@ async fn heartbeat(
             }
             Either::Right(_) => {
                 println!("Connection is dropped, stop heartbeat task");
+
+                // notify chat server
+                let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
+
                 return;
             }
         }
