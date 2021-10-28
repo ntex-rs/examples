@@ -222,7 +222,7 @@ async fn heartbeat(
                     // disconnect connection
                     let _ = sink.send(Err(Box::new(io::Error::new(
                         io::ErrorKind::Other,
-                        "timeuot",
+                        "timeout",
                     ))));
                     return;
                 } else {
