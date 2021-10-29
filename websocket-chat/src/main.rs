@@ -85,8 +85,8 @@ async fn ws_service(
     rt::spawn(messages(sink.clone(), rx));
 
     // start heartbeat task
-    let (tx, rx) = oneshot::channel();
-    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx));
+    let (tx_close, rx_close) = oneshot::channel();
+    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx_close));
 
     // handler service for incoming websockets frames
     Ok(fn_service(move |frame| {
@@ -174,7 +174,7 @@ async fn ws_service(
         ready(Ok(item))
     })
     .on_shutdown(move || {
-        let _ = tx.send(());
+        let _ = tx_close.send(());
     }))
 }
 
@@ -238,9 +238,6 @@ async fn heartbeat(
             }
             Either::Right(_) => {
                 println!("Connection is dropped, stop heartbeat task");
-
-                // notify chat server
-                let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
                 return;
             }
