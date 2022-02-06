@@ -1,15 +1,15 @@
 //! Simple websocket client.
-use std::{io, thread, time::Duration};
+use std::{convert::TryFrom, io, thread, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{rt, time, util::Bytes, ws};
+use ntex::{rt, time, util::ByteString, util::Bytes, ws};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 #[ntex::main]
 async fn main() -> Result<(), io::Error> {
-    std::env::set_var("RUST_LOG", "ntex=trace");
+    std::env::set_var("RUST_LOG", "ntex=trace,ntex_io=info,ntex_tokio=info");
     env_logger::init();
 
     // open websockets connection over http transport
@@ -66,7 +66,7 @@ async fn main() -> Result<(), io::Error> {
     while let Some(frame) = rx.next().await {
         match frame {
             Ok(ws::Frame::Text(text)) => {
-                println!("Server: {:?}", text);
+                println!("Server: {}", ByteString::try_from(text).unwrap());
             }
             Ok(ws::Frame::Ping(msg)) => {
                 // send pong response

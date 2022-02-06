@@ -12,6 +12,10 @@ path = "src/main.rs"
 name = "ws-client"
 path = "src/client-ws.rs"
 
+[[bin]]
+name = "tcp-client"
+path = "src/client-tcp.rs"
+
 [dependencies]
 ntex = { version = "0.5", features = ["tokio"] }
 ntex-mqtt = "0.8.3"

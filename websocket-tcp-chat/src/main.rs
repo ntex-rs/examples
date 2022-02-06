@@ -5,15 +5,13 @@ mod web;
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
+    std::env::set_var("RUST_LOG", "ntex=info,server=trace");
     env_logger::init();
+
+    println!("Started chat server");
 
     // Start chat server
     let server = server::start();
-
-    // Start tcp server in separate thread
-    // session::tcp_server("127.0.0.1:12345", srv);
-
-    println!("Started http server: 127.0.0.1:8080");
 
     let ws_srv = server.clone();
     let tcp_srv = server.clone();

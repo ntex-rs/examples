@@ -6,8 +6,8 @@ use futures::{channel::mpsc, SinkExt, StreamExt};
 use ntex::service::{fn_service, ServiceFactory};
 use ntex::{channel::oneshot, io::Io, io::IoRef, rt, time, util};
 
-use super::server::{ClientMessage, ServerMessage};
 use crate::codec::{ChatCodec, ChatRequest, ChatResponse};
+use crate::server::{ClientMessage, ServerMessage};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -47,8 +47,7 @@ async fn messages(sink: IoRef, mut server: mpsc::UnboundedReceiver<ClientMessage
                     .unwrap();
             }
             ClientMessage::Rooms(rooms) => {
-                sink.encode(ChatResponse::Rooms(rooms), &ChatCodec)
-                    .unwrap();
+                sink.encode(ChatResponse::Rooms(rooms), &ChatCodec).unwrap();
             }
         }
     }
