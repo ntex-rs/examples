@@ -6,7 +6,7 @@ use tera::Tera;
 // store tera template in application state
 #[web::get("/")]
 async fn index(
-    tmpl: web::types::Data<tera::Tera>,
+    tmpl: web::types::State<tera::Tera>,
     query: web::types::Query<HashMap<String, String>>,
 ) -> Result<HttpResponse, Error> {
     let s = if let Some(name) = query.get("name") {
@@ -33,7 +33,7 @@ async fn main() -> std::io::Result<()> {
             Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
 
         App::new()
-            .data(tera)
+            .state(tera)
             .wrap(middleware::Logger::default()) // enable logger
             .service(index)
     })

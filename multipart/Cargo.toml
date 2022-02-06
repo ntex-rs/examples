@@ -10,6 +10,6 @@ repository = "https://github.com/actix/examples"
 readme = "README.md"
 
 [dependencies]
-ntex = "0.3"
+ntex = { version = "0.5", features = ["tokio"] }
 ntex-multipart = "0.1"
 futures = "0.3"

@@ -23,7 +23,7 @@ use db::{Error, Pool, Queries};
 
 /// Version 1: Calls 4 queries in sequential order, as an asynchronous handler
 #[web::get("/asyncio_weather")]
-async fn asyncio_weather(db: web::types::Data<Pool>) -> Result<HttpResponse, Error> {
+async fn asyncio_weather(db: web::types::State<Pool>) -> Result<HttpResponse, Error> {
     let result = vec![
         db::execute(&db, Queries::GetTopTenHottestYears).await?,
         db::execute(&db, Queries::GetTopTenColdestYears).await?,
@@ -37,7 +37,7 @@ async fn asyncio_weather(db: web::types::Data<Pool>) -> Result<HttpResponse, Err
 /// Version 2: Calls 4 queries in parallel, as an asynchronous handler
 /// Returning Error types turn into None values in the response
 #[web::get("/parallel_weather")]
-async fn parallel_weather(db: web::types::Data<Pool>) -> Result<HttpResponse, Error> {
+async fn parallel_weather(db: web::types::State<Pool>) -> Result<HttpResponse, Error> {
     let fut_result = vec![
         Box::pin(db::execute(&db, Queries::GetTopTenHottestYears)),
         Box::pin(db::execute(&db, Queries::GetTopTenColdestYears)),
@@ -62,7 +62,7 @@ async fn main() -> io::Result<()> {
     HttpServer::new(move || {
         App::new()
             // store db pool as Data object
-            .data(pool.clone())
+            .state(pool.clone())
             .wrap(middleware::Logger::default())
             .service((asyncio_weather, parallel_weather))
     })

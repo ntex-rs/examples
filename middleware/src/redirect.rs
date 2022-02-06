@@ -1,37 +1,28 @@
 use std::task::{Context, Poll};
 
 use futures::future::{ok, Either, Ready};
-use ntex::web::dev::{WebRequest, WebResponse};
-use ntex::web::{Error, HttpResponse};
-use ntex::{http, Service, Transform};
+use ntex::http;
+use ntex::service::{Service, Transform};
+use ntex::web::{Error, HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
 
-impl<S, Err> Transform<S> for CheckLogin
-where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
-    S::Future: 'static,
-{
-    type Request = WebRequest<Err>;
-    type Response = WebResponse;
-    type Error = Error;
-    type InitError = ();
-    type Transform = CheckLoginMiddleware<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+impl<S> Transform<S> for CheckLogin {
+    type Service = CheckLoginMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ok(CheckLoginMiddleware { service })
+    fn new_transform(&self, service: S) -> Self::Service {
+        CheckLoginMiddleware { service }
     }
 }
+
 pub struct CheckLoginMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service for CheckLoginMiddleware<S>
+impl<S, Err> Service<WebRequest<Err>> for CheckLoginMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
 {
-    type Request = WebRequest<Err>;
     type Response = WebResponse;
     type Error = Error;
     type Future = Either<S::Future, Ready<Result<Self::Response, Self::Error>>>;
@@ -40,7 +31,7 @@ where
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future {
         // We only need to hook into the `start` for this middleware.
 
         let is_logged_in = false; // Change this to see the change in outcome in the browser

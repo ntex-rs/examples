@@ -14,12 +14,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
-use std::io;
+use std::{collections::HashMap, io};
 
-use bytes::BytesMut;
 use futures::StreamExt;
 use ntex::http::client::Client;
+use ntex::util::BytesMut;
 use ntex::web::{self, error::ErrorBadRequest, App, Error, HttpResponse, HttpServer};
 use validator::Validate;
 use validator_derive::Validate;
@@ -67,7 +66,7 @@ async fn step_x(data: SomeData, client: &Client) -> Result<SomeData, Error> {
 #[web::post("/something")]
 async fn create_something(
     some_data: web::types::Json<SomeData>,
-    client: web::types::Data<Client>,
+    client: web::types::State<Client>,
 ) -> Result<HttpResponse, Error> {
     let some_data_2 = step_x(some_data.into_inner(), &client).await?;
     let some_data_3 = step_x(some_data_2, &client).await?;
@@ -86,8 +85,12 @@ async fn main() -> io::Result<()> {
     let endpoint = "127.0.0.1:8080";
 
     println!("Starting server at: {:?}", endpoint);
-    HttpServer::new(|| App::new().data(Client::default()).service(create_something))
-        .bind(endpoint)?
-        .run()
-        .await
+    HttpServer::new(|| {
+        App::new()
+            .state(Client::default())
+            .service(create_something)
+    })
+    .bind(endpoint)?
+    .run()
+    .await
 }

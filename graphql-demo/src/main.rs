@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
 
     web::server(move || {
         App::new()
-            .data(pool.clone())
+            .state(pool.clone())
             .wrap(middleware::Logger::default())
             .configure(register)
             .default_service(web::to(|| async { "404" }))

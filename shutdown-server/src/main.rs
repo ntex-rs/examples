@@ -8,7 +8,7 @@ async fn hello() -> &'static str {
 }
 
 #[web::post("/stop")]
-async fn stop(stopper: web::types::Data<mpsc::Sender<()>>) -> HttpResponse {
+async fn stop(stopper: web::types::State<mpsc::Sender<()>>) -> HttpResponse {
     // make request that sends message through the Sender
     stopper.send(()).unwrap();
 
@@ -32,7 +32,7 @@ async fn main() -> std::io::Result<()> {
         let stopper = tx.clone();
 
         App::new()
-            .data(stopper)
+            .state(stopper)
             .wrap(middleware::Logger::default())
             .service((hello, stop))
     })

@@ -9,11 +9,11 @@ name = "websocket-chat-server"
 path = "src/main.rs"
 
 [dependencies]
-ntex = "0.3.13"
+ntex = { version = "0.5", features = ["tokio"] }
 ntex-files = "0.1"
 
 rand = "0.8"
 futures = "0.3"
-env_logger = "0.8"
+env_logger = "0.9"
 serde = "1.0"
 serde_json = "1.0"

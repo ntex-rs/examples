@@ -5,8 +5,7 @@ authors = ["Arve Seljebu"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.3"
-bytes = "1.0"
-env_logger = "0.8"
+ntex = { version = "0.5", features = ["tokio"] }
+env_logger = "0.9"
 futures = "0.3"
-tokio = "1"
+tokio = { version = "1", features = ["sync"] }

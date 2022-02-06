@@ -1,29 +1,17 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{future::Future, pin::Pin, task::Context, task::Poll};
 
-use bytes::{Bytes, BytesMut};
-use futures::future::{ok, Ready};
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::web::dev::{WebRequest, WebResponse};
-use ntex::web::Error;
-use ntex::{Service, Transform};
+use ntex::service::{Service, Transform};
+use ntex::util::{Bytes, BytesMut};
+use ntex::web::{Error, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S: 'static, Err> Transform<S> for Logging
-where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
-{
-    type Request = WebRequest<Err>;
-    type Response = WebResponse;
-    type Error = Error;
-    type InitError = ();
-    type Transform = LoggingMiddleware<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+impl<S> Transform<S> for Logging {
+    type Service = LoggingMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ok(LoggingMiddleware { service })
+    fn new_transform(&self, service: S) -> Self::Service {
+        LoggingMiddleware { service }
     }
 }
 
@@ -31,20 +19,19 @@ pub struct LoggingMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service for LoggingMiddleware<S>
+impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
 {
-    type Request = WebRequest<Err>;
     type Response = WebResponse;
     type Error = Error;
-    type Future = WrapperStream<S>;
+    type Future = WrapperStream<S, Err>;
 
     fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future {
         WrapperStream {
             fut: self.service.call(req),
         }
@@ -52,17 +39,17 @@ where
 }
 
 #[pin_project::pin_project]
-pub struct WrapperStream<S>
+pub struct WrapperStream<S, Err>
 where
-    S: Service,
+    S: Service<WebRequest<Err>>,
 {
     #[pin]
     fut: S::Future,
 }
 
-impl<S, Err> Future for WrapperStream<S>
+impl<S, Err> Future for WrapperStream<S, Err>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
 {
     type Output = Result<WebResponse, Error>;
 

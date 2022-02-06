@@ -36,7 +36,7 @@ async fn main() -> std::io::Result<()> {
     // Start http server
     web::server(move || {
         App::new()
-            .data(pool.clone())
+            .state(pool.clone())
             // enable logger
             .wrap(middleware::Logger::default())
             .wrap(IdentityService::new(
@@ -47,7 +47,7 @@ async fn main() -> std::io::Result<()> {
                     .max_age_time(time::Duration::days(1))
                     .secure(false), // this can only be true if you have https
             ))
-            .app_data(web::types::JsonConfig::default().limit(4096))
+            .app_state(web::types::JsonConfig::default().limit(4096))
             // everything under '/api/' route
             .service(
                 web::scope("/api").service((

@@ -21,12 +21,12 @@ async fn graphiql() -> HttpResponse {
 
 #[web::post("/graphql")]
 async fn graphql(
-    st: web::types::Data<Schema>,
+    st: web::types::State<Schema>,
     data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let user = web::block(move || {
         let res = data.execute(&st, &());
-        Ok::<_, serde_json::error::Error>(serde_json::to_string(&res)?)
+        serde_json::to_string(&res)
     })
     .await?;
     Ok(HttpResponse::Ok()
@@ -40,12 +40,12 @@ async fn main() -> io::Result<()> {
     env_logger::init();
 
     // Create Juniper schema
-    let schema = web::types::Data::new(create_schema());
+    let schema = web::types::State::new(create_schema());
 
     // Start http server
     web::server(move || {
         App::new()
-            .app_data(schema.clone())
+            .app_state(schema.clone())
             .wrap(middleware::Logger::default())
             .service((graphql, graphiql))
     })

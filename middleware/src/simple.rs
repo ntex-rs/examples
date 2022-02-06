@@ -1,11 +1,7 @@
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{future::Future, pin::Pin, task::Context, task::Poll};
 
-use futures::future::{ok, Ready};
-use futures::Future;
-use ntex::web::dev::{WebRequest, WebResponse};
-use ntex::web::Error;
-use ntex::{Service, Transform};
+use ntex::service::{Service, Transform};
+use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
 // 1. Middleware initialization, middleware factory gets called with
@@ -13,23 +9,14 @@ use ntex::{Service, Transform};
 // 2. Middleware's call method gets called with normal request.
 pub struct SayHi;
 
-// Middleware factory is `Transform` trait from actix-service crate
+// Middleware factory is `Transform` trait from ntex-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S, Err> Transform<S> for SayHi
-where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
-    S::Future: 'static,
-{
-    type Request = WebRequest<Err>;
-    type Response = WebResponse;
-    type Error = Error;
-    type InitError = ();
-    type Transform = SayHiMiddleware<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+impl<S> Transform<S> for SayHi {
+    type Service = SayHiMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ok(SayHiMiddleware { service })
+    fn new_transform(&self, service: S) -> Self::Service {
+        SayHiMiddleware { service }
     }
 }
 
@@ -37,12 +24,11 @@ pub struct SayHiMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service for SayHiMiddleware<S>
+impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
     S::Future: 'static,
 {
-    type Request = WebRequest<Err>;
     type Response = WebResponse;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
@@ -51,7 +37,7 @@ where
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, req: Self::Request) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future {
         println!("Hi from start. You requested: {}", req.path());
 
         let fut = self.service.call(req);

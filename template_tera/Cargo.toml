@@ -5,6 +5,6 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-env_logger = "0.8"
+env_logger = "0.9"
 tera = "1.0"
-ntex = "0.3"
+ntex = { version = "0.5", features = ["tokio"] }

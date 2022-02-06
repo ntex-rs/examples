@@ -45,7 +45,7 @@ pub async fn logout(id: Identity) -> HttpResponse {
 pub async fn login(
     auth_data: web::types::Json<AuthData>,
     id: Identity,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     let res = web::block(move || query(auth_data.into_inner(), pool)).await;
 
@@ -68,7 +68,7 @@ pub async fn get_me(logged_user: LoggedUser) -> HttpResponse {
 /// Diesel query
 fn query(
     auth_data: AuthData,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<SlimUser, ServiceError> {
     use crate::schema::users::dsl::{email, users};
     let conn: &PgConnection = &pool.get().unwrap();

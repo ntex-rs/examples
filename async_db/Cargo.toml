@@ -5,8 +5,8 @@ authors = ["Darin Gordon <dkcdkg@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.3"
-env_logger = "0.8"
+ntex = { version = "0.5", features = ["tokio"] }
+env_logger = "0.9"
 futures = "0.3"
 derive_more = "0.99"
 num_cpus = "1.13"

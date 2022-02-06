@@ -1,7 +1,7 @@
 mod config {
     pub use ::config::ConfigError;
-    use serde::Deserialize;
-    #[derive(Deserialize)]
+
+    #[derive(serde::Deserialize)]
     pub struct Config {
         pub server_addr: String,
         pub pg: deadpool_postgres::Config,
@@ -94,7 +94,7 @@ mod handlers {
 
     pub async fn add_user(
         user: web::types::Json<User>,
-        db_pool: web::types::Data<Pool>,
+        db_pool: web::types::State<Pool>,
     ) -> Result<HttpResponse, Error> {
         let user_info: User = user.into_inner();
 
@@ -106,6 +106,7 @@ mod handlers {
     }
 }
 
+use deadpool_postgres::Runtime;
 use dotenv::dotenv;
 use handlers::add_user;
 use ntex::web::{self, App};
@@ -116,11 +117,11 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     let config = crate::config::Config::from_env().unwrap();
-    let pool = config.pg.create_pool(NoTls).unwrap();
+    let pool = config.pg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
 
     let server = web::server(move || {
         App::new()
-            .data(pool.clone())
+            .state(pool.clone())
             .service(web::resource("/users").route(web::post().to(add_user)))
     })
     .bind(config.server_addr.clone())?

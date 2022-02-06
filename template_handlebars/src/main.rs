@@ -5,9 +5,9 @@ use handlebars::Handlebars;
 use ntex::web::{self, App, HttpResponse};
 use std::io;
 
-// Macro documentation can be found in the actix_web_codegen crate
+// Macro documentation can be found in the ntex_macros crate
 #[web::get("/")]
-async fn index(hb: web::types::Data<Handlebars<'_>>) -> HttpResponse {
+async fn index(hb: web::types::State<Handlebars<'_>>) -> HttpResponse {
     let data = json!({
         "name": "Handlebars"
     });
@@ -18,7 +18,7 @@ async fn index(hb: web::types::Data<Handlebars<'_>>) -> HttpResponse {
 
 #[web::get("/{user}/{data}")]
 async fn user(
-    hb: web::types::Data<Handlebars<'_>>,
+    hb: web::types::State<Handlebars<'_>>,
     info: web::types::Path<(String, String)>,
 ) -> HttpResponse {
     let data = json!({
@@ -39,11 +39,11 @@ async fn main() -> io::Result<()> {
     handlebars
         .register_templates_directory(".html", "./static/templates")
         .unwrap();
-    let handlebars_ref = web::types::Data::new(handlebars);
+    let handlebars_ref = web::types::State::new(handlebars);
 
     web::server(move || {
         App::new()
-            .app_data(handlebars_ref.clone())
+            .app_state(handlebars_ref.clone())
             .service((index, user))
     })
     .bind("127.0.0.1:8080")?

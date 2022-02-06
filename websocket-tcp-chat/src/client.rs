@@ -1,31 +1,30 @@
-use actix::prelude::*;
-use std::str::FromStr;
-use std::time::Duration;
-use std::{io, net, thread};
-use tokio::io::{split, WriteHalf};
-use tokio::net::TcpStream;
-use tokio_util::codec::FramedRead;
+//! Simple websocket client.
+use std::{io, thread, time::Duration};
 
-mod codec;
+use futures::{channel::mpsc, SinkExt, StreamExt};
+use ntex::http::client::{ws, Client};
+use ntex::{rt, util::Bytes};
 
-#[actix_rt::main]
-async fn main() {
-    // Connect to server
-    let addr = net::SocketAddr::from_str("127.0.0.1:12345").unwrap();
+/// How often heartbeat pings are sent
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
-    println!("Running chat client");
+#[ntex::main]
+async fn main() -> Result<(), io::Error> {
+    std::env::set_var("RUST_LOG", "ntex=trace");
+    env_logger::init();
 
-    let stream = TcpStream::connect(&addr).await.unwrap();
+    // open websockets connection over http transport
+    let con = Client::new()
+        .ws("http://127.0.0.1:8080/ws/")
+        .connect()
+        .await
+        .unwrap();
 
-    let addr = ChatClient::create(|ctx| {
-        let (r, w) = split(stream);
-        ChatClient::add_stream(FramedRead::new(r, codec::ClientChatCodec), ctx);
-        ChatClient {
-            framed: actix::io::FramedWrite::new(w, codec::ClientChatCodec, ctx),
-        }
-    });
+    println!("Got response: {:?}", con.response());
 
-    // start console loop
+    let (mut tx, mut rx) = mpsc::unbounded();
+
+    // start console read loop
     thread::spawn(move || loop {
         let mut cmd = String::new();
         if io::stdin().read_line(&mut cmd).is_err() {
@@ -33,103 +32,52 @@ async fn main() {
             return;
         }
 
-        addr.do_send(ClientCommand(cmd));
-    });
-}
-
-struct ChatClient {
-    framed: actix::io::FramedWrite<WriteHalf<TcpStream>, codec::ClientChatCodec>,
-}
-
-#[derive(Message)]
-#[rtype(result = "()")]
-struct ClientCommand(String);
-
-impl Actor for ChatClient {
-    type Context = Context<Self>;
-
-    fn started(&mut self, ctx: &mut Context<Self>) {
-        // start heartbeats otherwise server will disconnect after 10 seconds
-        self.hb(ctx)
-    }
-
-    fn stopped(&mut self, _: &mut Context<Self>) {
-        println!("Disconnected");
-
-        // Stop application on disconnect
-        System::current().stop();
-    }
-}
-
-impl ChatClient {
-    fn hb(&self, ctx: &mut Context<Self>) {
-        ctx.run_later(Duration::new(1, 0), |act, ctx| {
-            act.framed.write(codec::ChatRequest::Ping);
-            act.hb(ctx);
-
-            // client should also check for a timeout here, similar to the
-            // server code
-        });
-    }
-}
-
-impl actix::io::WriteHandler<io::Error> for ChatClient {}
-
-/// Handle stdin commands
-impl Handler<ClientCommand> for ChatClient {
-    type Result = ();
-
-    fn handle(&mut self, msg: ClientCommand, _: &mut Context<Self>) {
-        let m = msg.0.trim();
-        if m.is_empty() {
+        // send text to server
+        if futures::executor::block_on(tx.send(ws::Message::Text(cmd.into()))).is_err() {
             return;
         }
+    });
 
-        // we check for /sss type of messages
-        if m.starts_with('/') {
-            let v: Vec<&str> = m.splitn(2, ' ').collect();
-            match v[0] {
-                "/list" => {
-                    self.framed.write(codec::ChatRequest::List);
-                }
-                "/join" => {
-                    if v.len() == 2 {
-                        self.framed.write(codec::ChatRequest::Join(v[1].to_owned()));
-                    } else {
-                        println!("!!! room name is required");
-                    }
-                }
-                _ => println!("!!! unknown command"),
+    // read console commands
+    let sink = con.sink();
+    rt::spawn(async move {
+        while let Some(msg) = rx.next().await {
+            if sink.send(msg).await.is_err() {
+                return;
             }
-        } else {
-            self.framed.write(codec::ChatRequest::Message(m.to_owned()));
+        }
+    });
+
+    // start heartbeat task
+    let sink = con.sink();
+    rt::spawn(async move {
+        rt::time::delay_for(HEARTBEAT_INTERVAL).await;
+        if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
+            return;
+        }
+    });
+
+    // run ws dispatcher
+    let sink = con.sink();
+    let mut rx = con.start_default();
+
+    while let Some(frame) = rx.next().await {
+        match frame {
+            Ok(ws::Frame::Text(text)) => {
+                println!("Server: {:?}", text);
+            }
+            Ok(ws::Frame::Ping(msg)) => {
+                // send pong response
+                println!("Got server ping: {:?}", msg);
+                sink.send(ws::Message::Pong(msg))
+                    .await
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            }
+            Err(_) => break,
+            _ => (),
         }
     }
-}
 
-/// Server communication
-
-impl StreamHandler<Result<codec::ChatResponse, io::Error>> for ChatClient {
-    fn handle(
-        &mut self,
-        msg: Result<codec::ChatResponse, io::Error>,
-        ctx: &mut Context<Self>,
-    ) {
-        match msg {
-            Ok(codec::ChatResponse::Message(ref msg)) => {
-                println!("message: {}", msg);
-            }
-            Ok(codec::ChatResponse::Joined(ref msg)) => {
-                println!("!!! joined: {}", msg);
-            }
-            Ok(codec::ChatResponse::Rooms(rooms)) => {
-                println!("\n!!! Available rooms:");
-                for room in rooms {
-                    println!("{}", room);
-                }
-                println!();
-            }
-            _ => ctx.stop(),
-        }
-    }
+    println!("Disconnected");
+    Ok(())
 }

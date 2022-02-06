@@ -5,8 +5,8 @@ authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = "0.3"
+ntex = { version = "0.5", features = ["tokio"] }
 derive_more = "0.99"
 futures = "0.3"
 rand = "0.8"
-env_logger = "0.8"
+env_logger = "0.9"

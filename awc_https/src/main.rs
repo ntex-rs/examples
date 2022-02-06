@@ -2,7 +2,7 @@ use ntex::http::client::{Client, Connector};
 use ntex::web::{self, App, HttpResponse};
 use openssl::ssl::{SslConnector, SslMethod};
 
-async fn index(client: web::types::Data<Client>) -> HttpResponse {
+async fn index(client: web::types::State<Client>) -> HttpResponse {
     let now = std::time::Instant::now();
     let payload =
         client
@@ -35,7 +35,7 @@ async fn main() -> std::io::Result<()> {
             .finish();
 
         App::new()
-            .data(client)
+            .state(client)
             .service(web::resource("/").to(index))
     })
     .bind(("0.0.0.0", port))?

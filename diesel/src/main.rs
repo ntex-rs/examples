@@ -20,7 +20,7 @@ type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 /// Finds user by UID.
 #[web::get("/user/{user_id}")]
 async fn get_user(
-    pool: web::types::Data<DbPool>,
+    pool: web::types::State<DbPool>,
     user_uid: web::types::Path<Uuid>,
 ) -> Result<HttpResponse, Error> {
     let user_uid = user_uid.into_inner();
@@ -41,7 +41,7 @@ async fn get_user(
 /// Inserts new user with name defined in form.
 #[web::post("/user")]
 async fn add_user(
-    pool: web::types::Data<DbPool>,
+    pool: web::types::State<DbPool>,
     form: web::types::Json<models::NewUser>,
 ) -> Result<HttpResponse, Error> {
     let conn = pool.get().expect("couldn't get db connection from pool");
@@ -72,8 +72,8 @@ async fn main() -> std::io::Result<()> {
     // Start HTTP server
     web::server(move || {
         App::new()
-            // set up DB pool to be used with web::Data<Pool> extractor
-            .data(pool.clone())
+            // set up DB pool to be used with web::State<Pool> extractor
+            .state(pool.clone())
             .wrap(middleware::Logger::default())
             .service((get_user, add_user))
     })

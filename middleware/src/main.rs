@@ -1,7 +1,6 @@
 #![allow(dead_code, clippy::type_complexity)]
 
-use futures::future::FutureExt;
-use ntex::{web, Service};
+use ntex::web;
 
 mod read_request_body;
 mod read_response_body;
@@ -15,18 +14,14 @@ async fn main() -> std::io::Result<()> {
 
     web::server(|| {
         web::App::new()
-            .wrap(redirect::CheckLogin)
+            .filter(|req: web::WebRequest<_>| async move {
+                println!("Hi from start. You requested: {}", req.path());
+                Ok(req)
+            })
+            .wrap(simple::SayHi)
             .wrap(read_request_body::Logging)
             .wrap(read_response_body::Logging)
-            .wrap(simple::SayHi)
-            .wrap_fn(|req, srv| {
-                println!("Hi from start. You requested: {}", req.path());
-
-                srv.call(req).map(|res| {
-                    println!("Hi from response");
-                    res
-                })
-            })
+            .wrap(redirect::CheckLogin)
             .service(web::resource("/login").to(|| async {
                 "You are on /login. Go to src/redirect.rs to change this behavior."
             }))

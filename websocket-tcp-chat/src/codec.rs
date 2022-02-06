@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 use std::io;
 
-use actix::prelude::*;
-use actix_codec::{Decoder, Encoder};
+use ntex::codec::{Decoder, Encoder};
 use byteorder::{BigEndian, ByteOrder};
 use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
@@ -47,7 +46,7 @@ impl Decoder for ChatCodec {
     type Item = ChatRequest;
     type Error = io::Error;
 
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+    fn decode(&self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let size = {
             if src.len() < 2 {
                 return Ok(None);
@@ -70,7 +69,7 @@ impl Encoder for ChatCodec {
     type Error = io::Error;
 
     fn encode(
-        &mut self,
+        &self,
         msg: ChatResponse,
         dst: &mut BytesMut,
     ) -> Result<(), Self::Error> {
@@ -92,7 +91,7 @@ impl Decoder for ClientChatCodec {
     type Item = ChatResponse;
     type Error = io::Error;
 
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+    fn decode(&self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let size = {
             if src.len() < 2 {
                 return Ok(None);
@@ -115,7 +114,7 @@ impl Encoder for ClientChatCodec {
     type Error = io::Error;
 
     fn encode(
-        &mut self,
+        &self,
         msg: ChatRequest,
         dst: &mut BytesMut,
     ) -> Result<(), Self::Error> {

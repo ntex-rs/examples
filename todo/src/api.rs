@@ -9,8 +9,8 @@ use crate::db;
 use crate::session::{self, FlashMessage};
 
 pub async fn index(
-    pool: web::types::Data<db::PgPool>,
-    tmpl: web::types::Data<Tera>,
+    pool: web::types::State<db::PgPool>,
+    tmpl: web::types::State<Tera>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     let tasks = web::block(move || db::get_all_tasks(&pool)).await?;
@@ -39,7 +39,7 @@ pub struct CreateForm {
 
 pub async fn create(
     params: web::types::Form<CreateForm>,
-    pool: web::types::Data<db::PgPool>,
+    pool: web::types::State<db::PgPool>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     if params.description.is_empty() {
@@ -67,7 +67,7 @@ pub struct UpdateForm {
 }
 
 pub async fn update(
-    db: web::types::Data<db::PgPool>,
+    db: web::types::State<db::PgPool>,
     params: web::types::Path<UpdateParams>,
     form: web::types::Form<UpdateForm>,
     session: Session,
@@ -83,7 +83,7 @@ pub async fn update(
 }
 
 async fn toggle(
-    pool: web::types::Data<db::PgPool>,
+    pool: web::types::State<db::PgPool>,
     params: web::types::Path<UpdateParams>,
 ) -> Result<HttpResponse, Error> {
     web::block(move || db::toggle_task(params.id, &pool)).await?;
@@ -91,7 +91,7 @@ async fn toggle(
 }
 
 async fn delete(
-    pool: web::types::Data<db::PgPool>,
+    pool: web::types::State<db::PgPool>,
     params: web::types::Path<UpdateParams>,
     session: Session,
 ) -> Result<HttpResponse, Error> {

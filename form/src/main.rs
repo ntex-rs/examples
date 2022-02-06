@@ -21,7 +21,7 @@ async fn main() -> std::io::Result<()> {
 fn app_config(config: &mut web::ServiceConfig) {
     config.service(
         web::scope("")
-            .data(AppState {
+            .state(AppState {
                 foo: "bar".to_string(),
             })
             .service((
@@ -55,7 +55,7 @@ async fn handle_post_1(
 
 /// State and POST Params
 async fn handle_post_2(
-    state: web::types::Data<AppState>,
+    state: web::types::State<AppState>,
     params: web::types::Form<MyParams>,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type("text/plain").body(format!(
@@ -147,7 +147,7 @@ mod tests {
                 foo: "bar".to_string(),
             })
             .to_http_request();
-        let data = state.app_data::<web::types::Data<AppState>>().unwrap();
+        let data = state.app_data::<web::types::State<AppState>>().unwrap();
         let params = Form(MyParams {
             name: "John".to_string(),
         });

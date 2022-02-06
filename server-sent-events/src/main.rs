@@ -1,13 +1,9 @@
-use std::pin::Pin;
-use std::sync::Mutex;
-use std::task::{Context, Poll};
-use std::time::Duration;
+use std::{pin::Pin, sync::Mutex, task::Context, task::Poll, time::Duration};
 
-use bytes::Bytes;
 use futures::Stream;
 use ntex::web::{self, App, Error, HttpResponse};
+use ntex::{time::interval, util::Bytes};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::time::{interval_at, Instant};
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
@@ -16,7 +12,7 @@ async fn main() -> std::io::Result<()> {
 
     web::server(move || {
         App::new()
-            .app_data(data.clone())
+            .app_state(data.clone())
             .route("/", web::get().to(index))
             .route("/events", web::get().to(new_client))
             .route("/broadcast/{msg}", web::get().to(broadcast))
@@ -34,7 +30,7 @@ async fn index() -> HttpResponse {
         .body(content)
 }
 
-async fn new_client(broadcaster: web::types::Data<Mutex<Broadcaster>>) -> HttpResponse {
+async fn new_client(broadcaster: web::types::State<Mutex<Broadcaster>>) -> HttpResponse {
     let rx = broadcaster.lock().unwrap().new_client();
 
     HttpResponse::Ok()
@@ -45,7 +41,7 @@ async fn new_client(broadcaster: web::types::Data<Mutex<Broadcaster>>) -> HttpRe
 
 async fn broadcast(
     msg: web::types::Path<String>,
-    broadcaster: web::types::Data<Mutex<Broadcaster>>,
+    broadcaster: web::types::State<Mutex<Broadcaster>>,
 ) -> HttpResponse {
     broadcaster.lock().unwrap().send(&msg.into_inner());
 
@@ -57,9 +53,9 @@ struct Broadcaster {
 }
 
 impl Broadcaster {
-    fn create() -> web::types::Data<Mutex<Self>> {
+    fn create() -> web::types::State<Mutex<Self>> {
         // Data ≃ Arc
-        let me = web::types::Data::new(Mutex::new(Broadcaster::new()));
+        let me = web::types::State::new(Mutex::new(Broadcaster::new()));
 
         // ping clients every 10 seconds to see if they are alive
         Broadcaster::spawn_ping(me.clone());
@@ -73,9 +69,9 @@ impl Broadcaster {
         }
     }
 
-    fn spawn_ping(me: web::types::Data<Mutex<Self>>) {
+    fn spawn_ping(me: web::types::State<Mutex<Self>>) {
         ntex::rt::spawn(async move {
-            let mut task = interval_at(Instant::now(), Duration::from_secs(10));
+            let task = interval(Duration::from_secs(10));
             task.tick().await;
             me.lock().unwrap().remove_stale_clients();
         });
@@ -96,9 +92,7 @@ impl Broadcaster {
     fn new_client(&mut self) -> Client {
         let (tx, rx) = channel(100);
 
-        tx.clone()
-            .try_send(Bytes::from("data: connected\n\n"))
-            .unwrap();
+        tx.try_send(Bytes::from("data: connected\n\n")).unwrap();
 
         self.clients.push(tx);
         Client(rx)

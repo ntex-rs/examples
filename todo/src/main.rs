@@ -24,7 +24,7 @@ static SESSION_SIGNING_KEY: &[u8] = &[0; 32];
 async fn main() -> io::Result<()> {
     dotenv().ok();
 
-    env::set_var("RUST_LOG", "actix_todo=debug,actix_web=info");
+    env::set_var("RUST_LOG", "todo=debug,ntex=info");
     env_logger::init();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -38,8 +38,8 @@ async fn main() -> io::Result<()> {
         let session_store = CookieSession::signed(SESSION_SIGNING_KEY).secure(false);
 
         web::App::new()
-            .data(templates)
-            .data(pool.clone())
+            .state(templates)
+            .state(pool.clone())
             .wrap(Logger::default())
             .wrap(session_store)
             .service((

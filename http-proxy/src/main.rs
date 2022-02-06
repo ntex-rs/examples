@@ -1,16 +1,16 @@
 use std::net::ToSocketAddrs;
 
-use bytes::Bytes;
 use clap::{value_t, Arg};
 use ntex::http::client::Client;
+use ntex::util::Bytes;
 use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
 use url::Url;
 
 async fn forward(
     req: HttpRequest,
     body: Bytes,
-    url: web::types::Data<Url>,
-    client: web::types::Data<Client>,
+    url: web::types::State<Url>,
+    client: web::types::State<Client>,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = url.get_ref().clone();
     new_url.set_path(req.uri().path());
@@ -21,7 +21,7 @@ async fn forward(
     let forwarded_req = client
         .request_from(new_url.as_str(), req.head())
         .no_decompress();
-    let forwarded_req = if let Some(addr) = req.head().peer_addr {
+    let forwarded_req = if let Some(addr) = req.head().peer_addr() {
         forwarded_req.header("x-forwarded-for", format!("{}", addr.ip()))
     } else {
         forwarded_req
@@ -93,8 +93,8 @@ async fn main() -> std::io::Result<()> {
 
     web::server(move || {
         App::new()
-            .data(Client::new())
-            .data(forward_url.clone())
+            .state(Client::new())
+            .state(forward_url.clone())
             .wrap(middleware::Logger::default())
             .default_service(web::route().to(forward))
     })

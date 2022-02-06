@@ -14,7 +14,7 @@ pub struct UserData {
 pub async fn register_user(
     invitation_id: web::types::Path<String>,
     user_data: web::types::Json<UserData>,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     let res = web::block(move || {
         query(
@@ -37,7 +37,7 @@ pub async fn register_user(
 fn query(
     invitation_id: String,
     password: String,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<SlimUser, crate::errors::ServiceError> {
     use crate::schema::invitations::dsl::{id, invitations};
     use crate::schema::users::dsl::users;

@@ -4,10 +4,9 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::future::{ready, select, Either};
-use futures::SinkExt;
 use ntex::service::{fn_factory_with_config, fn_service, Service};
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{channel::oneshot, rt, util::Bytes};
+use ntex::{channel::oneshot, rt, time, util::Bytes};
 use ntex_files as fs;
 
 /// How often heartbeat pings are sent
@@ -23,9 +22,9 @@ struct WsState {
 
 /// WebSockets service factory
 async fn ws_service(
-    sink: ws::WebSocketsSink,
+    sink: ws::WsSink,
 ) -> Result<
-    impl Service<Request = ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
+    impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
     web::Error,
 > {
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
@@ -34,7 +33,7 @@ async fn ws_service(
     let (tx, rx) = oneshot::channel();
 
     // start heartbeat task
-    rt::spawn(heartbeat(state.clone(), sink.clone(), rx));
+    rt::spawn(heartbeat(state.clone(), sink, rx));
 
     // websockets handler service
     Ok(fn_service(move |frame| {
@@ -64,11 +63,11 @@ async fn ws_service(
 /// helper method that sends ping to client every heartbeat interval
 async fn heartbeat(
     state: Rc<RefCell<WsState>>,
-    mut sink: ws::WebSocketsSink,
+    sink: ws::WsSink,
     mut rx: oneshot::Receiver<()>,
 ) {
     loop {
-        match select(Box::pin(rt::time::delay_for(HEARTBEAT_INTERVAL)), &mut rx).await {
+        match select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             Either::Left(_) => {
                 // check client heartbeats
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
@@ -78,11 +77,7 @@ async fn heartbeat(
                 }
 
                 // send ping
-                if sink
-                    .send(Ok(ws::Message::Ping(Bytes::new())))
-                    .await
-                    .is_err()
-                {
+                if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
                     return;
                 }
             }
@@ -95,11 +90,8 @@ async fn heartbeat(
 }
 
 /// do websocket handshake and start web sockets service
-async fn ws_index(
-    req: HttpRequest,
-    pl: web::types::Payload,
-) -> Result<HttpResponse, Error> {
-    ws::start(req, pl, fn_factory_with_config(ws_service)).await
+async fn ws_index(req: HttpRequest) -> Result<HttpResponse, Error> {
+    ws::start(req, fn_factory_with_config(ws_service)).await
 }
 
 #[ntex::main]

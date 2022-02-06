@@ -3,7 +3,7 @@ use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
 use ntex::service::{fn_factory_with_config, fn_service, map_config, Service};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{channel::oneshot, rt, util::ByteString, util::Bytes};
+use ntex::{channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 mod server;
@@ -17,13 +17,11 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 /// Entry point for our route
 async fn chat_route(
     req: HttpRequest,
-    pl: web::types::Payload,
-    srv: web::types::Data<mpsc::UnboundedSender<ServerMessage>>,
+    srv: web::types::State<mpsc::UnboundedSender<ServerMessage>>,
 ) -> Result<HttpResponse, Error> {
     let srv = srv.as_ref().clone();
     ws::start(
         req,
-        pl,
         // inject chat server send to a ws_service factory
         map_config(fn_factory_with_config(ws_service), move |cfg| {
             (cfg, srv.clone())
@@ -55,9 +53,9 @@ impl Drop for WsChatSession {
 
 /// WebSockets service factory
 async fn ws_service(
-    (sink, mut server): (ws::WebSocketsSink, mpsc::UnboundedSender<ServerMessage>),
+    (sink, mut server): (ws::WsSink, mpsc::UnboundedSender<ServerMessage>),
 ) -> Result<
-    impl Service<Request = ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
+    impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
     web::Error,
 > {
     let (tx, mut rx) = mpsc::unbounded();
@@ -154,7 +152,7 @@ async fn ws_service(
                     let msg = if let Some(ref name) = state.borrow().name {
                         format!("{}: {}", name, m)
                     } else {
-                        m.to_owned()
+                        m
                     };
                     // send message to chat server
                     let mut srv = server.clone();
@@ -179,20 +177,17 @@ async fn ws_service(
 }
 
 /// Handle messages from chat server, we simply send it to the peer websocket connection
-async fn messages(
-    mut sink: ws::WebSocketsSink,
-    mut server: mpsc::UnboundedReceiver<ClientMessage>,
-) {
+async fn messages(sink: ws::WsSink, mut server: mpsc::UnboundedReceiver<ClientMessage>) {
     while let Some(msg) = server.next().await {
         println!("GOT chat server message: {:?}", msg);
         match msg {
             ClientMessage::Id(_) => (),
             ClientMessage::Message(text) => {
-                let _ = sink.send(Ok(ws::Message::Text(text.into()))).await;
+                let _ = sink.send(ws::Message::Text(text.into())).await;
             }
             ClientMessage::Rooms(rooms) => {
                 for room in rooms {
-                    let _ = sink.send(Ok(ws::Message::Text(room.into()))).await;
+                    let _ = sink.send(ws::Message::Text(room.into())).await;
                 }
             }
         }
@@ -204,13 +199,13 @@ async fn messages(
 /// also this method checks heartbeats from client
 async fn heartbeat(
     state: Rc<RefCell<WsChatSession>>,
-    mut sink: ws::WebSocketsSink,
+    sink: ws::WsSink,
     mut server: mpsc::UnboundedSender<ServerMessage>,
     mut rx: oneshot::Receiver<()>,
 ) {
     loop {
-        match select(Box::pin(rt::time::delay_for(HEARTBEAT_INTERVAL)), &mut rx).await {
-            Either::Left(_) => {
+        match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
+            util::Either::Left(_) => {
                 // check client heartbeats
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
@@ -220,23 +215,16 @@ async fn heartbeat(
                     let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
                     // disconnect connection
-                    let _ = sink.send(Err(Box::new(io::Error::new(
-                        io::ErrorKind::Other,
-                        "timeuot",
-                    ))));
+                    // let _ = sink.close();
                     return;
                 } else {
                     // send ping
-                    if sink
-                        .send(Ok(ws::Message::Ping(Bytes::new())))
-                        .await
-                        .is_err()
-                    {
+                    if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
                         return;
                     }
                 }
             }
-            Either::Right(_) => {
+            util::Either::Right(_) => {
                 println!("Connection is dropped, stop heartbeat task");
                 return;
             }
@@ -254,7 +242,7 @@ async fn main() -> std::io::Result<()> {
     // Create Http server with websocket support
     web::server(move || {
         App::new()
-            .data(server.clone())
+            .state(server.clone())
             // redirect to websocket.html
             .service(web::resource("/").route(web::get().to(|| async {
                 HttpResponse::Found()

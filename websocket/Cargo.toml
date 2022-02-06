@@ -13,7 +13,7 @@ name = "client"
 path = "src/client.rs"
 
 [dependencies]
-ntex = "0.3.13"
+ntex = { version = "0.5", features = ["tokio"] }
 ntex-files = "0.1"
-env_logger = "0.8"
+env_logger = "0.9"
 futures = "0.3"

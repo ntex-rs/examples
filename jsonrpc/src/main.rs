@@ -1,15 +1,11 @@
 // Allow this lint since it's fine to use type directly in the short example.
 #![allow(clippy::type_complexity)]
 
-use std::error;
-use std::pin::Pin;
-use std::sync::RwLock;
-use std::time::Duration;
+use std::{error, pin::Pin, sync::RwLock, time::Duration};
 
-use bytes::Bytes;
 use futures::{Future, FutureExt};
-use ntex::rt::time::delay_for;
 use ntex::web::{self, middleware, App, Error, HttpResponse};
+use ntex::{time::sleep, util::Bytes};
 use serde_json::Value;
 
 #[allow(dead_code)]
@@ -18,7 +14,7 @@ mod convention;
 /// The main handler for JSONRPC server.
 async fn rpc_handler(
     body: Bytes,
-    app_state: web::types::Data<AppState>,
+    app_state: web::types::State<AppState>,
 ) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
@@ -34,8 +30,10 @@ async fn rpc_handler(
                 .body(r.dump()));
         }
     };
-    let mut result = convention::Response::default();
-    result.id = reqjson.id.clone();
+    let mut result = convention::Response {
+        id: reqjson.id.clone(),
+        ..Default::default()
+    };
 
     match rpc_select(&*app_state, reqjson.method.as_str(), reqjson.params).await {
         Ok(ok) => result.result = ok,
@@ -104,7 +102,7 @@ impl ObjNetwork {
         d: u64,
     ) -> Pin<Box<dyn Future<Output = Result<String, Box<dyn error::Error>>>>> {
         async move {
-            delay_for(Duration::from_secs(d)).await;
+            sleep(Duration::from_secs(d)).await;
             Ok(String::from("pong"))
         }
         .boxed_local()
@@ -134,11 +132,12 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let app_state = web::types::Data::new(AppState::new(RwLock::new(ObjNetwork::new())));
+    let app_state =
+        web::types::State::new(AppState::new(RwLock::new(ObjNetwork::new())));
 
     web::server(move || {
         App::new()
-            .app_data(app_state.clone())
+            .app_state(app_state.clone())
             .wrap(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
     })

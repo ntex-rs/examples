@@ -1,33 +1,19 @@
-use std::pin::Pin;
-use std::rc::Rc;
-use std::task::{Context, Poll};
+use std::{future::Future, pin::Pin, rc::Rc, task::Context, task::Poll};
 
-use bytes::BytesMut;
-use futures::future::{ok, Future, Ready};
 use futures::stream::StreamExt;
-use ntex::web::dev::{WebRequest, WebResponse};
-use ntex::web::{Error, ErrorRenderer};
-use ntex::{Service, Transform};
+use ntex::service::{Service, Transform};
+use ntex::util::BytesMut;
+use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S: 'static, Err> Transform<S> for Logging
-where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>,
-    S::Future: 'static,
-    Err: ErrorRenderer,
-{
-    type Request = WebRequest<Err>;
-    type Response = WebResponse;
-    type Error = Error;
-    type InitError = ();
-    type Transform = LoggingMiddleware<S>;
-    type Future = Ready<Result<Self::Transform, Self::InitError>>;
+impl<S> Transform<S> for Logging {
+    type Service = LoggingMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Future {
-        ok(LoggingMiddleware {
+    fn new_transform(&self, service: S) -> Self::Service {
+        LoggingMiddleware {
             service: Rc::new(service),
-        })
+        }
     }
 }
 
@@ -36,14 +22,11 @@ pub struct LoggingMiddleware<S> {
     service: Rc<S>,
 }
 
-impl<S, Err> Service for LoggingMiddleware<S>
+impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
-    S: Service<Request = WebRequest<Err>, Response = WebResponse, Error = Error>
-        + 'static,
-    S::Future: 'static,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error> + 'static,
     Err: ErrorRenderer,
 {
-    type Request = WebRequest<Err>;
     type Response = WebResponse;
     type Error = Error;
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;

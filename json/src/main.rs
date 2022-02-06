@@ -1,6 +1,6 @@
-use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
 use json::JsonValue;
+use ntex::util::{Bytes, BytesMut};
 use ntex::web::{self, error, middleware, App, Error, HttpRequest, HttpResponse};
 use serde::{Deserialize, Serialize};
 
@@ -66,11 +66,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
-            .app_data(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
+            .app_state(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
             .service((
                 web::resource("/extractor").route(web::post().to(index)),
                 web::resource("/extractor2")
-                    .app_data(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
+                    .app_state(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
                     .route(web::post().to(extract_item)),
                 web::resource("/manual").route(web::post().to(index_manual)),
                 web::resource("/mjsonrust").route(web::post().to(index_mjsonrust)),

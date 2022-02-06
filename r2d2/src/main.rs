@@ -8,7 +8,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 /// Async request handler. Ddb pool is stored in application state.
 async fn index(
     path: web::types::Path<String>,
-    db: web::types::Data<Pool<SqliteConnectionManager>>,
+    db: web::types::State<Pool<SqliteConnectionManager>>,
 ) -> Result<HttpResponse, Error> {
     // execute sync code in threadpool
     let res = web::block(move || {
@@ -43,7 +43,7 @@ async fn main() -> io::Result<()> {
     // start http server
     web::server(move || {
         App::new()
-            .data(pool.clone()) // <- store db pool in app state
+            .state(pool.clone()) // <- store db pool in app state
             .wrap(middleware::Logger::default())
             .route("/{name}", web::get().to(index))
     })

@@ -13,7 +13,7 @@ pub struct InvitationData {
 
 pub async fn post_invitation(
     invitation_data: web::types::Json<InvitationData>,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     // run diesel blocking code
     let res =
@@ -31,7 +31,7 @@ pub async fn post_invitation(
 
 fn create_invitation(
     eml: String,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<(), crate::errors::ServiceError> {
     let invitation = dbg!(query(eml, pool)?);
     send_invitation(&invitation)
@@ -40,7 +40,7 @@ fn create_invitation(
 /// Diesel query
 fn query(
     eml: String,
-    pool: web::types::Data<Pool>,
+    pool: web::types::State<Pool>,
 ) -> Result<Invitation, crate::errors::ServiceError> {
     use crate::schema::invitations::dsl::invitations;
 

@@ -8,8 +8,8 @@ use crate::db::Pool;
 use crate::schemas::root::{create_schema, Context, Schema};
 
 pub async fn graphql(
-    pool: web::types::Data<Pool>,
-    schema: web::types::Data<Arc<Schema>>,
+    pool: web::types::State<Pool>,
+    schema: web::types::State<Arc<Schema>>,
     data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let ctx = Context {
@@ -17,7 +17,7 @@ pub async fn graphql(
     };
     let res = web::block(move || {
         let res = data.execute(&schema, &ctx);
-        Ok::<_, serde_json::error::Error>(serde_json::to_string(&res)?)
+        serde_json::to_string(&res)
     })
     .await?;
 
@@ -35,7 +35,7 @@ pub async fn graphql_playground() -> HttpResponse {
 pub fn register(config: &mut web::ServiceConfig) {
     let schema = std::sync::Arc::new(create_schema());
     config
-        .data(schema)
+        .state(schema)
         .route("/graphql", web::post().to(graphql))
         .route("/graphiql", web::get().to(graphql_playground));
 }

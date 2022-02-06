@@ -6,12 +6,12 @@ edition = "2018"
 workspace = ".."
 
 [dependencies]
-ntex = "0.3"
+ntex = { version = "0.5", features = ["tokio"] }
 config = "0.10"
-deadpool-postgres = "0.5"
+deadpool-postgres = { version = "0.10", features = ["serde"] }
 derive_more = "0.99"
 dotenv = "0.15"
 serde = { version = "1.0", features = ["derive"] }
-tokio-pg-mapper = "0.1"
-tokio-pg-mapper-derive = "0.1"
-tokio-postgres = "0.5"
+tokio-pg-mapper = "0.2"
+tokio-pg-mapper-derive = "0.2"
+tokio-postgres = "0.7"

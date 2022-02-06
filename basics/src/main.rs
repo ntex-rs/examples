@@ -1,9 +1,8 @@
 use std::{env, io};
 
-use bytes::Bytes;
-use ntex::channel::mpsc;
 use ntex::http::{header, Method, StatusCode};
 use ntex::web::{self, error, guard, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex::{channel::mpsc, util::Bytes};
 use ntex_files as fs;
 use ntex_session::{CookieSession, Session};
 
