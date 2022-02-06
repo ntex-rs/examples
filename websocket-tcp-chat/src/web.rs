@@ -1,13 +1,18 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
+use futures::channel::mpsc::UnboundedSender;
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
-use ntex::service::{fn_factory_with_config, fn_service, map_config, Service};
+
+use ntex::service::{
+    fn_factory_with_config, fn_service, map_config, Service, ServiceFactory,
+};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
+use ntex::{
+    channel::oneshot, http, io::Io, rt, time, util, util::ByteString, util::Bytes,
+};
 use ntex_files as fs;
 
-mod server;
-use self::server::{ClientMessage, ServerMessage};
+use super::server::{ClientMessage, ServerMessage};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -215,7 +220,7 @@ async fn heartbeat(
                     let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
                     // disconnect connection
-                    sink.io.close();
+                    // let _ = sink.close();
                     return;
                 } else {
                     // send ping
@@ -232,17 +237,14 @@ async fn heartbeat(
     }
 }
 
-#[ntex::main]
-async fn main() -> std::io::Result<()> {
-    env_logger::init();
-
-    // Start chat server actor
-    let server = server::start();
-
+pub fn server(
+    server: UnboundedSender<ServerMessage>,
+) -> impl ServiceFactory<Io, Response = (), Error = http::error::DispatchError, InitError = ()>
+{
     // Create Http server with websocket support
-    web::server(move || {
+    http::HttpService::build().finish(
         App::new()
-            .state(server.clone())
+            .state(server)
             // redirect to websocket.html
             .service(web::resource("/").route(web::get().to(|| async {
                 HttpResponse::Found()
@@ -252,9 +254,6 @@ async fn main() -> std::io::Result<()> {
             // websocket
             .service(web::resource("/ws/").to(chat_route))
             // static resources
-            .service(fs::Files::new("/static/", "static/"))
-    })
-    .bind("127.0.0.1:8080")?
-    .run()
-    .await
+            .service(fs::Files::new("/static/", "static/")),
+    )
 }

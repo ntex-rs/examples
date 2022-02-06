@@ -10,12 +10,13 @@ path = "src/main.rs"
 
 [[bin]]
 name = "ws-client"
-path = "src/client.rs"
+path = "src/client-ws.rs"
 
 [dependencies]
 ntex = { version = "0.5", features = ["tokio"] }
 ntex-mqtt = "0.8.3"
 ntex-amqp = "0.6.2"
+ntex-files = "0.1"
 
 rand = "0.8"
 byteorder = "1.4"

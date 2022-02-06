@@ -1,19 +1,20 @@
 #![allow(dead_code)]
 use std::io;
 
-use ntex::codec::{Decoder, Encoder};
 use byteorder::{BigEndian, ByteOrder};
-use bytes::{BufMut, BytesMut};
+use ntex::codec::{Decoder, Encoder};
+use ntex::util::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
 use serde_json as json;
 
 /// Client request
-#[derive(Serialize, Deserialize, Debug, Message)]
-#[rtype(result = "()")]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "cmd", content = "data")]
 pub enum ChatRequest {
     /// List rooms
     List,
+    /// Set name
+    Name(String),
     /// Join rooms
     Join(String),
     /// Send message
@@ -23,8 +24,7 @@ pub enum ChatRequest {
 }
 
 /// Server response
-#[derive(Serialize, Deserialize, Debug, Message)]
-#[rtype(result = "()")]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "cmd", content = "data")]
 pub enum ChatResponse {
     Ping,
@@ -68,11 +68,7 @@ impl Encoder for ChatCodec {
     type Item = ChatResponse;
     type Error = io::Error;
 
-    fn encode(
-        &self,
-        msg: ChatResponse,
-        dst: &mut BytesMut,
-    ) -> Result<(), Self::Error> {
+    fn encode(&self, msg: ChatResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
 
@@ -113,11 +109,7 @@ impl Encoder for ClientChatCodec {
     type Item = ChatRequest;
     type Error = io::Error;
 
-    fn encode(
-        &self,
-        msg: ChatRequest,
-        dst: &mut BytesMut,
-    ) -> Result<(), Self::Error> {
+    fn encode(&self, msg: ChatRequest, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
 

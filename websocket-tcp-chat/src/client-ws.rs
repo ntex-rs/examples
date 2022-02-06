@@ -2,8 +2,7 @@
 use std::{io, thread, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::http::client::{ws, Client};
-use ntex::{rt, util::Bytes};
+use ntex::{rt, time, util::Bytes, ws};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -14,8 +13,9 @@ async fn main() -> Result<(), io::Error> {
     env_logger::init();
 
     // open websockets connection over http transport
-    let con = Client::new()
-        .ws("http://127.0.0.1:8080/ws/")
+    let con = ws::WsClient::build("http://127.0.0.1:8080/ws/")
+        .finish()
+        .unwrap()
         .connect()
         .await
         .unwrap();
@@ -51,15 +51,17 @@ async fn main() -> Result<(), io::Error> {
     // start heartbeat task
     let sink = con.sink();
     rt::spawn(async move {
-        rt::time::delay_for(HEARTBEAT_INTERVAL).await;
-        if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
-            return;
+        loop {
+            time::sleep(HEARTBEAT_INTERVAL).await;
+            if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
+                return;
+            }
         }
     });
 
     // run ws dispatcher
     let sink = con.sink();
-    let mut rx = con.start_default();
+    let mut rx = con.seal().receiver();
 
     while let Some(frame) = rx.next().await {
         match frame {

@@ -2,12 +2,12 @@
 //! And manages available rooms. Peers send messages to other peers in same
 //! room through `ChatServer`.
 
-use rand::{self, rngs::ThreadRng, Rng};
-use std::collections::{HashMap, HashSet};
-
 use futures::channel::mpsc::{self, UnboundedSender};
 use futures::{SinkExt, StreamExt};
+use rand::{self, rngs::ThreadRng, Rng};
+
 use ntex::rt;
+use ntex::util::{HashMap, HashSet};
 
 /// Chat server sends this messages to session
 #[derive(Debug)]
@@ -54,12 +54,12 @@ pub struct ChatServer {
 impl Default for ChatServer {
     fn default() -> ChatServer {
         // default room
-        let mut rooms = HashMap::new();
-        rooms.insert("Main".to_owned(), HashSet::new());
+        let mut rooms = HashMap::default();
+        rooms.insert("Main".to_owned(), HashSet::default());
 
         ChatServer {
-            sessions: HashMap::new(),
             rooms,
+            sessions: HashMap::default(),
             rng: rand::thread_rng(),
         }
     }
@@ -100,7 +100,7 @@ impl ChatServer {
                 // auto join session to Main room
                 self.rooms
                     .entry("Main".to_owned())
-                    .or_insert(HashSet::new())
+                    .or_insert_with(HashSet::default)
                     .insert(id);
 
                 // send id back
@@ -169,7 +169,7 @@ impl ChatServer {
 
                 self.rooms
                     .entry(name.clone())
-                    .or_insert(HashSet::new())
+                    .or_insert_with(HashSet::default)
                     .insert(id);
 
                 self.send_message(&name, "Someone connected", id);

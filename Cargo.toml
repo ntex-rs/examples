@@ -38,7 +38,7 @@ members = [
    "unix-socket",
    "websocket",
    "websocket-chat",
-#   "websocket-tcp-chat",
+   "websocket-tcp-chat",
 ]
 
 [patch.crates-io]
