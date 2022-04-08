@@ -1,0 +1,22 @@
+[package]
+name = "websocket-lowlevel"
+version = "2.0.0"
+authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+edition = "2018"
+
+[[bin]]
+name = "server"
+path = "src/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { version = "0.5.16", features = ["tokio", "openssl"] }
+ntex-files = "0.1"
+env_logger = "0.9"
+futures = "0.3"
+
+openssl = "0.10"
+ntex-tls = { version="*", features = ["openssl"] }
