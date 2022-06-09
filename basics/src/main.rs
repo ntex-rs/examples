@@ -60,6 +60,17 @@ async fn with_param(
         .body(format!("Hello {}!", path.0))
 }
 
+/// Handler to match all paths starting with /files
+#[web::get("/files/{all}*")]
+async fn match_all_paths(
+    path: web::types::Path<String>,
+) -> HttpResponse {
+    println!("path: {:?}", path);
+    HttpResponse::Ok()
+    .content_type("text/plain")
+    .body("it's matching !")
+}
+
 #[ntex::main]
 async fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "ntex=info");
@@ -76,6 +87,8 @@ async fn main() -> io::Result<()> {
                 favicon,
                 // register simple route, handle all methods
                 welcome,
+                // register match_all_paths method
+                match_all_paths,
                 // with path parameters
                 web::resource("/user/{name}").route(web::get().to(with_param)),
                 // async response body
