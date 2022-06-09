@@ -60,7 +60,7 @@ async fn with_param(
         .body(format!("Hello {}!", path.0))
 }
 
-/// Handler to match all path starting with /files
+/// Handler to match all paths starting with /files
 #[web::get("/files/{all}*")]
 async fn match_all_paths(
     path: web::types::Path<String>,
@@ -87,7 +87,7 @@ async fn main() -> io::Result<()> {
                 favicon,
                 // register simple route, handle all methods
                 welcome,
-                // register math_all_paths method
+                // register match_all_paths method
                 match_all_paths,
                 // with path parameters
                 web::resource("/user/{name}").route(web::get().to(with_param)),
