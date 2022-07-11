@@ -1,9 +1,7 @@
 //! Example of cookie based session
 //! Session data is stored in cookie, it is limited to 4kb
 //!
-//! [Redis session example](https://github.com/actix/examples/tree/master/redis-session)
-//!
-//! [User guide](https://actix.rs/docs/middleware/#user-sessions)
+//! [Redis session example](https://github.com/ntex-rs/examples/tree/master/redis-session)
 
 use ntex::web::{self, middleware::Logger, App, Error, HttpRequest};
 use ntex_session::{CookieSession, Session};
@@ -28,7 +26,7 @@ async fn index(session: Session, req: HttpRequest) -> Result<&'static str, Error
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
     println!("Starting http server: 127.0.0.1:8080");
 

@@ -1,6 +1,6 @@
 //! Actix web juniper example
 //!
-//! A simple example integrating juniper in actix-web
+//! A simple example integrating juniper in ntex
 use std::io;
 
 use juniper::http::graphiql::graphiql_source;
@@ -36,7 +36,7 @@ async fn graphql(
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     // Create Juniper schema

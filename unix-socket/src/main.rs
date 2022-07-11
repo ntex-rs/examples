@@ -7,12 +7,12 @@ async fn index(_req: HttpRequest) -> &'static str {
 #[ntex::main]
 #[cfg(unix)]
 async fn main() -> std::io::Result<()> {
-    ::std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
+    ::std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     web::server(|| {
         App::new()
-            // enable logger - always register actix-web Logger middleware last
+            // enable logger
             .wrap(middleware::Logger::default())
             .service((
                 web::resource("/index.html")
@@ -20,7 +20,7 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/").to(index),
             ))
     })
-    .bind_uds("/tmp/actix-uds.socket")?
+    .bind_uds("/tmp/ntex-uds.socket")?
     .run()
     .await
 }

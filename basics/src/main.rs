@@ -62,13 +62,11 @@ async fn with_param(
 
 /// Handler to match all paths starting with /files
 #[web::get("/files/{all}*")]
-async fn match_all_paths(
-    path: web::types::Path<String>,
-) -> HttpResponse {
+async fn match_all_paths(path: web::types::Path<String>) -> HttpResponse {
     println!("path: {:?}", path);
     HttpResponse::Ok()
-    .content_type("text/plain")
-    .body("it's matching !")
+        .content_type("text/plain")
+        .body("it's matching !")
 }
 
 #[ntex::main]
@@ -80,7 +78,7 @@ async fn main() -> io::Result<()> {
         App::new()
             // cookie session middleware
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
-            // enable logger - always register actix-web Logger middleware last
+            // enable logger
             .wrap(middleware::Logger::default())
             .service((
                 // register favicon

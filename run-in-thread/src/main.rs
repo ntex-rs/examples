@@ -31,7 +31,7 @@ async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
 
 #[ntex::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "actix_web=info,actix_server=trace");
+    std::env::set_var("RUST_LOG", "trace");
     env_logger::init();
 
     let (tx, rx) = mpsc::channel();

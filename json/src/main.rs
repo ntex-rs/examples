@@ -59,7 +59,7 @@ async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, Error> {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     web::server(|| {

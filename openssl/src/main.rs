@@ -13,8 +13,8 @@ async fn index(req: HttpRequest) -> Result<HttpResponse, Error> {
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=debug");
-    env_logger::init();
+    std::env::set_var("RUST_LOG", "trace");
+    let _ = env_logger::try_init();
 
     println!("Started http server: 127.0.0.1:8443");
 

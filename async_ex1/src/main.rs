@@ -1,4 +1,4 @@
-// This is a contrived example intended to illustrate actix-web features.
+// This is a contrived example intended to illustrate ntex features.
 // *Imagine* that you have a process that involves 3 steps.  The steps here
 // are dumb in that they do nothing other than call an
 // httpbin endpoint that returns the json that was posted to it.  The intent
@@ -8,7 +8,7 @@
 // Actix-web features illustrated here include:
 //     1. handling json input param
 //     2. validating user-submitted parameters using the 'validator' crate
-//     2. actix-web client features:
+//     2. ntex client features:
 //           - POSTing json body
 //     3. chaining futures into a single response used by an async endpoint
 

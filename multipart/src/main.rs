@@ -41,7 +41,7 @@ async fn index() -> HttpResponse {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     std::fs::create_dir_all("./tmp").unwrap();
 
     let ip = "0.0.0.0:3000";

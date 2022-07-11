@@ -9,7 +9,7 @@ mod simple;
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=debug");
+    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
     web::server(|| {

@@ -15,8 +15,6 @@
 //! Mutex) and `counter3` (global state via Atomic variable) each time the endpoint is called,
 //! but only appear to increment `counter2` every Nth time on average (thread-local state). This
 //! is because the workload is being shared equally among cores.
-//!
-//! Check [user guide](https://actix.rs/docs/application/#state) for more info.
 
 use std::cell::Cell;
 use std::io;
@@ -50,7 +48,7 @@ async fn index(
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     // Create some global state prior to building the server

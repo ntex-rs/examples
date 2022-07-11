@@ -20,7 +20,7 @@ async fn logout(id: Identity) -> HttpResponse {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_web=info");
+    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     web::server(|| {
@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
                     .name("auth-example")
                     .secure(false),
             ))
-            // enable logger - always register actix-web Logger middleware last
+            // enable logger
             .wrap(middleware::Logger::default())
             .service((
                 web::resource("/login").route(web::post().to(login)),

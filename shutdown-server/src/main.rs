@@ -17,7 +17,7 @@ async fn stop(stopper: web::types::State<mpsc::Sender<()>>) -> HttpResponse {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "actix_server=debug,actix_web=debug");
+    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
     // create a channel

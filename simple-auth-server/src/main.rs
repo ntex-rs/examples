@@ -18,10 +18,7 @@ mod utils;
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
-    std::env::set_var(
-        "RUST_LOG",
-        "simple-auth-server=debug,actix_web=info,actix_server=info",
-    );
+    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
 
