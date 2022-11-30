@@ -215,7 +215,7 @@ async fn heartbeat(
                     let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
                     // disconnect connection
-                    sink.io.close();
+                    sink.io().close();
                     return;
                 } else {
                     // send ping
