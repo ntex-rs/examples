@@ -12,6 +12,7 @@ pub async fn graphql(
     schema: web::types::State<Arc<Schema>>,
     data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
+    let schema = (&*schema).clone();
     let ctx = Context {
         dbpool: pool.get_ref().to_owned(),
     };

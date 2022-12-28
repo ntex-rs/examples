@@ -1,7 +1,7 @@
 //! Actix web juniper example
 //!
 //! A simple example integrating juniper in ntex
-use std::io;
+use std::{io, sync::Arc};
 
 use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
@@ -21,9 +21,10 @@ async fn graphiql() -> HttpResponse {
 
 #[web::post("/graphql")]
 async fn graphql(
-    st: web::types::State<Schema>,
+    st: web::types::State<Arc<Schema>>,
     data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
+    let st = (&*st).clone();
     let user = web::block(move || {
         let res = data.execute(&st, &());
         serde_json::to_string(&res)
@@ -40,12 +41,12 @@ async fn main() -> io::Result<()> {
     env_logger::init();
 
     // Create Juniper schema
-    let schema = web::types::State::new(create_schema());
+    let schema = Arc::new(create_schema());
 
     // Start http server
     web::server(move || {
         App::new()
-            .app_state(schema.clone())
+            .state(schema.clone())
             .wrap(middleware::Logger::default())
             .service((graphql, graphiql))
     })

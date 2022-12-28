@@ -16,6 +16,7 @@ pub async fn register_user(
     user_data: web::types::Json<UserData>,
     pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
+    let pool = (&*pool).clone();
     let res = web::block(move || {
         query(
             invitation_id.into_inner(),
@@ -37,7 +38,7 @@ pub async fn register_user(
 fn query(
     invitation_id: String,
     password: String,
-    pool: web::types::State<Pool>,
+    pool: Pool,
 ) -> Result<SlimUser, crate::errors::ServiceError> {
     use crate::schema::invitations::dsl::{id, invitations};
     use crate::schema::users::dsl::users;

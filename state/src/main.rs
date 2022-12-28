@@ -19,15 +19,15 @@
 use std::cell::Cell;
 use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 
 /// simple handle
 async fn index(
-    counter1: web::types::State<Mutex<usize>>,
+    counter1: web::types::State<Arc<Mutex<usize>>>,
     counter2: web::types::State<Cell<u32>>,
-    counter3: web::types::State<AtomicUsize>,
+    counter3: web::types::State<Arc<AtomicUsize>>,
     req: HttpRequest,
 ) -> HttpResponse {
     println!("{:?}", req);
@@ -53,8 +53,8 @@ async fn main() -> io::Result<()> {
 
     // Create some global state prior to building the server
     #[allow(clippy::mutex_atomic)] // it's intentional.
-    let counter1 = web::types::State::new(Mutex::new(0usize));
-    let counter3 = web::types::State::new(AtomicUsize::new(0usize));
+    let counter1 = Arc::new(Mutex::new(0usize));
+    let counter3 = Arc::new(AtomicUsize::new(0usize));
 
     // move is necessary to give closure below ownership of counter1
     web::server(move || {
@@ -62,8 +62,8 @@ async fn main() -> io::Result<()> {
         let counter2 = Cell::new(0u32);
 
         App::new()
-            .app_state(counter1.clone()) // add shared state
-            .app_state(counter3.clone()) // add shared state
+            .state(counter1.clone()) // add shared state
+            .state(counter3.clone()) // add shared state
             .state(counter2) // add thread-local state
             // enable logger
             .wrap(middleware::Logger::default())

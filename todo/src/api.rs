@@ -13,6 +13,7 @@ pub async fn index(
     tmpl: web::types::State<Tera>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
+    let pool = (&*pool).clone();
     let tasks = web::block(move || db::get_all_tasks(&pool)).await?;
 
     let mut context = Context::new();
@@ -42,6 +43,8 @@ pub async fn create(
     pool: web::types::State<db::PgPool>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
+    let pool = (&*pool).clone();
+
     if params.description.is_empty() {
         session::set_flash(
             &session,
@@ -86,6 +89,7 @@ async fn toggle(
     pool: web::types::State<db::PgPool>,
     params: web::types::Path<UpdateParams>,
 ) -> Result<HttpResponse, Error> {
+    let pool = (&*pool).clone();
     web::block(move || db::toggle_task(params.id, &pool)).await?;
     Ok(redirect_to("/"))
 }
@@ -95,6 +99,7 @@ async fn delete(
     params: web::types::Path<UpdateParams>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
+    let pool = (&*pool).clone();
     web::block(move || db::delete_task(params.id, &pool)).await?;
     session::set_flash(&session, FlashMessage::success("Task was deleted."))?;
     Ok(redirect_to("/"))

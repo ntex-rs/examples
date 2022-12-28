@@ -16,6 +16,7 @@ pub async fn post_invitation(
     pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     // run diesel blocking code
+    let pool = (&*pool).clone();
     let res =
         web::block(move || create_invitation(invitation_data.into_inner().email, pool))
             .await;
@@ -31,17 +32,14 @@ pub async fn post_invitation(
 
 fn create_invitation(
     eml: String,
-    pool: web::types::State<Pool>,
+    pool: Pool,
 ) -> Result<(), crate::errors::ServiceError> {
     let invitation = dbg!(query(eml, pool)?);
     send_invitation(&invitation)
 }
 
 /// Diesel query
-fn query(
-    eml: String,
-    pool: web::types::State<Pool>,
-) -> Result<Invitation, crate::errors::ServiceError> {
+fn query(eml: String, pool: Pool) -> Result<Invitation, crate::errors::ServiceError> {
     use crate::schema::invitations::dsl::invitations;
 
     let new_invitation: Invitation = eml.into();

@@ -1,12 +1,12 @@
 [package]
 name = "juniper-example"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["pyros2097 <pyros2097@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.5", features = ["tokio"] }
-env_logger = "0.9"
+ntex = { version = "0.6.0-beta.0", features = ["tokio"] }
+env_logger = "0.10"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"

@@ -1,11 +1,11 @@
 [package]
 name = "middleware-example"
-version = "2.0.0"
+version = "3.0.0"
 authors = ["Gorm Casper <gcasper@gmail.com>", "Sven-Hendrik Haase <svenstaro@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.5", features = ["tokio"] }
-env_logger = "0.9"
+ntex = { version = "0.6.0-beta.0", features = ["tokio"] }
+env_logger = "0.10"
 futures = "0.3"
 pin-project = "1.0"

@@ -44,7 +44,7 @@ async fn main() -> std::io::Result<()> {
                     .max_age_time(time::Duration::days(1))
                     .secure(false), // this can only be true if you have https
             ))
-            .app_state(web::types::JsonConfig::default().limit(4096))
+            .state(web::types::JsonConfig::default().limit(4096))
             // everything under '/api/' route
             .service(
                 web::scope("/api").service((

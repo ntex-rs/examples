@@ -66,11 +66,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
-            .app_state(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
+            .state(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
             .service((
                 web::resource("/extractor").route(web::post().to(index)),
                 web::resource("/extractor2")
-                    .app_state(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
+                    .state(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
                     .route(web::post().to(extract_item)),
                 web::resource("/manual").route(web::post().to(index_manual)),
                 web::resource("/mjsonrust").route(web::post().to(index_mjsonrust)),
