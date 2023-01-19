@@ -24,7 +24,7 @@ async fn chat_route(
     req: HttpRequest,
     srv: web::types::State<mpsc::UnboundedSender<ServerMessage>>,
 ) -> Result<HttpResponse, Error> {
-    let srv = srv.as_ref().clone();
+    let srv = srv.get_ref().clone();
     ws::start(
         req,
         // inject chat server send to a ws_service factory
