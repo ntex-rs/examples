@@ -44,15 +44,15 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bytes::Bytes;
+    use ntex::util::Bytes;
     use ntex::{http, web::test as atest};
 
     #[ntex::test]
     async fn test() {
-        let mut app = atest::init_service(App::new().service(index)).await;
+        let app = atest::init_service(App::new().service(index)).await;
 
         let req = atest::TestRequest::with_uri("/").to_request();
-        let resp = atest::call_service(&mut app, req).await;
+        let resp = atest::call_service(&app, req).await;
 
         assert!(resp.status().is_success());
 
@@ -75,7 +75,7 @@ mod test {
         );
 
         let req = atest::TestRequest::with_uri("/?name=foo&lastname=bar").to_request();
-        let resp = atest::call_service(&mut app, req).await;
+        let resp = atest::call_service(&app, req).await;
 
         assert!(resp.status().is_success());
 
@@ -96,7 +96,7 @@ mod test {
         );
 
         let req = atest::TestRequest::with_uri("/?name=foo").to_request();
-        let resp = atest::call_service(&mut app, req).await;
+        let resp = atest::call_service(&app, req).await;
 
         assert!(resp.status().is_server_error());
 
@@ -105,7 +105,7 @@ mod test {
         assert_eq!(bytes, Bytes::from_static("Some error message".as_ref()));
 
         let req = atest::TestRequest::with_uri("/?lastname=bar").to_request();
-        let resp = atest::call_service(&mut app, req).await;
+        let resp = atest::call_service(&app, req).await;
 
         assert!(resp.status().is_success());
 
