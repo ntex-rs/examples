@@ -11,9 +11,9 @@ async fn index(
     db: web::types::State<Pool<SqliteConnectionManager>>,
 ) -> Result<HttpResponse, Error> {
     // execute sync code in threadpool
+    let db = db.get_ref().clone();
     let res = web::block(move || {
         let conn = db.get().unwrap();
-
         let uuid = format!("{}", uuid::Uuid::new_v4());
         conn.execute(
             "INSERT INTO users (id, name) VALUES ($1, $2)",
