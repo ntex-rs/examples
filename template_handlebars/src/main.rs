@@ -3,11 +3,11 @@ extern crate serde_json;
 
 use handlebars::Handlebars;
 use ntex::web::{self, App, HttpResponse};
-use std::io;
+use std::{io, sync::Arc};
 
 // Macro documentation can be found in the ntex_macros crate
 #[web::get("/")]
-async fn index(hb: web::types::State<Handlebars<'_>>) -> HttpResponse {
+async fn index(hb: web::types::State<Arc<Handlebars<'static>>>) -> HttpResponse {
     let data = json!({
         "name": "Handlebars"
     });
@@ -18,7 +18,7 @@ async fn index(hb: web::types::State<Handlebars<'_>>) -> HttpResponse {
 
 #[web::get("/{user}/{data}")]
 async fn user(
-    hb: web::types::State<Handlebars<'_>>,
+    hb: web::types::State<Arc<Handlebars<'static>>>,
     info: web::types::Path<(String, String)>,
 ) -> HttpResponse {
     let data = json!({
@@ -39,11 +39,11 @@ async fn main() -> io::Result<()> {
     handlebars
         .register_templates_directory(".html", "./static/templates")
         .unwrap();
-    let handlebars_ref = web::types::State::new(handlebars);
+    let handlebars_ref = Arc::new(handlebars);
 
     web::server(move || {
         App::new()
-            .app_state(handlebars_ref.clone())
+            .state(handlebars_ref.clone())
             .service((index, user))
     })
     .bind("127.0.0.1:8080")?
