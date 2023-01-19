@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::Bytes;
+    use ntex::util::Bytes;
     use ntex::web::{test, App, Error};
     use ntex::Service;
     use ntex::{http, web};
