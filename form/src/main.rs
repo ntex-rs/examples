@@ -143,11 +143,11 @@ mod tests {
     #[ntex::test]
     async fn handle_post_2_unit_test() {
         let state = TestRequest::default()
-            .data(AppState {
+            .state(AppState {
                 foo: "bar".to_string(),
             })
             .to_http_request();
-        let data = state.app_data::<web::types::State<AppState>>().unwrap();
+        let data = state.app_state::<web::types::State<AppState>>().unwrap();
         let params = Form(MyParams {
             name: "John".to_string(),
         });
