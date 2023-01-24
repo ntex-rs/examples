@@ -25,7 +25,7 @@ where
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = Either<S::Future<>, Ready<Result<Self::Response, Self::Error>>> where Self: 'f;
+    type Future<'f> = Either<S::Future<'f>, Ready<Result<Self::Response, Self::Error>>> where Self: 'f, Err: 'f;
 
     fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
