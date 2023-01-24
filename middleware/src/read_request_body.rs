@@ -1,16 +1,16 @@
 use std::{future::Future, pin::Pin, rc::Rc, task::Context, task::Poll};
 
 use futures::stream::StreamExt;
-use ntex::service::{Service, Transform};
+use ntex::service::{Service, Middleware};
 use ntex::util::BytesMut;
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S> Transform<S> for Logging {
+impl<S> Middleware<S> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         LoggingMiddleware {
             service: Rc::new(service),
         }
@@ -35,7 +35,7 @@ where
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, mut req: WebRequest<Err>) -> Self::Future {
+    fn call(&self, mut req: WebRequest<Err>) -> Self::Future<'static> {
         let svc = self.service.clone();
 
         Box::pin(async move {

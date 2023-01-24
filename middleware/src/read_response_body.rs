@@ -1,16 +1,16 @@
 use std::{future::Future, pin::Pin, task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::service::{Service, Transform};
+use ntex::service::{Service, Middleware};
 use ntex::util::{Bytes, BytesMut};
 use ntex::web::{Error, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S> Transform<S> for Logging {
+impl<S> Middleware<S> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         LoggingMiddleware { service }
     }
 }
@@ -25,26 +25,25 @@ where
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = WrapperStream<S, Err>;
+    type Future<'f> = WrapperStream<S, Err> where Self: 'f;
 
     fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future<'_> {
         WrapperStream {
             fut: self.service.call(req),
         }
     }
 }
 
-#[pin_project::pin_project]
 pub struct WrapperStream<S, Err>
 where
     S: Service<WebRequest<Err>>,
 {
     #[pin]
-    fut: S::Future,
+    fut: S::Future<'f>,
 }
 
 impl<S, Err> Future for WrapperStream<S, Err>

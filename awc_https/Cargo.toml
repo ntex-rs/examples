@@ -5,5 +5,5 @@ authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.6.0-beta.0", features = ["openssl", "tokio"] }
+ntex = { version = "0.6.2", features = ["openssl", "tokio"] }
 openssl = "0.10"

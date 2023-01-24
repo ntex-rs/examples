@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin, task::Context, task::Poll};
 
-use ntex::service::{Service, Transform};
+use ntex::service::{Service, Middleware};
 use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
@@ -9,13 +9,13 @@ use ntex::web::{Error, WebRequest, WebResponse};
 // 2. Middleware's call method gets called with normal request.
 pub struct SayHi;
 
-// Middleware factory is `Transform` trait from ntex-service crate
+// Middleware factory is `Middleware` trait from ntex-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S> Transform<S> for SayHi {
+impl<S> Middleware<S> for SayHi {
     type Service = SayHiMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         SayHiMiddleware { service }
     }
 }
@@ -27,7 +27,6 @@ pub struct SayHiMiddleware<S> {
 impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    S::Future: 'static,
 {
     type Response = WebResponse;
     type Error = Error;
@@ -37,7 +36,7 @@ where
         self.service.poll_ready(cx)
     }
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future<'static> {
         println!("Hi from start. You requested: {}", req.path());
 
         let fut = self.service.call(req);

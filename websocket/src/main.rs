@@ -1,14 +1,11 @@
 //! Simple echo websocket server.
 //! Open `http://localhost:8080/ws/index.html` in browser
 
-use std::cell::Cell;
-use std::pin::Pin;
-use std::task::Poll;
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use futures::Future;
 use futures::future::{ready, select, Either};
-use ntex::service::{fn_factory_with_config, Service};
+use ntex::{fn_service, pipeline};
+use ntex::service::{fn_factory_with_config, Service, fn_shutdown};
 use ntex::util::Bytes;
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{channel::oneshot, rt, time};
@@ -23,77 +20,6 @@ struct WsState {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
-}
-
-#[inline]
-fn fn_shutdown() {}
-
-pub struct WsService<F, Fut, FShut = fn()>
-where
-    F: Fn(ws::Frame) -> Fut,
-    Fut: Future<Output = Result<Option<ws::Message>, io::Error>>,
-{
-    f_frame: F,
-    f_shutdown: Cell<Option<FShut>>,
-}
-
-impl<F, Fut> WsService<F, Fut>
-where
-    F: Fn(ws::Frame) -> Fut,
-    Fut: Future<Output = Result<Option<ws::Message>, io::Error>>,
-{
-    pub fn new(f_frame: F) -> Self {
-        Self {
-            f_frame,
-            f_shutdown: Cell::new(Some(fn_shutdown)),
-        }
-    }
-
-    /// Set function that get called on poll_shutdown method of Service trait.
-    pub fn on_disconnect<FShut>(self, f: FShut) -> WsService<F, Fut, FShut>
-    where
-    FShut: FnOnce(),
-    {
-        WsService {
-            f_frame: self.f_frame,
-            f_shutdown: Cell::new(Some(f)),
-        }
-    }
-}
-
-impl<F, Fut, FShut> Service<ws::Frame> for WsService<F, Fut, FShut>
-where
-F: Fn(ws::Frame) -> Fut,
-Fut: Future<Output = Result<Option<ws::Message>, io::Error>>,
-FShut: FnOnce(), {
-    type Response = Option<ws::Message>;
-    type Error = io::Error;
-    type Future<'f> = Pin<Box<Fut>> where Self: 'f;
-
-    #[inline]
-    fn call(&self, req: ws::Frame) -> Self::Future<'_> {
-        Box::pin((self.f_frame)(req))
-    }
-
-    #[inline]
-    fn poll_shutdown(&self, _: &mut std::task::Context<'_>) -> Poll<()> {
-        if let Some(f) = self.f_shutdown.take() {
-            f();
-        }
-        Poll::Ready(())
-    }
-}
-
-#[inline]
-/// Create `WsService` for function that can act as a `Service`
-pub fn fn_ws_service<F, Fut>(
-    f: F,
-) -> WsService<F, Fut>
-where
-F: Fn(ws::Frame) -> Fut,
-Fut: Future<Output = Result<Option<ws::Message>, io::Error>>,
-{
-    WsService::new(f)
 }
 
 /// WebSockets service factory
@@ -111,7 +37,8 @@ async fn ws_service(
     // start heartbeat task
     rt::spawn(heartbeat(state.clone(), sink, rx));
 
-    Ok(fn_ws_service(move | frame | {
+    // handler service for incoming websockets frames
+    let service = fn_service(move | frame | {
         let item = match frame {
             // update heartbeat
             ws::Frame::Ping(msg) => {
@@ -134,10 +61,15 @@ async fn ws_service(
             _ => None,
         };
         ready(Ok(item))
-    }).on_disconnect(move | | {
-        // stop heartbeat when connection is closed
+    });
+
+    // handler service for shutdown notification that stop heartbeat task
+    let on_shutdown = fn_shutdown(move || {
         let _ = tx.send(());
-    }))
+    });
+
+    // pipe our service with on_shutdown callback
+    Ok(pipeline(service).and_then(on_shutdown))
 }
 
 /// helper method that sends ping to client every heartbeat interval
@@ -157,9 +89,7 @@ async fn heartbeat(
                 }
 
                 // send ping
-                if sink.send(ws::Message::Ping(
-                 Bytes::default()
-                )).await.is_err() {
+                if sink.send(ws::Message::Ping(Bytes::default())).await.is_err() {
                     return;
                 }
             }
