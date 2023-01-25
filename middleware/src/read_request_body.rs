@@ -1,8 +1,8 @@
-use std::{future::Future, pin::Pin, rc::Rc, task::Context, task::Poll};
+use std::rc::Rc;
 
 use futures::stream::StreamExt;
 use ntex::service::{Service, Middleware};
-use ntex::util::BytesMut;
+use ntex::util::{BytesMut, BoxFuture};
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
@@ -29,13 +29,11 @@ where
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where Self: 'f;
 
-    fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    ntex::forward_poll_ready!(service);
 
-    fn call(&self, mut req: WebRequest<Err>) -> Self::Future<'static> {
+    fn call(&self, mut req: WebRequest<Err>) -> Self::Future<'_> {
         let svc = self.service.clone();
 
         Box::pin(async move {

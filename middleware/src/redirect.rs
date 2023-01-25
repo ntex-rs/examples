@@ -1,9 +1,7 @@
-use std::task::{Context, Poll};
-
 use futures::future::{ok, Either, Ready};
 use ntex::http;
 use ntex::service::{Service, Middleware};
-use ntex::web::{Error, HttpResponse, WebRequest, WebResponse};
+use ntex::web::{Error, HttpResponse, WebRequest, WebResponse, ErrorRenderer};
 
 pub struct CheckLogin;
 
@@ -22,16 +20,15 @@ pub struct CheckLoginMiddleware<S> {
 impl<S, Err> Service<WebRequest<Err>> for CheckLoginMiddleware<S>
 where
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
+    Err: ErrorRenderer,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = Either<S::Future<'f>, Ready<Result<Self::Response, Self::Error>>> where Self: 'f, Err: 'f;
+    type Future<'f> = Either<S::Future<'f>, Ready<Result<Self::Response, Self::Error>>> where Self: 'f;
 
-    fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    ntex::forward_poll_ready!(service);
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future<'static> {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future<'_> {
         // We only need to hook into the `start` for this middleware.
 
         let is_logged_in = false; // Change this to see the change in outcome in the browser

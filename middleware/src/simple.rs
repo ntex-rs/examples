@@ -1,7 +1,6 @@
-use std::{future::Future, pin::Pin, task::Context, task::Poll};
-
 use ntex::service::{Service, Middleware};
-use ntex::web::{Error, WebRequest, WebResponse};
+use ntex::util::BoxFuture;
+use ntex::web::{Error, WebRequest, WebResponse, ErrorRenderer};
 
 // There are two steps in middleware processing.
 // 1. Middleware initialization, middleware factory gets called with
@@ -27,23 +26,19 @@ pub struct SayHiMiddleware<S> {
 impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
+    Err: ErrorRenderer,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where Self: 'f;
 
-    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
-
-    fn call(&self, req: WebRequest<Err>) -> Self::Future<'static> {
+    ntex::forward_poll_ready!(service);
+    
+    fn call(&self, req: WebRequest<Err>) -> Self::Future<'_> {
         println!("Hi from start. You requested: {}", req.path());
-
         let fut = self.service.call(req);
-
         Box::pin(async move {
             let res = fut.await?;
-
             println!("Hi from response");
             Ok(res)
         })
