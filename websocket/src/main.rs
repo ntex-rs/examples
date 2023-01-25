@@ -4,11 +4,11 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::future::{ready, select, Either};
-use ntex::{fn_service, pipeline};
-use ntex::service::{fn_factory_with_config, Service, fn_shutdown};
+use ntex::service::{fn_factory_with_config, fn_shutdown, Service};
 use ntex::util::Bytes;
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{channel::oneshot, rt, time};
+use ntex::{fn_service, pipeline};
 use ntex_files as fs;
 
 /// How often heartbeat pings are sent
@@ -38,7 +38,7 @@ async fn ws_service(
     rt::spawn(heartbeat(state.clone(), sink, rx));
 
     // handler service for incoming websockets frames
-    let service = fn_service(move | frame | {
+    let service = fn_service(move |frame| {
         let item = match frame {
             // update heartbeat
             ws::Frame::Ping(msg) => {
@@ -89,7 +89,11 @@ async fn heartbeat(
                 }
 
                 // send ping
-                if sink.send(ws::Message::Ping(Bytes::default())).await.is_err() {
+                if sink
+                    .send(ws::Message::Ping(Bytes::default()))
+                    .await
+                    .is_err()
+                {
                     return;
                 }
             }

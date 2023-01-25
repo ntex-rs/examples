@@ -5,7 +5,7 @@ use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
 
 use ntex::pipeline;
 use ntex::service::{
-    fn_factory_with_config, fn_service, map_config, Service, ServiceFactory, fn_shutdown,
+    fn_factory_with_config, fn_service, fn_shutdown, map_config, Service, ServiceFactory,
 };
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{

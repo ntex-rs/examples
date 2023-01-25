@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use futures::stream::StreamExt;
-use ntex::service::{Service, Middleware};
-use ntex::util::{BytesMut, BoxFuture};
+use ntex::service::{Middleware, Service};
+use ntex::util::{BoxFuture, BytesMut};
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
@@ -24,7 +24,7 @@ pub struct LoggingMiddleware<S> {
 
 impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error> + 'static,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
     Err: ErrorRenderer,
 {
     type Response = WebResponse;

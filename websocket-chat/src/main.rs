@@ -2,7 +2,9 @@ use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
 use ntex::pipeline;
-use ntex::service::{fn_factory_with_config, fn_service, map_config, Service, fn_shutdown};
+use ntex::service::{
+    fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
+};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
@@ -88,89 +90,89 @@ async fn ws_service(
     rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx));
 
     // handler service for incoming websockets frames
-    let service = fn_service(move | frame | {
-            println!("WEBSOCKET MESSAGE: {:?}", frame);
-    
-            let item = match frame {
-                ws::Frame::Ping(msg) => {
-                    state.borrow_mut().hb = Instant::now();
-                    Some(ws::Message::Pong(msg))
-                }
-                // update heartbeat
-                ws::Frame::Pong(_) => {
-                    state.borrow_mut().hb = Instant::now();
-                    None
-                }
-                ws::Frame::Text(text) => {
-                    let m = String::from_utf8(Vec::from(&text[..])).unwrap();
-    
-                    // we check for `/sss` type of messages
-                    if m.starts_with('/') {
-                        let v: Vec<&str> = m.splitn(2, ' ').collect();
-                        match v[0] {
-                            "/list" => {
-                                // Send ListRooms message to chat server and wait for
-                                // response
-                                println!("List rooms");
+    let service = fn_service(move |frame| {
+        println!("WEBSOCKET MESSAGE: {:?}", frame);
+
+        let item = match frame {
+            ws::Frame::Ping(msg) => {
+                state.borrow_mut().hb = Instant::now();
+                Some(ws::Message::Pong(msg))
+            }
+            // update heartbeat
+            ws::Frame::Pong(_) => {
+                state.borrow_mut().hb = Instant::now();
+                None
+            }
+            ws::Frame::Text(text) => {
+                let m = String::from_utf8(Vec::from(&text[..])).unwrap();
+
+                // we check for `/sss` type of messages
+                if m.starts_with('/') {
+                    let v: Vec<&str> = m.splitn(2, ' ').collect();
+                    match v[0] {
+                        "/list" => {
+                            // Send ListRooms message to chat server and wait for
+                            // response
+                            println!("List rooms");
+                            let mut srv = server.clone();
+                            rt::spawn(async move {
+                                let _ = srv.send(ServerMessage::ListRooms(id)).await;
+                            });
+                            None
+                        }
+                        "/join" => {
+                            if v.len() == 2 {
+                                let room = v[1].to_owned();
+                                state.borrow_mut().room = room.clone();
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
-                                    let _ = srv.send(ServerMessage::ListRooms(id)).await;
+                                    let _ = srv
+                                        .send(ServerMessage::Join { id, name: room })
+                                        .await;
                                 });
                                 None
+                            } else {
+                                Some(ws::Message::Text(ByteString::from_static(
+                                    "!!! room name is required",
+                                )))
                             }
-                            "/join" => {
-                                if v.len() == 2 {
-                                    let room = v[1].to_owned();
-                                    state.borrow_mut().room = room.clone();
-                                    let mut srv = server.clone();
-                                    rt::spawn(async move {
-                                        let _ = srv
-                                            .send(ServerMessage::Join { id, name: room })
-                                            .await;
-                                    });
-                                    None
-                                } else {
-                                    Some(ws::Message::Text(ByteString::from_static(
-                                        "!!! room name is required",
-                                    )))
-                                }
-                            }
-                            "/name" => {
-                                if v.len() == 2 {
-                                    state.borrow_mut().name = Some(v[1].to_owned());
-                                    None
-                                } else {
-                                    Some(ws::Message::Text(ByteString::from_static(
-                                        "!!! name is required",
-                                    )))
-                                }
-                            }
-                            _ => Some(ws::Message::Text(
-                                format!("!!! unknown command: {:?}", m).into(),
-                            )),
                         }
-                    } else {
-                        let msg = if let Some(ref name) = state.borrow().name {
-                            format!("{}: {}", name, m)
-                        } else {
-                            m
-                        };
-                        // send message to chat server
-                        let mut srv = server.clone();
-                        let msg = ServerMessage::Message {
-                            id,
-                            msg,
-                            room: state.borrow().room.clone(),
-                        };
-                        rt::spawn(async move { srv.send(msg).await });
-                        None
+                        "/name" => {
+                            if v.len() == 2 {
+                                state.borrow_mut().name = Some(v[1].to_owned());
+                                None
+                            } else {
+                                Some(ws::Message::Text(ByteString::from_static(
+                                    "!!! name is required",
+                                )))
+                            }
+                        }
+                        _ => Some(ws::Message::Text(
+                            format!("!!! unknown command: {:?}", m).into(),
+                        )),
                     }
+                } else {
+                    let msg = if let Some(ref name) = state.borrow().name {
+                        format!("{}: {}", name, m)
+                    } else {
+                        m
+                    };
+                    // send message to chat server
+                    let mut srv = server.clone();
+                    let msg = ServerMessage::Message {
+                        id,
+                        msg,
+                        room: state.borrow().room.clone(),
+                    };
+                    rt::spawn(async move { srv.send(msg).await });
+                    None
                 }
-                ws::Frame::Binary(_) => None,
-                ws::Frame::Close(reason) => Some(ws::Message::Close(reason)),
-                _ => Some(ws::Message::Close(None)),
-            };
-            ready(Ok(item))
+            }
+            ws::Frame::Binary(_) => None,
+            ws::Frame::Close(reason) => Some(ws::Message::Close(reason)),
+            _ => Some(ws::Message::Close(None)),
+        };
+        ready(Ok(item))
     });
 
     // handler service for shutdown notification that stop heartbeat task

@@ -1,7 +1,7 @@
 use futures::future::{ok, Either, Ready};
 use ntex::http;
-use ntex::service::{Service, Middleware};
-use ntex::web::{Error, HttpResponse, WebRequest, WebResponse, ErrorRenderer};
+use ntex::service::{Middleware, Service};
+use ntex::web::{Error, ErrorRenderer, HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
 

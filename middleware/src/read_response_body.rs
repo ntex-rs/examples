@@ -1,9 +1,9 @@
-use std::task::{Poll, Context};
+use std::task::{Context, Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::service::{Service, Middleware};
-use ntex::util::{Bytes, BytesMut, BoxFuture};
-use ntex::web::{Error, WebRequest, WebResponse, ErrorRenderer};
+use ntex::service::{Middleware, Service};
+use ntex::util::{BoxFuture, Bytes, BytesMut};
+use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
 
