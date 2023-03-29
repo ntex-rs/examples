@@ -15,7 +15,7 @@ mod convention;
 /// The main handler for JSONRPC server.
 async fn rpc_handler(
     body: Bytes,
-    app_state: web::types::State<AppState>,
+    app_state: web::types::State<Arc<AppState>>,
 ) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
@@ -60,6 +60,7 @@ async fn rpc_select(
             if params.len() != 1 || !params[0].is_u64() {
                 return Err(convention::ErrorData::std(-32602));
             }
+
             match app_state
                 .network
                 .read()
