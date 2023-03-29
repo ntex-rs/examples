@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Actix Todo Example</title>
+    <title>Ntex Todo Example</title>
 
     <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/static/css/normalize.css">
@@ -16,7 +16,7 @@
     <p><!-- nothing to see here --></p>
 
     <div class="row">
-      <h4>Actix Todo</h4>
+      <h4>Ntex Todo</h4>
       <form action="/todo" method="post">
         <div class="ten columns">
           <input type="text" placeholder="enter a task description ..."

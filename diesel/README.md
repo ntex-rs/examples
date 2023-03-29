@@ -1,6 +1,6 @@
 # diesel
 
-Basic integration of [Diesel](https://diesel.rs/) using SQLite for Actix web.
+Basic integration of [Diesel](https://diesel.rs/) using SQLite for Ntex.
 
 ## Usage
 
@@ -106,4 +106,4 @@ sqlite> SELECT * FROM users;
 
 ## Using Other Databases
 
-You can find a complete example of Diesel + PostgreSQL at: [https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/actix](https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/actix)
+You can find a complete example of Diesel + PostgreSQL at: [https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/ntex](https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/ntex)

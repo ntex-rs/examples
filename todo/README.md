@@ -1,6 +1,6 @@
-# actix-todo
+# ntex-todo
 
-A port of the [Rocket Todo example](https://github.com/SergioBenitez/Rocket/tree/master/examples/todo) into [actix-web](https://actix.rs/). Except this uses PostgreSQL instead of SQLite.
+A port of the [Rocket Todo example](https://github.com/SergioBenitez/Rocket/tree/master/examples/todo) into [ntex](https://ntex.rs/). Except this uses PostgreSQL instead of SQLite.
 
 # Usage
 
@@ -28,7 +28,7 @@ cargo install diesel_cli --no-default-features --features postgres
 Check the contents of the `.env` file. If your database requires a password, update `DATABASE_URL` to be of the form:
 
 ```.env
-DATABASE_URL=postgres://username:password@localhost/actix_todo
+DATABASE_URL=postgres://username:password@localhost/ntex_todo
 ```
 
 Then to create and set-up the database run:

@@ -1,4 +1,4 @@
-/* Actix-Web Asynchronous Database Example
+/* Ntex Asynchronous Database Example
 
 This project illustrates expensive and blocking database requests that runs
 in a thread-pool using `web::block` with two examples:

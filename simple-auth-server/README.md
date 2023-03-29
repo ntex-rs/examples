@@ -1,4 +1,4 @@
-## Auth Web Microservice with rust using Actix-Web 1.0
+## Auth Web Microservice with rust using Ntex
 
 ##### Flow of the event would look like this:
 
@@ -8,7 +8,7 @@
 
 ##### Crates Used
 
-- [actix-web](https://crates.io/crates/actix-web) // Actix web is a simple, pragmatic and extremely fast web framework for Rust.
+- [ntex](https://crates.io/crates/ntex) // Ntex is a simple, pragmatic and extremely fast web framework for Rust.
 - [argonautica](https://docs.rs/argonautica) // crate for hashing passwords using the cryptographically-secure Argon2 hashing algorithm.
 - [chrono](https://crates.io/crates/chrono) // Date and time library for Rust.
 - [diesel](https://crates.io/crates/diesel) // A safe, extensible ORM and Query Builder for PostgreSQL, SQLite, and MySQL.
@@ -25,9 +25,10 @@
 - [uuid](https://crates.io/crates/uuid) // A library to generate and parse UUIDs.
 
 
-Read the full tutorial series on [gill.net.in](https://gill.net.in)
+<!-- Read the full tutorial series on [gill.net.in](https://gill.net.in) -->
 
-- [Auth Web Microservice with rust using Actix-Web 1.0 - Complete Tutorial](https://gill.net.in/posts/auth-microservice-rust-actix-web1.0-diesel-complete-tutorial/)
+<!-- Todo make a full tutorial for ntex -->
+<!-- - [Auth Web Microservice with rust using Actix-Web 1.0 - Complete Tutorial](https://gill.net.in/posts/auth-microservice-rust-actix-web1.0-diesel-complete-tutorial/) -->
 
 ## Dependencies
 

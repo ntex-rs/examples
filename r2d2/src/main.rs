@@ -1,4 +1,4 @@
-//! Actix web r2d2 example
+//! Ntex r2d2 example
 use std::io;
 
 use ntex::web::{self, error, middleware, App, Error, HttpResponse};

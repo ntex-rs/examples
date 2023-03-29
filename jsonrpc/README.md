@@ -1,4 +1,4 @@
-A simple demo for building a `JSONRPC over HTTP` server in [actix-web](https://github.com/actix/actix-web).
+A simple demo for building a `JSONRPC over HTTP` server in [ntex](https://github.com/ntex-rs/ntex).
 
 # Server
 

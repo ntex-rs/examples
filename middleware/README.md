@@ -1,6 +1,6 @@
 # middleware examples
 
-This example showcases a bunch of different uses of middlewares. See also the [Middleware guide](https://actix.rs/docs/middleware/)..
+This example showcases a bunch of different uses of middlewares. See also the [Middleware guide](https://ntex.rs/docs/middleware)..
 
 ## Usage
 
@@ -29,5 +29,5 @@ A middleware demonstrating how to read out the outgoing response body.
 
 ### simple::SayHi
 
-A minimal middleware demonstrating the sequence of operations in an actix middleware.
-There is a second version of the same middleware using `wrap_fn` which shows how easily a middleware can be implemented in actix.
+A minimal middleware demonstrating the sequence of operations in an ntex middleware.
+There is a second version of the same middleware using `wrap_fn` which shows how easily a middleware can be implemented in ntex.

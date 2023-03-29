@@ -1,4 +1,4 @@
-//! Actix web juniper example
+//! Ntex juniper example
 //!
 //! A simple example integrating juniper in ntex
 use std::{io, sync::Arc};

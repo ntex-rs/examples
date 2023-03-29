@@ -65,8 +65,8 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
-                 web</title></head><body><h1 id=\"welcome\" \
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Ntex \
+                 </title></head><body><h1 id=\"welcome\" \
                  class=\"welcome\">Welcome!</h1><div><h3>What is your name?</h3><form>Name: \
                  <input type=\"text\" name=\"name\"><br>Last name: <input type=\"text\" \
                  name=\"lastname\"><br><p><input type=\"submit\"></p></form></div></body></html>"
@@ -88,8 +88,8 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
-                 web</title></head><body><h1>Hi, foo bar!</h1><p id=\"hi\" \
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Ntex \
+                 </title></head><body><h1>Hi, foo bar!</h1><p id=\"hi\" \
                  class=\"welcome\">Welcome</p></body></html>"
                     .as_ref()
             )
@@ -118,8 +118,8 @@ mod test {
         assert_eq!(
             bytes,
             Bytes::from_static(
-                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Actix \
-                 web</title></head><body><h1 id=\"welcome\" \
+                "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Ntex \
+                 </title></head><body><h1 id=\"welcome\" \
                  class=\"welcome\">Welcome!</h1><div><h3>What is your name?</h3><form>Name: \
                  <input type=\"text\" name=\"name\"><br>Last name: <input type=\"text\" \
                  name=\"lastname\"><br><p><input type=\"submit\"></p></form></div></body></html>"

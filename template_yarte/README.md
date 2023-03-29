@@ -16,8 +16,8 @@ cargo run
 impl ::std::fmt::Display for IndexTemplate {
     fn fmt(&self, _fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         _fmt.write_str(
-            "<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title>Actix \
-             web</title></head><body>",
+            "<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title>Ntex \
+             </title></head><body>",
         )?;
         if let Some(name__0) = self.query.get("name") {
             let lastname__1 = self.query.get("lastname").ok_or(yarte::Error)?;

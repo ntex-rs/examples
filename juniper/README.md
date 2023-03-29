@@ -1,6 +1,6 @@
 # Juniper
 
-[Juniper](https://github.com/graphql-rust/juniper) integration for Actix web
+[Juniper](https://github.com/graphql-rust/juniper) integration for Ntex
 
 ## Usage
 
