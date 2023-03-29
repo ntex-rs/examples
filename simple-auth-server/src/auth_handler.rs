@@ -47,7 +47,7 @@ pub async fn login(
     id: Identity,
     pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
-    let pool = (&*pool).clone();
+    let pool = (*pool).clone();
     let res = web::block(move || query(auth_data.into_inner(), pool)).await;
 
     match res {

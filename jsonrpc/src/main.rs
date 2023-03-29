@@ -36,7 +36,7 @@ async fn rpc_handler(
         ..Default::default()
     };
 
-    match rpc_select(&*app_state, reqjson.method.as_str(), reqjson.params).await {
+    match rpc_select(&app_state, reqjson.method.as_str(), reqjson.params).await {
         Ok(ok) => result.result = ok,
         Err(e) => result.error = Some(e),
     }

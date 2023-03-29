@@ -1,6 +1,6 @@
-use futures::future::{ok, Either, Ready};
 use ntex::http;
 use ntex::service::{Middleware, Service};
+use ntex::util::{Either, Ready};
 use ntex::web::{Error, ErrorRenderer, HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
@@ -24,7 +24,7 @@ where
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = Either<S::Future<'f>, Ready<Result<Self::Response, Self::Error>>> where Self: 'f;
+    type Future<'f> = Either<S::Future<'f>, Ready<Self::Response, Self::Error>> where Self: 'f;
 
     ntex::forward_poll_ready!(service);
 
@@ -40,12 +40,15 @@ where
             if req.path() == "/login" {
                 Either::Left(self.service.call(req))
             } else {
-                Either::Right(ok(req.into_response(
-                    HttpResponse::Found()
-                        .header(http::header::LOCATION, "/login")
-                        .finish()
-                        .into_body(),
-                )))
+                Either::Right(
+                    Ok(req.into_response(
+                        HttpResponse::Found()
+                            .header(http::header::LOCATION, "/login")
+                            .finish()
+                            .into_body(),
+                    ))
+                    .into(),
+                )
             }
         }
     }

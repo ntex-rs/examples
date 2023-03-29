@@ -16,7 +16,7 @@ pub async fn post_invitation(
     pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
     // run diesel blocking code
-    let pool = (&*pool).clone();
+    let pool = (*pool).clone();
     let res =
         web::block(move || create_invitation(invitation_data.into_inner().email, pool))
             .await;
