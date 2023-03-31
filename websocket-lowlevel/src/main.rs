@@ -73,7 +73,7 @@ async fn ws_service<F>(
 
                 let item = match frame {
                     ws::Frame::Ping(msg) => {
-                        (*state.borrow_mut()).hb = Instant::now();
+                        state.borrow_mut().hb = Instant::now();
                         ws::Message::Pong(msg)
                     }
                     ws::Frame::Text(text) => ws::Message::Text(
@@ -96,7 +96,7 @@ async fn ws_service<F>(
     }
     let _ = tx.send(());
 
-    return Ok(());
+    Ok(())
 }
 
 /// helper method that sends ping to client every heartbeat interval

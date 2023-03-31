@@ -1,4 +1,4 @@
-//! Actix web juniper example
+//! Ntex juniper example
 //!
 //! A simple example integrating juniper in ntex
 use std::{io, sync::Arc};
@@ -24,7 +24,7 @@ async fn graphql(
     st: web::types::State<Arc<Schema>>,
     data: web::types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
-    let st = (&*st).clone();
+    let st = (*st).clone();
     let user = web::block(move || {
         let res = data.execute(&st, &());
         serde_json::to_string(&res)

@@ -16,7 +16,7 @@ pub async fn register_user(
     user_data: web::types::Json<UserData>,
     pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
-    let pool = (&*pool).clone();
+    let pool = (*pool).clone();
     let res = web::block(move || {
         query(
             invitation_id.into_inner(),

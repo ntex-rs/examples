@@ -4,9 +4,11 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::future::{ready, select, Either};
-use ntex::service::{fn_factory_with_config, fn_service, Service};
+use ntex::service::{fn_factory_with_config, fn_shutdown, Service};
+use ntex::util::Bytes;
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{channel::oneshot, rt, time, util::Bytes};
+use ntex::{channel::oneshot, rt, time};
+use ntex::{fn_service, pipeline};
 use ntex_files as fs;
 
 /// How often heartbeat pings are sent
@@ -35,29 +37,39 @@ async fn ws_service(
     // start heartbeat task
     rt::spawn(heartbeat(state.clone(), sink, rx));
 
-    // websockets handler service
-    Ok(fn_service(move |frame| {
-        println!("WS Frame: {:?}", frame);
-
+    // handler service for incoming websockets frames
+    let service = fn_service(move |frame| {
         let item = match frame {
+            // update heartbeat
             ws::Frame::Ping(msg) => {
-                (*state.borrow_mut()).hb = Instant::now();
-                ws::Message::Pong(msg)
+                state.borrow_mut().hb = Instant::now();
+                Some(ws::Message::Pong(msg))
             }
-            ws::Frame::Text(text) => ws::Message::Text(
+            // update heartbeat
+            ws::Frame::Pong(_) => {
+                state.borrow_mut().hb = Instant::now();
+                None
+            }
+            // send message back
+            ws::Frame::Text(text) => Some(ws::Message::Text(
                 String::from_utf8(Vec::from(text.as_ref())).unwrap().into(),
-            ),
-            ws::Frame::Binary(bin) => ws::Message::Binary(bin),
-            ws::Frame::Close(reason) => ws::Message::Close(reason),
-            _ => ws::Message::Close(None),
+            )),
+            ws::Frame::Binary(bin) => Some(ws::Message::Binary(bin)),
+            // close connection
+            ws::Frame::Close(reason) => Some(ws::Message::Close(reason)),
+            // ignore other frames
+            _ => None,
         };
-        ready(Ok(Some(item)))
-    })
-    // on_shutdown callback is being called when service get shutdowned by dispatcher
-    // in this case when connection get dropped
-    .on_shutdown(move || {
+        ready(Ok(item))
+    });
+
+    // handler service for shutdown notification that stop heartbeat task
+    let on_shutdown = fn_shutdown(move || {
         let _ = tx.send(());
-    }))
+    });
+
+    // pipe our service with on_shutdown callback
+    Ok(pipeline(service).and_then(on_shutdown))
 }
 
 /// helper method that sends ping to client every heartbeat interval
@@ -77,7 +89,11 @@ async fn heartbeat(
                 }
 
                 // send ping
-                if sink.send(ws::Message::Ping(Bytes::new())).await.is_err() {
+                if sink
+                    .send(ws::Message::Ping(Bytes::default()))
+                    .await
+                    .is_err()
+                {
                     return;
                 }
             }

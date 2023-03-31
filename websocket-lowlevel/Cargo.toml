@@ -5,15 +5,15 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [[bin]]
-name = "server"
+name = "websocket-lowlevel-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "client"
+name = "websocket-lowlevel-client"
 path = "src/client.rs"
 
 [dependencies]
-ntex = { version = "0.6.0-beta.0", features = ["tokio", "openssl"] }
+ntex = { version = "0.6.5", features = ["tokio", "openssl"] }
 ntex-files = "0.2"
 env_logger = "0.10"
 futures = "0.3"

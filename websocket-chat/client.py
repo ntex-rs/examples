@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""websocket cmd client for actix/websocket-tcp-chat example."""
+"""websocket cmd client for ntex/websocket-tcp-chat example."""
 import argparse
 import asyncio
 import signal

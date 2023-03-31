@@ -1,5 +1,5 @@
-The goal of this example is to show you how to use the actix-web client (awc)
-for https related communication.  As of actix-web 2.0.0, one must be very
+The goal of this example is to show you how to use the ntex client (awc)
+for https related communication.  As of ntex 2.0.0, one must be very
 careful about setting up https communication.  **You could use the default 
 awc api without configuring ssl but performance will be severely diminished**.
 

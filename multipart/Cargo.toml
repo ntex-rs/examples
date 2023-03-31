@@ -4,12 +4,12 @@ version = "0.4.0"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 edition = "2018"
 license = "MIT"
-description = "Simple file uploader in Actix Web with Async/Await"
+description = "Simple file uploader in Ntex with Async/Await"
 keywords = ["ntex", "multipart"]
 repository = "https://github.com/ntex/examples"
 readme = "README.md"
 
 [dependencies]
-ntex = { version = "0.6.0-beta.0", features = ["tokio"] }
+ntex = { version = "0.6.5", features = ["tokio"] }
 ntex-multipart = "0.2"
 futures = "0.3"

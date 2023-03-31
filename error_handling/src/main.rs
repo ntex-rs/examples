@@ -42,7 +42,7 @@ impl Distribution<CustomError> for Standard {
     }
 }
 
-/// Actix web uses `ResponseError` for conversion of errors to a response
+/// Ntex uses `ResponseError` for conversion of errors to a response
 impl WebResponseError for CustomError {
     fn error_response(&self, _: &HttpRequest) -> HttpResponse {
         match self {

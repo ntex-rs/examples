@@ -1,5 +1,5 @@
-# actix-sse
-Example of server-sent events, aka `EventSource`, with actix web.
+# ntex-sse
+Example of server-sent events, aka `EventSource`, with ntex.
 
 ```sh
 cargo run

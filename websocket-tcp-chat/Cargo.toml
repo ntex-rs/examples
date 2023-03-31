@@ -5,19 +5,19 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [[bin]]
-name = "server"
+name = "websocket-tcp-chat-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "ws-client"
+name = "websocket-tcp-chat-client"
 path = "src/client-ws.rs"
 
 [[bin]]
-name = "tcp-client"
+name = "websocket-tcp-chat-tcp-client"
 path = "src/client-tcp.rs"
 
 [dependencies]
-ntex = { version = "0.6.0-beta.0", features = ["tokio"] }
+ntex = { version = "0.6.5", features = ["tokio"] }
 ntex-mqtt = "0.10.0-beta.0"
 ntex-amqp = "0.7.0-beta.0"
 ntex-files = "0.2"

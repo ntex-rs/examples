@@ -1,16 +1,14 @@
-use std::task::{Context, Poll};
-
-use futures::future::{ok, Either, Ready};
 use ntex::http;
-use ntex::service::{Service, Transform};
-use ntex::web::{Error, HttpResponse, WebRequest, WebResponse};
+use ntex::service::{Middleware, Service};
+use ntex::util::{Either, Ready};
+use ntex::web::{Error, ErrorRenderer, HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
 
-impl<S> Transform<S> for CheckLogin {
+impl<S> Middleware<S> for CheckLogin {
     type Service = CheckLoginMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         CheckLoginMiddleware { service }
     }
 }
@@ -22,16 +20,15 @@ pub struct CheckLoginMiddleware<S> {
 impl<S, Err> Service<WebRequest<Err>> for CheckLoginMiddleware<S>
 where
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
+    Err: ErrorRenderer,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = Either<S::Future, Ready<Result<Self::Response, Self::Error>>>;
+    type Future<'f> = Either<S::Future<'f>, Ready<Self::Response, Self::Error>> where Self: 'f;
 
-    fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    ntex::forward_poll_ready!(service);
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future {
+    fn call(&self, req: WebRequest<Err>) -> Self::Future<'_> {
         // We only need to hook into the `start` for this middleware.
 
         let is_logged_in = false; // Change this to see the change in outcome in the browser
@@ -43,12 +40,15 @@ where
             if req.path() == "/login" {
                 Either::Left(self.service.call(req))
             } else {
-                Either::Right(ok(req.into_response(
-                    HttpResponse::Found()
-                        .header(http::header::LOCATION, "/login")
-                        .finish()
-                        .into_body(),
-                )))
+                Either::Right(
+                    Ok(req.into_response(
+                        HttpResponse::Found()
+                            .header(http::header::LOCATION, "/login")
+                            .finish()
+                            .into_body(),
+                    ))
+                    .into(),
+                )
             }
         }
     }

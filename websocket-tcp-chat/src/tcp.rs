@@ -70,7 +70,7 @@ async fn heartbeat(
                     println!("Tcp Client heartbeat failed, disconnecting!");
 
                     // close connection
-                    let _ = sink.close();
+                    sink.close();
                     return;
                 } else {
                     // send ping

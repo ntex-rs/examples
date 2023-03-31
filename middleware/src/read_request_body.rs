@@ -1,16 +1,16 @@
-use std::{future::Future, pin::Pin, rc::Rc, task::Context, task::Poll};
+use std::rc::Rc;
 
 use futures::stream::StreamExt;
-use ntex::service::{Service, Transform};
-use ntex::util::BytesMut;
+use ntex::service::{Middleware, Service};
+use ntex::util::{BoxFuture, BytesMut};
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S> Transform<S> for Logging {
+impl<S> Middleware<S> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         LoggingMiddleware {
             service: Rc::new(service),
         }
@@ -24,18 +24,16 @@ pub struct LoggingMiddleware<S> {
 
 impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error> + 'static,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
     Err: ErrorRenderer,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where Self: 'f;
 
-    fn poll_ready(&self, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    ntex::forward_poll_ready!(service);
 
-    fn call(&self, mut req: WebRequest<Err>) -> Self::Future {
+    fn call(&self, mut req: WebRequest<Err>) -> Self::Future<'_> {
         let svc = self.service.clone();
 
         Box::pin(async move {

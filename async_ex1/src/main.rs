@@ -5,7 +5,7 @@
 // here is to illustrate how to chain these steps together as futures and return
 // a final result in a response.
 //
-// Actix-web features illustrated here include:
+// Ntex features illustrated here include:
 //     1. handling json input param
 //     2. validating user-submitted parameters using the 'validator' crate
 //     2. ntex client features:

@@ -1,6 +1,7 @@
 // Allow this lint since it's fine to use type directly in the short example.
 #![allow(clippy::type_complexity)]
 
+use std::sync::Arc;
 use std::{error, pin::Pin, sync::RwLock, time::Duration};
 
 use futures::{Future, FutureExt};
@@ -14,7 +15,7 @@ mod convention;
 /// The main handler for JSONRPC server.
 async fn rpc_handler(
     body: Bytes,
-    app_state: web::types::State<AppState>,
+    app_state: web::types::State<Arc<AppState>>,
 ) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
@@ -35,7 +36,7 @@ async fn rpc_handler(
         ..Default::default()
     };
 
-    match rpc_select(&*app_state, reqjson.method.as_str(), reqjson.params).await {
+    match rpc_select(&app_state, reqjson.method.as_str(), reqjson.params).await {
         Ok(ok) => result.result = ok,
         Err(e) => result.error = Some(e),
     }
@@ -59,6 +60,7 @@ async fn rpc_select(
             if params.len() != 1 || !params[0].is_u64() {
                 return Err(convention::ErrorData::std(-32602));
             }
+
             match app_state
                 .network
                 .read()
@@ -132,12 +134,11 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let app_state =
-        web::types::State::new(AppState::new(RwLock::new(ObjNetwork::new())));
+    let app_state = Arc::new(AppState::new(RwLock::new(ObjNetwork::new())));
 
     web::server(move || {
         App::new()
-            .app_state(app_state.clone())
+            .state(app_state.clone())
             .wrap(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
     })
