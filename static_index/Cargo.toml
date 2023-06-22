@@ -8,5 +8,5 @@ edition = "2018"
 futures = "0.3"
 env_logger = "0.10"
 
-ntex = { version = "0.6.5", features = ["tokio"] }
-ntex-files = "0.2"
+ntex = { version = "0.7.0", features = ["tokio"] }
+ntex-files = "0.3"

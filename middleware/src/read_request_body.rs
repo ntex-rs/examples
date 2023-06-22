@@ -1,7 +1,5 @@
-use std::rc::Rc;
-
 use futures::stream::StreamExt;
-use ntex::service::{Middleware, Service};
+use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::util::{BoxFuture, BytesMut};
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
@@ -11,31 +9,32 @@ impl<S> Middleware<S> for Logging {
     type Service = LoggingMiddleware<S>;
 
     fn create(&self, service: S) -> Self::Service {
-        LoggingMiddleware {
-            service: Rc::new(service),
-        }
+        LoggingMiddleware { service }
     }
 }
 
 pub struct LoggingMiddleware<S> {
     // This is special: We need this to avoid lifetime issues.
-    service: Rc<S>,
+    service: S,
 }
 
 impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    Err: ErrorRenderer,
+    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error> + 'static,
+    Err: ErrorRenderer + 'static,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where Self: 'f;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where S: 'f;
 
     ntex::forward_poll_ready!(service);
+    ntex::forward_poll_shutdown!(service);
 
-    fn call(&self, mut req: WebRequest<Err>) -> Self::Future<'_> {
-        let svc = self.service.clone();
-
+    fn call<'a>(
+        &'a self,
+        mut req: WebRequest<Err>,
+        ctx: ServiceCtx<'a, Self>,
+    ) -> Self::Future<'a> {
         Box::pin(async move {
             let mut body = BytesMut::new();
             let mut stream = req.take_payload();
@@ -44,7 +43,7 @@ where
             }
 
             println!("request body: {:?}", body);
-            let res = svc.call(req).await?;
+            let res = ctx.call(&self.service, req).await?;
 
             println!("response: {:?}", res.headers());
             Ok(res)

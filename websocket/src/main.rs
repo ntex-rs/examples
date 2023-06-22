@@ -7,8 +7,8 @@ use futures::future::{ready, select, Either};
 use ntex::service::{fn_factory_with_config, fn_shutdown, Service};
 use ntex::util::Bytes;
 use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
+use ntex::{chain, fn_service};
 use ntex::{channel::oneshot, rt, time};
-use ntex::{fn_service, pipeline};
 use ntex_files as fs;
 
 /// How often heartbeat pings are sent
@@ -69,7 +69,7 @@ async fn ws_service(
     });
 
     // pipe our service with on_shutdown callback
-    Ok(pipeline(service).and_then(on_shutdown))
+    Ok(chain(service).and_then(on_shutdown))
 }
 
 /// helper method that sends ping to client every heartbeat interval
@@ -112,7 +112,7 @@ async fn ws_index(req: HttpRequest) -> Result<HttpResponse, Error> {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=trace");
+    std::env::set_var("RUST_LOG", "ntex=trace,trace");
     env_logger::init();
 
     web::server(|| {
@@ -126,6 +126,7 @@ async fn main() -> std::io::Result<()> {
     })
     // start http server on 127.0.0.1:8080
     .bind("127.0.0.1:8080")?
+    .workers(1)
     .run()
     .await
 }

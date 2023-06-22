@@ -1,12 +1,11 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
-use ntex::pipeline;
 use ntex::service::{
     fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
 };
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
+use ntex::{chain, channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 mod server;
@@ -181,7 +180,7 @@ async fn ws_service(
     });
 
     // pipe our service with on_shutdown callback
-    Ok(pipeline(service).and_then(on_shutdown))
+    Ok(chain(service).and_then(on_shutdown))
 }
 
 /// Handle messages from chat server, we simply send it to the peer websocket connection

@@ -1,6 +1,6 @@
-use ntex::service::{Middleware, Service};
+use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::util::BoxFuture;
-use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
+use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
 // 1. Middleware initialization, middleware factory gets called with
@@ -25,20 +25,26 @@ pub struct SayHiMiddleware<S> {
 
 impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
+    Err: 'static,
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    Err: ErrorRenderer,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where Self: 'f;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where S: 'f;
 
     ntex::forward_poll_ready!(service);
+    ntex::forward_poll_shutdown!(service);
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future<'_> {
+    fn call<'a>(
+        &'a self,
+        req: WebRequest<Err>,
+        ctx: ServiceCtx<'a, Self>,
+    ) -> Self::Future<'a> {
         println!("Hi from start. You requested: {}", req.path());
-        let fut = self.service.call(req);
+
         Box::pin(async move {
-            let res = fut.await?;
+            let res = ctx.call(&self.service, req).await?;
+
             println!("Hi from response");
             Ok(res)
         })

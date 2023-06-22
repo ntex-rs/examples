@@ -5,8 +5,8 @@ authors = ["mygnu <tech@hgill.io>"]
 edition = "2018"
 
 [dependencies]
-ntex-identity = "0.2"
-ntex = { version = "0.6.5", features = ["tokio"] }
+ntex-identity = "0.3"
+ntex = { version = "0.7.0", features = ["tokio"] }
 argonautica = "0.2"
 chrono = { version = "0.4.6", features = ["serde"] }
 derive_more = "0.99"

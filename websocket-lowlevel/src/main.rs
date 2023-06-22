@@ -6,7 +6,7 @@ use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 use futures::future::{select, Either};
 use ntex::http::{body, h1, HttpService, Request, ResponseError};
 use ntex::io::{Io, IoRef};
-use ntex::service::{fn_factory, fn_service, pipeline_factory, ServiceFactory};
+use ntex::service::{chain_factory, fn_factory, fn_service, ServiceFactory};
 use ntex::web::{middleware, App};
 use ntex::{channel::oneshot, rt, server, time, util::Bytes, ws};
 use ntex_files as fs;
@@ -150,7 +150,7 @@ async fn main() -> std::io::Result<()> {
     server::Server::build()
         // start http server on 127.0.0.1:8080
         .bind("http", "127.0.0.1:8080", move |_| {
-            pipeline_factory(Acceptor::new(acceptor.clone()))
+            chain_factory(Acceptor::new(acceptor.clone()))
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "ssl error"))
                 .and_then(
                     HttpService::build()
