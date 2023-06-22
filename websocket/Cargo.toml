@@ -5,15 +5,15 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [[bin]]
-name = "server"
+name = "websocket-server"
 path = "src/main.rs"
 
 [[bin]]
-name = "client"
+name = "websocket-client"
 path = "src/client.rs"
 
 [dependencies]
-ntex = { version = "0.6.0-beta.0", features = ["tokio"] }
-ntex-files = "0.2"
+ntex = { version = "0.7.0", features = ["tokio"] }
+ntex-files = "0.3"
 env_logger = "0.10"
 futures = "0.3"

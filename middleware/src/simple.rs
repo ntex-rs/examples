@@ -1,6 +1,5 @@
-use std::{future::Future, pin::Pin, task::Context, task::Poll};
-
-use ntex::service::{Service, Transform};
+use ntex::service::{Middleware, Service, ServiceCtx};
+use ntex::util::BoxFuture;
 use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
@@ -9,13 +8,13 @@ use ntex::web::{Error, WebRequest, WebResponse};
 // 2. Middleware's call method gets called with normal request.
 pub struct SayHi;
 
-// Middleware factory is `Transform` trait from ntex-service crate
+// Middleware factory is `Middleware` trait from ntex-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S> Transform<S> for SayHi {
+impl<S> Middleware<S> for SayHi {
     type Service = SayHiMiddleware<S>;
 
-    fn new_transform(&self, service: S) -> Self::Service {
+    fn create(&self, service: S) -> Self::Service {
         SayHiMiddleware { service }
     }
 }
@@ -26,24 +25,25 @@ pub struct SayHiMiddleware<S> {
 
 impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
+    Err: 'static,
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    S::Future: 'static,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>>>>;
+    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where S: 'f;
 
-    fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
-        self.service.poll_ready(cx)
-    }
+    ntex::forward_poll_ready!(service);
+    ntex::forward_poll_shutdown!(service);
 
-    fn call(&self, req: WebRequest<Err>) -> Self::Future {
+    fn call<'a>(
+        &'a self,
+        req: WebRequest<Err>,
+        ctx: ServiceCtx<'a, Self>,
+    ) -> Self::Future<'a> {
         println!("Hi from start. You requested: {}", req.path());
 
-        let fut = self.service.call(req);
-
         Box::pin(async move {
-            let res = fut.await?;
+            let res = ctx.call(&self.service, req).await?;
 
             println!("Hi from response");
             Ok(res)

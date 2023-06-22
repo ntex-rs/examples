@@ -1,10 +1,11 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use futures::channel::mpsc::UnboundedSender;
-use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
+use futures::channel::mpsc::{self, UnboundedSender};
+use futures::{future::ready, SinkExt, StreamExt};
 
 use ntex::service::{
-    fn_factory_with_config, fn_service, map_config, Service, ServiceFactory,
+    chain, fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
+    ServiceFactory,
 };
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{
@@ -24,7 +25,7 @@ async fn chat_route(
     req: HttpRequest,
     srv: web::types::State<mpsc::UnboundedSender<ServerMessage>>,
 ) -> Result<HttpResponse, Error> {
-    let srv = srv.as_ref().clone();
+    let srv = srv.get_ref().clone();
     ws::start(
         req,
         // inject chat server send to a ws_service factory
@@ -92,17 +93,17 @@ async fn ws_service(
     rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx));
 
     // handler service for incoming websockets frames
-    Ok(fn_service(move |frame| {
+    let service = fn_service(move |frame| {
         println!("WEBSOCKET MESSAGE: {:?}", frame);
 
         let item = match frame {
             ws::Frame::Ping(msg) => {
-                (*state.borrow_mut()).hb = Instant::now();
+                state.borrow_mut().hb = Instant::now();
                 Some(ws::Message::Pong(msg))
             }
             // update heartbeat
             ws::Frame::Pong(_) => {
-                (*state.borrow_mut()).hb = Instant::now();
+                state.borrow_mut().hb = Instant::now();
                 None
             }
             ws::Frame::Text(text) => {
@@ -175,10 +176,15 @@ async fn ws_service(
             _ => Some(ws::Message::Close(None)),
         };
         ready(Ok(item))
-    })
-    .on_shutdown(move || {
+    });
+
+    // handler service for shutdown notification that stop heartbeat task
+    let on_shutdown = fn_shutdown(move || {
         let _ = tx.send(());
-    }))
+    });
+
+    // pipe our service with on_shutdown callback
+    Ok(chain(service).and_then(on_shutdown))
 }
 
 /// Handle messages from chat server, we simply send it to the peer websocket connection

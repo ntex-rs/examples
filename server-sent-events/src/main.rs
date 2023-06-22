@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{pin::Pin, sync::Mutex, task::Context, task::Poll, time::Duration};
 
 use futures::Stream;
@@ -12,7 +13,7 @@ async fn main() -> std::io::Result<()> {
 
     web::server(move || {
         App::new()
-            .app_state(data.clone())
+            .state(data.clone())
             .route("/", web::get().to(index))
             .route("/events", web::get().to(new_client))
             .route("/broadcast/{msg}", web::get().to(broadcast))
@@ -53,9 +54,9 @@ struct Broadcaster {
 }
 
 impl Broadcaster {
-    fn create() -> web::types::State<Mutex<Self>> {
+    fn create() -> Arc<Mutex<Self>> {
         // Data ≃ Arc
-        let me = web::types::State::new(Mutex::new(Broadcaster::new()));
+        let me = Arc::new(Mutex::new(Broadcaster::new()));
 
         // ping clients every 10 seconds to see if they are alive
         Broadcaster::spawn_ping(me.clone());
@@ -69,11 +70,13 @@ impl Broadcaster {
         }
     }
 
-    fn spawn_ping(me: web::types::State<Mutex<Self>>) {
+    fn spawn_ping(me: Arc<Mutex<Self>>) {
         ntex::rt::spawn(async move {
-            let task = interval(Duration::from_secs(10));
-            task.tick().await;
-            me.lock().unwrap().remove_stale_clients();
+            loop {
+                let task = interval(Duration::from_secs(10));
+                task.tick().await;
+                me.lock().unwrap().remove_stale_clients();
+            }
         });
     }
 

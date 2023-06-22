@@ -1,6 +1,7 @@
 // Allow this lint since it's fine to use type directly in the short example.
 #![allow(clippy::type_complexity)]
 
+use std::sync::Arc;
 use std::{error, pin::Pin, sync::RwLock, time::Duration};
 
 use futures::{Future, FutureExt};
@@ -132,12 +133,11 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    let app_state =
-        web::types::State::new(AppState::new(RwLock::new(ObjNetwork::new())));
+    let app_state = Arc::new(AppState::new(RwLock::new(ObjNetwork::new())));
 
     web::server(move || {
         App::new()
-            .app_state(app_state.clone())
+            .state(app_state.clone())
             .wrap(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
     })
