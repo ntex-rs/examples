@@ -2,7 +2,7 @@ use std::{task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
 use ntex::service::{Middleware, Service, ServiceCtx};
-use ntex::util::{BoxFuture, Bytes, BytesMut};
+use ntex::util::{Bytes, BytesMut};
 use ntex::web::{Error, WebRequest, WebResponse};
 
 pub struct Logging;
@@ -22,29 +22,25 @@ pub struct LoggingMiddleware<S> {
 impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
 where
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    Err: 'static,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = BoxFuture<'f, Result<WebResponse, Error>> where Self: 'f;
 
     ntex::forward_poll_ready!(service);
     ntex::forward_poll_shutdown!(service);
 
-    fn call<'a>(
-        &'a self,
+    async fn call(
+        &self,
         req: WebRequest<Err>,
-        ctx: ServiceCtx<'a, Self>,
-    ) -> Self::Future<'a> {
-        Box::pin(async move {
-            ctx.call(&self.service, req).await.map(|res| {
-                res.map_body(move |_, body| {
-                    Body::from_message(BodyLogger {
-                        body,
-                        body_accum: BytesMut::new(),
-                    })
-                    .into()
+        ctx: ServiceCtx<'_, Self>,
+    ) -> Result<WebResponse, Error> {
+        ctx.call(&self.service, req).await.map(|res| {
+            res.map_body(move |_, body| {
+                Body::from_message(BodyLogger {
+                    body,
+                    body_accum: BytesMut::new(),
                 })
+                .into()
             })
         })
     }

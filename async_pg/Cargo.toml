@@ -1,12 +1,12 @@
 [package]
 name = "async_pg"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2018"
 workspace = ".."
 
 [dependencies]
-ntex = { version = "0.7.0", features = ["tokio"] }
+ntex = { version = "1.0.0-b.1", features = ["tokio"] }
 config = "0.10"
 deadpool-postgres = { version = "0.10", features = ["serde"] }
 derive_more = "0.99"

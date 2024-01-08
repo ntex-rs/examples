@@ -1,11 +1,11 @@
 [package]
 name = "r2d2-example"
-version = "2.0.0"
+version = "3.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.7.0", features = ["tokio"] }
+ntex = { version = "1.0.0-b.1", features = ["tokio"] }
 
 futures = "0.3"
 env_logger = "0.10"

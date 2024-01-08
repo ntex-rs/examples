@@ -1,11 +1,11 @@
 [package]
 name = "http-proxy"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>", "Rotem Yaari <vmalloc@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.7.0", features = ["tokio"] }
+ntex = { version = "1.0.0-b.1", features = ["tokio"] }
 clap = "2.32"
 futures = "0.3"
 url = "2.1"

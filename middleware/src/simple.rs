@@ -1,5 +1,4 @@
 use ntex::service::{Middleware, Service, ServiceCtx};
-use ntex::util::BoxFuture;
 use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
@@ -25,28 +24,23 @@ pub struct SayHiMiddleware<S> {
 
 impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
 where
-    Err: 'static,
     S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
 {
     type Response = WebResponse;
     type Error = Error;
-    type Future<'f> = BoxFuture<'f, Result<Self::Response, Self::Error>> where S: 'f;
 
     ntex::forward_poll_ready!(service);
     ntex::forward_poll_shutdown!(service);
 
-    fn call<'a>(
-        &'a self,
+    async fn call(
+        &self,
         req: WebRequest<Err>,
-        ctx: ServiceCtx<'a, Self>,
-    ) -> Self::Future<'a> {
+        ctx: ServiceCtx<'_, Self>,
+    ) -> Result<Self::Response, Self::Error> {
         println!("Hi from start. You requested: {}", req.path());
 
-        Box::pin(async move {
-            let res = ctx.call(&self.service, req).await?;
-
-            println!("Hi from response");
-            Ok(res)
-        })
+        let res = ctx.call(&self.service, req).await?;
+        println!("Hi from response");
+        Ok(res)
     }
 }

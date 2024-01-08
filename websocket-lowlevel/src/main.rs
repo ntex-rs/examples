@@ -10,8 +10,8 @@ use ntex::service::{chain_factory, fn_factory, fn_service, ServiceFactory};
 use ntex::web::{middleware, App};
 use ntex::{channel::oneshot, rt, server, time, util::Bytes, ws};
 use ntex_files as fs;
-use ntex_tls::openssl::Acceptor;
-use openssl::ssl::{self, SslAcceptor, SslFiletype, SslMethod};
+use ntex_tls::openssl::SslAcceptor;
+use openssl::ssl::{self, SslFiletype, SslMethod};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -135,7 +135,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "ntex=trace");
     env_logger::init();
 
-    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
+    let mut builder = ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
     builder
         .set_private_key_file("../openssl/key.pem", SslFiletype::PEM)
         .unwrap();
@@ -150,7 +150,7 @@ async fn main() -> std::io::Result<()> {
     server::Server::build()
         // start http server on 127.0.0.1:8080
         .bind("http", "127.0.0.1:8080", move |_| {
-            chain_factory(Acceptor::new(acceptor.clone()))
+            chain_factory(SslAcceptor::new(acceptor.clone()))
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "ssl error"))
                 .and_then(
                     HttpService::build()

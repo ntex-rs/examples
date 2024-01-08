@@ -1,9 +1,9 @@
 [package]
 name = "awc_https"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.7.0", features = ["openssl", "tokio"] }
+ntex = { version = "1.0.0-b.1", features = ["openssl", "tokio"] }
 openssl = "0.10"

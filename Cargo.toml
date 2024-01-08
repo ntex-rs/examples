@@ -42,11 +42,5 @@ members = [
    "websocket-tcp-chat",
 ]
 
-[patch.crates-io]
-ntex-files = { git = "https://github.com/ntex-rs/ntex-extras.git" }
-ntex-session = { git = "https://github.com/ntex-rs/ntex-extras.git" }
-ntex-identity = { git = "https://github.com/ntex-rs/ntex-extras.git" }
-ntex-multipart = { git = "https://github.com/ntex-rs/ntex-extras.git" }
-
 [profile.release]
 panic = 'abort'

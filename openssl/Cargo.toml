@@ -1,10 +1,10 @@
 [package]
 name = "openssl-example"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "0.7.0", features = ["openssl", "tokio"] }
+ntex = { version = "1.0.0-b.1", features = ["openssl", "tokio"] }
 env_logger = "0.10"
 openssl = "0.10"

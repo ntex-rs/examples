@@ -1,6 +1,6 @@
 [package]
 name = "rustls-example"
-version = "2.0.0"
+version = "3.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
@@ -12,5 +12,5 @@ path = "src/main.rs"
 env_logger = "0.10"
 rustls = "0.21"
 rustls-pemfile = "0.3"
-ntex = { version = "0.7.0", features = ["rustls", "tokio"] }
-ntex-files = "0.3"
+ntex = { version = "1.0.0-b.1", features = ["rustls", "tokio"] }
+ntex-files = "0.4.0-b.0"
