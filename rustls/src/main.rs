@@ -3,8 +3,8 @@ use std::io::BufReader;
 
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use ntex_files::Files;
-use rustls::{Certificate, PrivateKey, ServerConfig};
-use rustls_pemfile::{certs, rsa_private_keys};
+use rustls::ServerConfig;
+use rustls_pemfile::certs;
 
 /// simple handle
 async fn index(req: HttpRequest) -> HttpResponse {
@@ -23,15 +23,10 @@ async fn main() -> std::io::Result<()> {
 
     // load ssl keys
     let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
-    let key = PrivateKey(rsa_private_keys(key_file).unwrap().remove(0));
+    let key = rustls_pemfile::private_key(key_file).unwrap().unwrap();
     let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
-    let cert_chain = certs(cert_file)
-        .unwrap()
-        .iter()
-        .map(|c| Certificate(c.to_vec()))
-        .collect();
+    let cert_chain = certs(cert_file).map(|r| r.unwrap()).collect();
     let config = ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(cert_chain, key)
         .unwrap();

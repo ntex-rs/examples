@@ -6,7 +6,7 @@ use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 use futures::future::{select, Either};
 use ntex::http::{body, h1, HttpService, Request, ResponseError};
 use ntex::io::{Io, IoRef};
-use ntex::service::{chain_factory, fn_factory, fn_service, ServiceFactory};
+use ntex::service::{chain_factory, fn_service, Pipeline, ServiceFactory};
 use ntex::web::{middleware, App};
 use ntex::{channel::oneshot, rt, server, time, util::Bytes, ws};
 use ntex_files as fs;
@@ -42,7 +42,8 @@ async fn ws_service<F>(
                 &codec,
             )
             .await
-            .map_err(|e| e.into_inner())?;
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "WebSockets io error"))?;
+
             return Err(io::Error::new(
                 io::ErrorKind::Other,
                 "WebSockets handshake error",
@@ -53,7 +54,8 @@ async fn ws_service<F>(
             io.encode(
                 h1::Message::Item((res.finish().drop_body(), body::BodySize::None)),
                 &codec,
-            )?;
+            )
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "WebSockets io error"))?;
         }
     }
 
@@ -152,13 +154,23 @@ async fn main() -> std::io::Result<()> {
         .bind("http", "127.0.0.1:8080", move |_| {
             chain_factory(SslAcceptor::new(acceptor.clone()))
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "ssl error"))
-                .and_then(
+                .and_then({
+                    let ws_service = Pipeline::new(fn_service(ws_service));
+
                     HttpService::build()
                         // websocket handler, we need to verify websocket handshake
                         // and then switch to websokets streaming
-                        .upgrade(fn_factory(|| async {
-                            Ok::<_, io::Error>(fn_service(ws_service))
-                        }))
+                        .h1_control(move |req: h1::Control<_, _>| {
+                            let ack = if let h1::Control::Upgrade(upg) = req {
+                                let ws_service = ws_service.clone();
+                                upg.handle(|req, io, codec| async move {
+                                    ws_service.call((req, io, codec)).await
+                                })
+                            } else {
+                                req.ack()
+                            };
+                            async move { Ok::<_, io::Error>(ack) }
+                        })
                         .finish(
                             App::new()
                                 // enable logger
@@ -169,8 +181,8 @@ async fn main() -> std::io::Result<()> {
                                         .index_file("index.html"),
                                 ),
                         )
-                        .map_err(|_| io::Error::new(io::ErrorKind::Other, "http error")),
-                )
+                        .map_err(|_| io::Error::new(io::ErrorKind::Other, "http error"))
+                })
         })?
         .run()
         .await

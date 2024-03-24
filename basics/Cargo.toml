@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 ntex = { version = "1.0", features = ["tokio"] }
-ntex-files = "0.4"
-ntex-session = "0.4"
+ntex-files = "1.0"
+ntex-session = "1.0"
 futures = "0.3"
-env_logger = "0.10"
+env_logger = "0.11"

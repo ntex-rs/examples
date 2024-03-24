@@ -10,10 +10,10 @@ path = "src/main.rs"
 
 [dependencies]
 ntex = { version = "1.0", features = ["tokio"] }
-ntex-files = "0.4"
+ntex-files = "1.0"
 
 rand = "0.8"
 futures = "0.3"
-env_logger = "0.10"
+env_logger = "0.11"
 serde = "1.0"
 serde_json = "1.0"
