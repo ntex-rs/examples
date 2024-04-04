@@ -35,6 +35,7 @@ members = [
    "template_tera",
    "template_yarte",
    "todo",
+   "tokio",
    "unix-socket",
    "websocket",
    "websocket-lowlevel",
@@ -44,3 +45,6 @@ members = [
 
 [profile.release]
 panic = 'abort'
+
+[patch.crates-io]
+ntex-rt = { path = "../../ntex/ntex-rt" }
