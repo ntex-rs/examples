@@ -14,6 +14,6 @@ path = "src/client.rs"
 
 [dependencies]
 ntex = { version = "2", features = ["tokio"] }
-ntex-files = "1.0"
+ntex-files = "2"
 env_logger = "0.11"
 futures = "0.3"
