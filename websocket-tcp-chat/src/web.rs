@@ -126,7 +126,7 @@ async fn ws_service(
                         "/join" => {
                             if v.len() == 2 {
                                 let room = v[1].to_owned();
-                                state.borrow_mut().room = room.clone();
+                                state.borrow_mut().room.clone_from(&room);
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
                                     let _ = srv

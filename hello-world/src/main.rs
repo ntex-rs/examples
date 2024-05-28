@@ -29,7 +29,6 @@ mod tests {
     use super::*;
     use ntex::util::Bytes;
     use ntex::web::{test, App, Error};
-    use ntex::Service;
     use ntex::{http, web};
 
     #[ntex::test]

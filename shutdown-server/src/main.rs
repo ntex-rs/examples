@@ -36,7 +36,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .service((hello, stop))
     })
-    .bind(&bind)?
+    .bind(bind)?
     .run();
 
     // clone the Server handle

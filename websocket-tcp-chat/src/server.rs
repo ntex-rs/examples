@@ -100,7 +100,7 @@ impl ChatServer {
                 // auto join session to Main room
                 self.rooms
                     .entry("Main".to_owned())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(id);
 
                 // send id back
@@ -169,7 +169,7 @@ impl ChatServer {
 
                 self.rooms
                     .entry(name.clone())
-                    .or_insert_with(HashSet::default)
+                    .or_default()
                     .insert(id);
 
                 self.send_message(&name, "Someone connected", id);
