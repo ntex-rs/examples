@@ -134,7 +134,7 @@ pub fn server(
                                 });
                             }
                             ChatRequest::Join(room) => {
-                                state.borrow_mut().room = room.clone();
+                                state.borrow_mut().room.clone_from(&room);
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
                                     let _ = srv
