@@ -10,14 +10,43 @@ http errors will be chosen, each with an equal chance of being selected:
     3. 500 InternalServerError
     4. 400 BadRequest
 
+This example demonstrates how to override error rendering
+for all errors. Two types are required: one must implement
+the ntex::web::error::ErrorRenderer trait, while the other must
+implement the ntex::web::ErrorContainer trait. All errors used in
+the application must be convertible to an `error container`.
 */
 
-use derive_more::Display; // naming it clearly for illustration purposes
-use ntex::web::{self, App, Error, HttpRequest, HttpResponse, WebResponseError};
+use derive_more::Display;
+use ntex::web::{self, types::Json, App, HttpRequest, HttpResponse, WebResponseError};
 use rand::{
     distributions::{Distribution, Standard},
     thread_rng, Rng,
 };
+
+struct MyErrRenderer;
+
+impl ntex::web::error::ErrorRenderer for MyErrRenderer {
+    type Container = MyErrContainer;
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("MyErrContainer({0})")]
+struct MyErrContainer(Box<dyn WebResponseError<MyErrRenderer>>);
+
+impl ntex::web::ErrorContainer for MyErrContainer {
+    fn error_response(&self, req: &HttpRequest) -> HttpResponse {
+        self.0.error_response(req)
+    }
+}
+
+impl ntex::http::ResponseError for MyErrContainer {}
+
+impl From<CustomError> for MyErrContainer {
+    fn from(e: CustomError) -> MyErrContainer {
+        MyErrContainer(Box::new(e))
+    }
+}
 
 #[derive(Debug, Display)]
 pub enum CustomError {
@@ -42,8 +71,8 @@ impl Distribution<CustomError> for Standard {
     }
 }
 
-/// Ntex uses `ResponseError` for conversion of errors to a response
-impl WebResponseError for CustomError {
+/// ntex uses `ResponseError` for conversion of errors to a response
+impl WebResponseError<MyErrRenderer> for CustomError {
     fn error_response(&self, _: &HttpRequest) -> HttpResponse {
         match self {
             CustomError::CustomOne => {
@@ -81,7 +110,26 @@ async fn do_something_random() -> Result<(), CustomError> {
     }
 }
 
-async fn do_something() -> Result<HttpResponse, Error> {
+#[derive(serde::Serialize, serde::Deserialize)]
+struct TestPayload {
+    dummy: u32,
+}
+
+/// ntex uses `ResponseError` for conversion of errors to a response
+impl From<ntex::web::error::JsonPayloadError> for MyErrContainer {
+    fn from(e: ntex::web::error::JsonPayloadError) -> MyErrContainer {
+        MyErrContainer(Box::new(e))
+    }
+}
+
+impl WebResponseError<MyErrRenderer> for ntex::web::error::JsonPayloadError {
+    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
+        println!("do some stuff related to json error");
+        HttpResponse::BadRequest().finish()
+    }
+}
+
+async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, MyErrContainer> {
     do_something_random().await?;
 
     Ok(HttpResponse::Ok().body("Nothing interesting happened. Try again."))
@@ -93,7 +141,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     web::server(move || {
-        App::new()
+        App::with(MyErrRenderer)
             .service(web::resource("/something").route(web::get().to(do_something)))
     })
     .bind("127.0.0.1:8088")?
