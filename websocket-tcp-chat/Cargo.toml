@@ -18,8 +18,8 @@ path = "src/client-tcp.rs"
 
 [dependencies]
 ntex = { version = "2", features = ["tokio"] }
-ntex-mqtt = "1.0"
-ntex-amqp = "1.0"
+ntex-mqtt = "5.2"
+ntex-amqp = "3.6"
 ntex-files = "2"
 
 rand = "0.8"

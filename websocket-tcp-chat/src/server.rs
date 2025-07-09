@@ -98,10 +98,7 @@ impl ChatServer {
                 self.sessions.insert(id, sender.clone());
 
                 // auto join session to Main room
-                self.rooms
-                    .entry("Main".to_owned())
-                    .or_default()
-                    .insert(id);
+                self.rooms.entry("Main".to_owned()).or_default().insert(id);
 
                 // send id back
                 rt::spawn(async move {
@@ -167,10 +164,7 @@ impl ChatServer {
                     self.send_message(&room, "Someone disconnected", 0);
                 }
 
-                self.rooms
-                    .entry(name.clone())
-                    .or_default()
-                    .insert(id);
+                self.rooms.entry(name.clone()).or_default().insert(id);
 
                 self.send_message(&name, "Someone connected", id);
             }

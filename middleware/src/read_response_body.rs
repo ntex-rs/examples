@@ -1,4 +1,4 @@
-use std::{task::Context, task::Poll};
+use std::{rc::Rc, task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
 use ntex::service::{Middleware, Service, ServiceCtx};
@@ -65,7 +65,7 @@ impl MessageBody for BodyLogger {
     fn poll_next_chunk(
         &mut self,
         cx: &mut Context<'_>,
-    ) -> Poll<Option<Result<Bytes, Box<dyn std::error::Error>>>> {
+    ) -> Poll<Option<Result<Bytes, Rc<dyn std::error::Error>>>> {
         match self.body.poll_next_chunk(cx) {
             Poll::Ready(Some(Ok(chunk))) => {
                 self.body_accum.extend_from_slice(&chunk);
