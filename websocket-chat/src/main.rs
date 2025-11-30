@@ -247,7 +247,7 @@ async fn main() -> std::io::Result<()> {
     let server = server::start();
 
     // Create Http server with websocket support
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(server.clone())
             // redirect to websocket.html

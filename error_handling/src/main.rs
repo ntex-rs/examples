@@ -140,7 +140,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(move || {
+    web::server(async move || {
         App::with(MyErrRenderer)
             .service(web::resource("/something").route(web::get().to(do_something)))
     })

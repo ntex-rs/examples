@@ -1,6 +1,6 @@
 [package]
 name = "multipart-example"
-version = "0.5.0"
+version = "3.0.0"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 edition = "2018"
 license = "MIT"
@@ -10,6 +10,6 @@ repository = "https://github.com/ntex/examples"
 readme = "README.md"
 
 [dependencies]
-ntex = { version = "2", features = ["tokio"] }
-ntex-multipart = "2"
+ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex-multipart = "3.0.0-pre.0"
 futures = "0.3"

@@ -1,7 +1,7 @@
 use std::net::ToSocketAddrs;
 
 use clap::{value_t, Arg};
-use ntex::http::client::Client;
+use ntex::client::Client;
 use ntex::util::Bytes;
 use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
 use url::Url;
@@ -91,7 +91,7 @@ async fn main() -> std::io::Result<()> {
     ))
     .unwrap();
 
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(Client::new())
             .state(forward_url.clone())

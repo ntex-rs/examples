@@ -7,7 +7,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             .configure(config_app)
             .wrap(middleware::Logger::default())

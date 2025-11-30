@@ -2,7 +2,7 @@
 use std::{convert::TryFrom, io, thread, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{rt, time, util::ByteString, util::Bytes, ws};
+use ntex::{rt, time, util::ByteString, util::Bytes, ws, SharedCfg};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -14,7 +14,8 @@ async fn main() -> Result<(), io::Error> {
 
     // open websockets connection over http transport
     let con = ws::WsClient::build("http://127.0.0.1:8080/ws/")
-        .finish()
+        .finish(SharedCfg::default())
+        .await
         .unwrap()
         .connect()
         .await
@@ -73,7 +74,7 @@ async fn main() -> Result<(), io::Error> {
                 println!("Got server ping: {:?}", msg);
                 sink.send(ws::Message::Pong(msg))
                     .await
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(io::Error::other)?;
             }
             Err(_) => break,
             _ => (),

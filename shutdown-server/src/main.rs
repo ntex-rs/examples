@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
     let bind = "127.0.0.1:8080";
 
     // start server as normal but don't .await after .run() yet
-    let server = web::server(move || {
+    let server = web::server(async move || {
         // give the server a Sender in .data
         let stopper = tx.clone();
 

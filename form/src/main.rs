@@ -8,7 +8,7 @@ struct AppState {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    web::server(|| {
+    web::server(async || {
         App::new()
             .wrap(middleware::Logger::default())
             .configure(app_config)
@@ -86,7 +86,6 @@ mod tests {
     use ntex::http::StatusCode;
     use ntex::web::test::{self, TestRequest};
     use ntex::web::types::Form;
-    use ntex::Service;
 
     trait BodyTest {
         fn as_str(&self) -> &str;

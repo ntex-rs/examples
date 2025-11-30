@@ -25,7 +25,7 @@ async fn main() -> io::Result<()> {
         .unwrap();
     builder.set_certificate_chain_file("cert.pem").unwrap();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())

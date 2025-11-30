@@ -136,7 +136,7 @@ async fn main() -> std::io::Result<()> {
 
     let app_state = Arc::new(AppState::new(RwLock::new(ObjNetwork::new())));
 
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(app_state.clone())
             .wrap(middleware::Logger::default())

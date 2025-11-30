@@ -1,10 +1,10 @@
 [package]
 name = "run-in-thread"
-version = "4.0.0"
+version = "3.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 description = "Run ntex in separate thread"
 
 [dependencies]
-ntex = { version = "2", features = ["tokio"] }
+ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
 env_logger = "0.11"

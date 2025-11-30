@@ -1,5 +1,6 @@
-use ntex::http::client::{Client, Connector};
+use ntex::client::{Client, Connector};
 use ntex::web::{self, App, HttpResponse};
+use ntex::SharedCfg;
 use openssl::ssl::{SslConnector, SslMethod};
 
 async fn index(client: web::types::State<Client>) -> HttpResponse {
@@ -27,12 +28,14 @@ async fn index(client: web::types::State<Client>) -> HttpResponse {
 async fn main() -> std::io::Result<()> {
     let port = 3000;
 
-    web::server(|| {
+    web::server(async || {
         let builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
         let client = Client::build()
-            .connector(Connector::default().openssl(builder.build()).finish())
-            .finish();
+            .connector::<&str>(Connector::default().openssl(builder.build()))
+            .finish(SharedCfg::default())
+            .await
+            .unwrap();
 
         App::new()
             .state(client)

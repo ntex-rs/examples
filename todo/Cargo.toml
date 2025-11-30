@@ -1,13 +1,13 @@
 [package]
 authors = ["Dan Munckton <dangit@munckfish.net>"]
 name = "todo"
-version = "4.0.0"
+version = "3.0.0"
 edition = "2018"
 
 [dependencies]
-ntex = { version = "2", features = ["tokio"] }
-ntex-files = "2"
-ntex-session = "2"
+ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex-files = "3.0.0-pre.0"
+ntex-session = "3.0.0-pre.0"
 dotenv = "0.15"
 env_logger = "0.11"
 futures = "0.3"

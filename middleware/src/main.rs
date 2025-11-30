@@ -12,7 +12,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
-    web::server(|| {
+    web::server(async || {
         web::App::new()
             .filter(|req: web::WebRequest<_>| async move {
                 println!("Hi from start. You requested: {}", req.path());

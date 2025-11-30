@@ -1,6 +1,6 @@
 [package]
 name = "websocket-lowlevel"
-version = "4.0.0"
+version = "3.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
@@ -13,10 +13,10 @@ name = "websocket-lowlevel-client"
 path = "src/client.rs"
 
 [dependencies]
-ntex = { version = "2", features = ["tokio", "openssl"] }
-ntex-files = "2"
+ntex = { version = "3.0.0-pre.2", features = ["tokio", "openssl"] }
+ntex-files = "3.0.0-pre.0"
 env_logger = "0.11"
 futures = "0.3"
 
 openssl = "0.10"
-ntex-tls = { version= "2", features = ["openssl"] }
+ntex-tls = { version= "3.0.0-pre.1", features = ["openssl"] }

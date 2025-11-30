@@ -4,8 +4,8 @@ use futures::channel::mpsc::{self, UnboundedSender};
 use futures::{future::ready, SinkExt, StreamExt};
 
 use ntex::service::{
-    chain, fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
-    ServiceFactory,
+    cfg::SharedCfg, chain, fn_factory_with_config, fn_service, fn_shutdown, map_config,
+    Service, ServiceFactory,
 };
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{
@@ -245,10 +245,15 @@ async fn heartbeat(
 
 pub fn server(
     server: UnboundedSender<ServerMessage>,
-) -> impl ServiceFactory<Io, Response = (), Error = http::error::DispatchError, InitError = ()>
-{
+) -> impl ServiceFactory<
+    Io,
+    SharedCfg,
+    Response = (),
+    Error = http::error::DispatchError,
+    InitError = (),
+> {
     // Create Http server with websocket support
-    http::HttpService::build().finish(
+    http::HttpService::new(
         App::new()
             .state(server)
             // redirect to websocket.html

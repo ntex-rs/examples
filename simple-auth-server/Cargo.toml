@@ -1,12 +1,12 @@
 [package]
 name = "simple-auth-server"
-version = "4.0.0"
+version = "3.0.0"
 authors = ["mygnu <tech@hgill.io>"]
 edition = "2018"
 
 [dependencies]
-ntex-identity = "1.0"
-ntex = { version = "2", features = ["tokio"] }
+ntex-identity = "3.0.0-pre.0"
+ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
 argonautica = "0.2"
 chrono = { version = "0.4.6", features = ["serde"] }
 derive_more = "0.99"

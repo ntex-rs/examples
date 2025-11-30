@@ -42,12 +42,9 @@ async fn ws_service<F>(
                 &codec,
             )
             .await
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "WebSockets io error"))?;
+            .map_err(|_| io::Error::other("WebSockets io error"))?;
 
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "WebSockets handshake error",
-            ));
+            return Err(io::Error::other("WebSockets handshake error"));
         }
         Ok(mut res) => {
             // send http handshake respone
@@ -55,7 +52,7 @@ async fn ws_service<F>(
                 h1::Message::Item((res.finish().drop_body(), body::BodySize::None)),
                 &codec,
             )
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "WebSockets io error"))?;
+            .map_err(|_| io::Error::other("WebSockets io error"))?;
         }
     }
 
@@ -151,37 +148,35 @@ async fn main() -> std::io::Result<()> {
 
     server::Server::build()
         // start http server on 127.0.0.1:8080
-        .bind("http", "127.0.0.1:8080", move |_| {
+        .bind("http", "127.0.0.1:8080", async move |_| {
             chain_factory(SslAcceptor::new(acceptor.clone()))
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "ssl error"))
+                .map_err(|_| io::Error::other("ssl error"))
                 .and_then({
                     let ws_service = Pipeline::new(fn_service(ws_service));
 
-                    HttpService::build()
-                        // websocket handler, we need to verify websocket handshake
-                        // and then switch to websokets streaming
-                        .h1_control(move |req: h1::Control<_, _>| {
-                            let ack = if let h1::Control::Upgrade(upg) = req {
-                                let ws_service = ws_service.clone();
-                                upg.handle(|req, io, codec| async move {
-                                    ws_service.call((req, io, codec)).await
-                                })
-                            } else {
-                                req.ack()
-                            };
-                            async move { Ok::<_, io::Error>(ack) }
-                        })
-                        .finish(
-                            App::new()
-                                // enable logger
-                                .wrap(middleware::Logger::default())
-                                // static files
-                                .service(
-                                    fs::Files::new("/", "static/")
-                                        .index_file("index.html"),
-                                ),
-                        )
-                        .map_err(|_| io::Error::new(io::ErrorKind::Other, "http error"))
+                    HttpService::new(
+                        App::new()
+                            // enable logger
+                            .wrap(middleware::Logger::default())
+                            // static files
+                            .service(
+                                fs::Files::new("/", "static/").index_file("index.html"),
+                            ),
+                    )
+                    // websocket handler, we need to verify websocket handshake
+                    // and then switch to websokets streaming
+                    .h1_control(move |req: h1::Control<_, _>| {
+                        let ack = if let h1::Control::Upgrade(upg) = req {
+                            let ws_service = ws_service.clone();
+                            upg.handle(|req, io, codec| async move {
+                                ws_service.call((req, io, codec)).await
+                            })
+                        } else {
+                            req.ack()
+                        };
+                        async move { Ok::<_, io::Error>(ack) }
+                    })
+                    .map_err(|_| io::Error::other("http error"))
                 })
         })?
         .run()

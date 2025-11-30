@@ -46,7 +46,7 @@ async fn main() -> std::io::Result<()> {
 
     let ip = "0.0.0.0:3000";
 
-    web::server(|| {
+    web::server(async || {
         App::new().wrap(middleware::Logger::default()).service(
             web::resource("/")
                 .route(web::get().to(index))

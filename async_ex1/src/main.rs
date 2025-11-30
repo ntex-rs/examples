@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, io};
 
 use futures::StreamExt;
-use ntex::http::client::Client;
+use ntex::client::Client;
 use ntex::util::BytesMut;
 use ntex::web::{self, error::ErrorBadRequest, App, Error, HttpResponse, HttpServer};
 use validator::Validate;
@@ -85,12 +85,8 @@ async fn main() -> io::Result<()> {
     let endpoint = "127.0.0.1:8080";
 
     println!("Starting server at: {:?}", endpoint);
-    HttpServer::new(|| {
-        App::new()
-            .state(Client::default())
-            .service(create_something)
-    })
-    .bind(endpoint)?
-    .run()
-    .await
+    HttpServer::new(async || App::new().state(Client::new()).service(create_something))
+        .bind(endpoint)?
+        .run()
+        .await
 }
