@@ -41,7 +41,7 @@ async fn main() -> io::Result<()> {
         .unwrap();
     let handlebars_ref = Arc::new(handlebars);
 
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(handlebars_ref.clone())
             .service((index, user))

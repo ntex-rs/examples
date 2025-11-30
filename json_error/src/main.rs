@@ -41,7 +41,7 @@ async fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1:8000";
     println!("Running server on {}", ip_address);
 
-    web::server(|| App::new().service(index))
+    web::server(async || App::new().service(index))
         .bind(ip_address)
         .expect("Can not bind to port 8000")
         .run()

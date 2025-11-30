@@ -1,6 +1,6 @@
 [package]
 name = "chat-example"
-version = "4.0.0"
+version = "3.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 
@@ -17,10 +17,10 @@ name = "websocket-tcp-chat-tcp-client"
 path = "src/client-tcp.rs"
 
 [dependencies]
-ntex = { version = "2", features = ["tokio"] }
-ntex-mqtt = "5.2"
-ntex-amqp = "3.6"
-ntex-files = "2"
+ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex-mqtt = "6.0.0-pre.0"
+ntex-amqp = "5.0.0-pre.0"
+ntex-files = "3.0.0-pre.0"
 
 rand = "0.8"
 byteorder = "1.4"

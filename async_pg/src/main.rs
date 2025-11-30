@@ -119,7 +119,7 @@ async fn main() -> std::io::Result<()> {
     let config = crate::config::Config::from_env().unwrap();
     let pool = config.pg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
 
-    let server = web::server(move || {
+    let server = web::server(async move || {
         App::new()
             .state(pool.clone())
             .service(web::resource("/users").route(web::post().to(add_user)))

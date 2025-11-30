@@ -44,7 +44,7 @@ async fn main() -> io::Result<()> {
     let schema = Arc::new(create_schema());
 
     // Start http server
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(schema.clone())
             .wrap(middleware::Logger::default())

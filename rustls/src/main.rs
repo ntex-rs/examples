@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
         .with_single_cert(cert_chain, key)
         .unwrap();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())

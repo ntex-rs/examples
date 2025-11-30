@@ -41,7 +41,7 @@ async fn main() -> io::Result<()> {
     let pool = r2d2::Pool::new(manager).unwrap();
 
     // start http server
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(pool.clone()) // <- store db pool in app state
             .wrap(middleware::Logger::default())

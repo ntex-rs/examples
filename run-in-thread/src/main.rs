@@ -12,7 +12,7 @@ async fn index(req: HttpRequest) -> &'static str {
 #[ntex::main]
 async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
     // srv is server controller type, `dev::Server`
-    let srv = web::server(|| {
+    let srv = web::server(async || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())

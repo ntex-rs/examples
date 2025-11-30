@@ -57,7 +57,7 @@ async fn main() -> io::Result<()> {
     let counter3 = Arc::new(AtomicUsize::new(0usize));
 
     // move is necessary to give closure below ownership of counter1
-    web::server(move || {
+    web::server(async move || {
         // Create some thread-local state
         let counter2 = Cell::new(0u32);
 

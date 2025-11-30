@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, time::Duration, time::Instant};
 
 use futures::channel::mpsc::UnboundedSender;
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::service::{fn_service, ServiceFactory};
+use ntex::service::{cfg::SharedCfg, fn_service, ServiceFactory};
 use ntex::{channel::oneshot, io::Io, io::IoRef, rt, time, util};
 
 use crate::codec::{ChatCodec, ChatRequest, ChatResponse};
@@ -88,7 +88,7 @@ async fn heartbeat(
 /// Start tcp server that will accept incoming tcp connection
 pub fn server(
     server: UnboundedSender<ServerMessage>,
-) -> impl ServiceFactory<Io, Response = (), Error = (), InitError = ()> {
+) -> impl ServiceFactory<Io, SharedCfg, Response = (), Error = (), InitError = ()> {
     fn_service(move |io: Io| {
         let mut server = server.clone();
         async move {

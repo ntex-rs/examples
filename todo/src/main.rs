@@ -30,7 +30,7 @@ async fn main() -> io::Result<()> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = db::init_pool(&database_url).expect("Failed to create pool");
 
-    let app = move || {
+    let app = async move || {
         debug!("Constructing the App");
 
         let templates: Tera = Tera::new("templates/**/*").unwrap();

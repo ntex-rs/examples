@@ -11,7 +11,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     let data = Broadcaster::create();
 
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(data.clone())
             .route("/", web::get().to(index))

@@ -59,7 +59,7 @@ async fn main() -> io::Result<()> {
     let pool = Pool::new(manager).unwrap();
 
     // Start http server
-    HttpServer::new(move || {
+    HttpServer::new(async move || {
         App::new()
             // store db pool as Data object
             .state(pool.clone())

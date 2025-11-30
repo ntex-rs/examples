@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     println!("Starting http server: 127.0.0.1:8080");
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // enable logger
             .wrap(Logger::default())

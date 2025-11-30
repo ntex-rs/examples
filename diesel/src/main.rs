@@ -70,7 +70,7 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server at: {}", &bind);
 
     // Start HTTP server
-    web::server(move || {
+    web::server(async move || {
         App::new()
             // set up DB pool to be used with web::State<Pool> extractor
             .state(pool.clone())

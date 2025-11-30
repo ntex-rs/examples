@@ -2,7 +2,7 @@
 use std::{io, thread, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{rt, time, util::Bytes, ws};
+use ntex::{io::IoConfig, rt, time, util::Bytes, ws, SharedCfg};
 use openssl::ssl;
 
 /// How often heartbeat pings are sent
@@ -24,8 +24,11 @@ async fn run() -> Result<(), io::Error> {
     // open websockets connection over http transport
     let con = ws::WsClient::build("http://127.0.0.1:8080/ws/")
         .openssl(builder.build())
-        .keepalive_timeout(time::Seconds::ZERO)
-        .finish()
+        .finish(
+            SharedCfg::new("WS")
+                .add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
+        )
+        .await
         .unwrap()
         .connect()
         .await
@@ -86,7 +89,7 @@ async fn run() -> Result<(), io::Error> {
                 println!("Got server ping: {:?}", msg);
                 sink.send(ws::Message::Pong(msg))
                     .await
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                    .map_err(io::Error::other)?;
             }
             Err(_) => break,
             _ => (),

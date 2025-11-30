@@ -18,7 +18,7 @@ async fn main() -> std::io::Result<()> {
 
     let pool = get_db_pool();
 
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(pool.clone())
             .wrap(middleware::Logger::default())

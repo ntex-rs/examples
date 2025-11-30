@@ -31,7 +31,6 @@ mod tests {
     use crate::appconfig::config_app;
     use ntex::http::{header, StatusCode};
     use ntex::web::{test, App};
-    use ntex::Service;
 
     #[ntex::test]
     async fn test_add_product() {

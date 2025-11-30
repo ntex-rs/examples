@@ -18,10 +18,10 @@ async fn main() -> std::io::Result<()> {
 
     // Create server
     ntex::server::build()
-        .bind("tcp", "127.0.0.1:12345", move |_| {
+        .bind("tcp", "127.0.0.1:12345", async move |_| {
             tcp::server(tcp_srv.clone())
         })?
-        .bind("websockets", "127.0.0.1:8080", move |_| {
+        .bind("websockets", "127.0.0.1:8080", async move |_| {
             web::server(ws_srv.clone())
         })?
         .run()

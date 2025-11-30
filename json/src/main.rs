@@ -62,7 +62,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())
@@ -85,9 +85,8 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ntex::util::Bytes;
-    use ntex::web::{test, App};
-    use ntex::{http, web, Service};
+    use ntex::web::{self, test, App};
+    use ntex::{http, util::Bytes};
 
     #[ntex::test]
     async fn test_index() -> Result<(), Error> {

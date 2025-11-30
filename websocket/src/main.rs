@@ -115,7 +115,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "ntex=trace,trace");
     env_logger::init();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // enable logger
             .wrap(middleware::Logger::default())

@@ -2,7 +2,7 @@
 use std::{thread, time::Duration};
 
 use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{channel::oneshot, rt, time, util};
+use ntex::{channel::oneshot, rt, time, util, SharedCfg};
 
 mod codec;
 use self::codec::{ChatRequest, ChatResponse, ClientChatCodec};
@@ -16,7 +16,7 @@ async fn main() -> Result<(), std::io::Error> {
     env_logger::init();
 
     // open tcp connection
-    let io = rt::tcp_connect("127.0.0.1:12345".parse().unwrap())
+    let io = rt::tcp_connect("127.0.0.1:12345".parse().unwrap(), SharedCfg::default())
         .await
         .unwrap();
 

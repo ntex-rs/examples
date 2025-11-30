@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     // start http server
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .wrap(middleware::Logger::default()) // enable logger
             .service(index)

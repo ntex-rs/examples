@@ -31,7 +31,7 @@ async fn main() -> std::io::Result<()> {
         std::env::var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
 
     // Start http server
-    web::server(move || {
+    web::server(async move || {
         App::new()
             .state(pool.clone())
             // enable logger

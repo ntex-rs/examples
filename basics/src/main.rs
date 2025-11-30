@@ -74,7 +74,7 @@ async fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(|| {
+    web::server(async || {
         App::new()
             // cookie session middleware
             .wrap(CookieSession::signed(&[0; 32]).secure(false))
@@ -100,7 +100,7 @@ async fn main() -> io::Result<()> {
                 }),
                 web::resource("/error").to(|| async {
                     error::InternalError::new(
-                        io::Error::new(io::ErrorKind::Other, "test"),
+                        io::Error::other("test"),
                         StatusCode::INTERNAL_SERVER_ERROR,
                     )
                 }),

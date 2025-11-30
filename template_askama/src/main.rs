@@ -34,7 +34,7 @@ async fn index(
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     // start http server
-    web::server(move || App::new().service(index))
+    web::server(async move || App::new().service(index))
         .bind("127.0.0.1:8080")?
         .run()
         .await
