@@ -31,9 +31,9 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         let builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
-        let client = Client::build()
+        let client = Client::builder()
             .connector::<&str>(Connector::default().openssl(builder.build()))
-            .finish(SharedCfg::default())
+            .build(SharedCfg::default())
             .await
             .unwrap();
 

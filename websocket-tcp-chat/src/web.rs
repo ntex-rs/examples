@@ -179,7 +179,7 @@ async fn ws_service(
     });
 
     // handler service for shutdown notification that stop heartbeat task
-    let on_shutdown = fn_shutdown(move || {
+    let on_shutdown = fn_shutdown(async move || {
         let _ = tx.send(());
     });
 

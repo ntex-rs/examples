@@ -5,7 +5,7 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>", "Rotem Yaari <vmalloc@gmail.com>"
 edition = "2018"
 
 [dependencies]
-ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
 clap = "2.32"
 futures = "0.3"
 url = "2.1"

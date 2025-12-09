@@ -5,7 +5,7 @@ authors = ["mohanson <mohanson@outlook.com>"]
 edition = "2018"
 
 [dependencies]
-ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
 env_logger = "0.11"
 futures = "0.3"
 log = "0.4"
