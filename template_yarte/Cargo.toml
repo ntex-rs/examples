@@ -10,7 +10,7 @@ workspace = ".."
 [dependencies]
 env_logger = "0.11"
 yarte = { version = "0.15", features = ["html-min"]  }
-ntex = { version = "3.0.0-pre.2", features = ["tokio"] }
+ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
 
 [build-dependencies.yarte_helpers]
 version = "0.8"

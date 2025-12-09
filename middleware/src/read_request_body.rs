@@ -1,14 +1,14 @@
 use futures::stream::StreamExt;
-use ntex::service::{Middleware, Service, ServiceCtx};
+use ntex::service::{Middleware2, Service, ServiceCtx};
 use ntex::util::BytesMut;
 use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S> Middleware<S> for Logging {
+impl<S, C> Middleware2<S, C> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn create(&self, service: S) -> Self::Service {
+    fn create(&self, service: S, _: C) -> Self::Service {
         LoggingMiddleware { service }
     }
 }
