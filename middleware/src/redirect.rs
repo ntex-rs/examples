@@ -1,10 +1,10 @@
 use ntex::http;
-use ntex::service::{Middleware2, Service, ServiceCtx};
+use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::web::{Error, ErrorRenderer, HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
 
-impl<S, C> Middleware2<S, C> for CheckLogin {
+impl<S, C> Middleware<S, C> for CheckLogin {
     type Service = CheckLoginMiddleware<S>;
 
     fn create(&self, service: S, _: C) -> Self::Service {

@@ -1,13 +1,13 @@
 use std::{rc::Rc, task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::service::{Middleware2, Service, ServiceCtx};
+use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::util::{Bytes, BytesMut};
 use ntex::web::{Error, WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S, C> Middleware2<S, C> for Logging {
+impl<S, C> Middleware<S, C> for Logging {
     type Service = LoggingMiddleware<S>;
 
     fn create(&self, service: S, _: C) -> Self::Service {

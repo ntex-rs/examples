@@ -1,4 +1,4 @@
-use ntex::service::{Middleware2, Service, ServiceCtx};
+use ntex::service::{Middleware, Service, ServiceCtx};
 use ntex::web::{Error, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
@@ -10,7 +10,7 @@ pub struct SayHi;
 // Middleware factory is `Middleware` trait from ntex-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S, C> Middleware2<S, C> for SayHi {
+impl<S, C> Middleware<S, C> for SayHi {
     type Service = SayHiMiddleware<S>;
 
     fn create(&self, service: S, _: C) -> Self::Service {
