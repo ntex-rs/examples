@@ -17,10 +17,10 @@ name = "websocket-tcp-chat-tcp-client"
 path = "src/client-tcp.rs"
 
 [dependencies]
-ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
-ntex-mqtt = "6.2.0"
-ntex-amqp = "5.1.0"
-ntex-files = "3.0.0"
+ntex = { version = "3.0", features = ["tokio"] }
+ntex-mqtt = "7.0"
+ntex-amqp = "5.4"
+ntex-files = "3.1"
 
 rand = "0.8"
 byteorder = "1.4"

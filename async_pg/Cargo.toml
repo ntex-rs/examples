@@ -6,7 +6,7 @@ edition = "2018"
 workspace = ".."
 
 [dependencies]
-ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
+ntex = { version = "3.0", features = ["tokio"] }
 config = "0.10"
 deadpool-postgres = { version = "0.10", features = ["serde"] }
 derive_more = "0.99"

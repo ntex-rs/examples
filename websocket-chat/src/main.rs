@@ -24,6 +24,7 @@ async fn chat_route(
     let srv = srv.get_ref().clone();
     ws::start(
         req,
+        None::<&str>,
         // inject chat server send to a ws_service factory
         map_config(fn_factory_with_config(ws_service), move |cfg| {
             (cfg, srv.clone())

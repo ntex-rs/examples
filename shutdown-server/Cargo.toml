@@ -6,6 +6,6 @@ edition = "2018"
 description = "Send a request to the server to shut it down"
 
 [dependencies]
-ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
+ntex = { version = "3.0", features = ["tokio"] }
 env_logger = "0.11"
 futures = "0.3"

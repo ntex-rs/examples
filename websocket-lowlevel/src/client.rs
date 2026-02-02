@@ -22,9 +22,9 @@ async fn run() -> Result<(), io::Error> {
     builder.set_verify(ssl::SslVerifyMode::NONE);
 
     // open websockets connection over http transport
-    let con = ws::WsClient::build("http://127.0.0.1:8080/ws/")
+    let con = ws::WsClient::builder("http://127.0.0.1:8080/ws/")
         .openssl(builder.build())
-        .finish(
+        .build(
             SharedCfg::new("WS")
                 .add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
         )

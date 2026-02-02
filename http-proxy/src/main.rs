@@ -27,7 +27,7 @@ async fn forward(
         forwarded_req
     };
 
-    let mut res = forwarded_req.send_body(body).await.map_err(Error::from)?;
+    let res = forwarded_req.send_body(body).await.map_err(Error::from)?;
 
     let mut client_resp = HttpResponse::build(res.status());
     // Remove `Connection` as per

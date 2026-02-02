@@ -13,8 +13,8 @@ async fn main() -> Result<(), io::Error> {
     env_logger::init();
 
     // open websockets connection over http transport
-    let con = ws::WsClient::build("http://127.0.0.1:8080/ws/")
-        .finish(SharedCfg::default())
+    let con = ws::WsClient::builder("http://127.0.0.1:8080/ws/")
+        .build(SharedCfg::default())
         .await
         .unwrap()
         .connect()

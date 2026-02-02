@@ -74,7 +74,7 @@ async fn main() -> io::Result<()> {
     env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    ntex::rt::System::new("main")
+    ntex::rt::System::new("main", ntex::rt::DefaultRuntime)
         .run_local(async {
             web::server(async || {
                 App::new()

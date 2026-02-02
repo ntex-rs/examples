@@ -107,7 +107,7 @@ async fn heartbeat(
 
 /// do websocket handshake and start web sockets service
 async fn ws_index(req: HttpRequest) -> Result<HttpResponse, Error> {
-    ws::start(req, fn_factory_with_config(ws_service)).await
+    ws::start(req, None::<&str>, fn_factory_with_config(ws_service)).await
 }
 
 #[ntex::main]

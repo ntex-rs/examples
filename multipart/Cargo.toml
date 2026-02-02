@@ -10,6 +10,6 @@ repository = "https://github.com/ntex/examples"
 readme = "README.md"
 
 [dependencies]
-ntex = { version = "3.0.0-pre.6", features = ["tokio"] }
-ntex-multipart = "3.0.0"
+ntex = { version = "3.0", features = ["tokio"] }
+ntex-multipart = "3.1.0"
 futures = "0.3"

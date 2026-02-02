@@ -12,5 +12,5 @@ path = "src/main.rs"
 env_logger = "0.11"
 rustls = "0.23"
 rustls-pemfile = "2"
-ntex = { version = "3.0.0-pre.6", features = ["rustls", "tokio"] }
-ntex-files = "3.0.0"
+ntex = { version = "3.0", features = ["rustls", "tokio"] }
+ntex-files = "3.1.0"

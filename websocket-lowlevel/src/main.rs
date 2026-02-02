@@ -146,7 +146,7 @@ async fn main() -> std::io::Result<()> {
     builder.set_read_ahead(false);
     let acceptor = builder.build();
 
-    server::Server::build()
+    server::Server::builder()
         // start http server on 127.0.0.1:8080
         .bind("http", "127.0.0.1:8080", async move |_| {
             chain_factory(SslAcceptor::new(acceptor.clone()))
