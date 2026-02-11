@@ -157,7 +157,7 @@ async fn main() -> std::io::Result<()> {
                     HttpService::new(
                         App::new()
                             // enable logger
-                            .wrap(middleware::Logger::default())
+                            .middleware(middleware::Logger::default())
                             // static files
                             .service(
                                 fs::Files::new("/", "static/").index_file("index.html"),

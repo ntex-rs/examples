@@ -18,10 +18,10 @@ async fn main() -> std::io::Result<()> {
                 println!("Hi from start. You requested: {}", req.path());
                 Ok(req)
             })
-            .wrap(simple::SayHi)
-            .wrap(read_request_body::Logging)
-            .wrap(read_response_body::Logging)
-            .wrap(redirect::CheckLogin)
+            .middleware(simple::SayHi)
+            .middleware(read_request_body::Logging)
+            .middleware(read_response_body::Logging)
+            .middleware(redirect::CheckLogin)
             .service(web::resource("/login").to(|| async {
                 "You are on /login. Go to src/redirect.rs to change this behavior."
             }))

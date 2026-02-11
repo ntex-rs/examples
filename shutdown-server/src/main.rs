@@ -33,7 +33,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .state(stopper)
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((hello, stop))
     })
     .bind(bind)?

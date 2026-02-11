@@ -34,7 +34,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .state(tera)
-            .wrap(middleware::Logger::default()) // enable logger
+            .middleware(middleware::Logger::default()) // enable logger
             .service(index)
     })
     .bind("127.0.0.1:8080")?

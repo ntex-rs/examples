@@ -9,7 +9,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service(
                 // static files
                 fs::Files::new("/", "./static/").index_file("index.html"),

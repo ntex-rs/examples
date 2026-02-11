@@ -77,9 +77,9 @@ async fn main() -> io::Result<()> {
     web::server(async || {
         App::new()
             // cookie session middleware
-            .wrap(CookieSession::signed(&[0; 32]).secure(false))
+            .middleware(CookieSession::signed(&[0; 32]).secure(false))
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((
                 // register favicon
                 favicon,

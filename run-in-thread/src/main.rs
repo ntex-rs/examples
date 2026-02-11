@@ -15,7 +15,7 @@ async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
     let srv = web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service(web::resource("/index.html").to(|| async { "Hello world!" }))
             .service(web::resource("/").to(index))
     })

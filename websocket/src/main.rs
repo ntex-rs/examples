@@ -118,7 +118,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             // websocket route
             .service(web::resource("/ws/").route(web::get().to(ws_index)))
             // static files

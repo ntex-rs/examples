@@ -33,7 +33,7 @@ async fn main() -> std::io::Result<()> {
     // start http server
     web::server(async move || {
         App::new()
-            .wrap(middleware::Logger::default()) // enable logger
+            .middleware(middleware::Logger::default()) // enable logger
             .service(index)
     })
     .bind("127.0.0.1:8080")?

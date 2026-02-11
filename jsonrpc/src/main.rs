@@ -139,7 +139,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async move || {
         App::new()
             .state(app_state.clone())
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
     })
     .bind("127.0.0.1:8080")

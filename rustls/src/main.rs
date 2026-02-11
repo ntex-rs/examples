@@ -34,7 +34,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             // register simple handler, handle all methods
             .service(web::resource("/index.html").to(index))
             // with path parameters

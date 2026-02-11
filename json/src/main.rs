@@ -65,7 +65,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .state(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
             .service((
                 web::resource("/extractor").route(web::post().to(index)),

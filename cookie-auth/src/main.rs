@@ -25,13 +25,13 @@ async fn main() -> std::io::Result<()> {
 
     web::server(async || {
         App::new()
-            .wrap(IdentityService::new(
+            .middleware(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
                     .name("auth-example")
                     .secure(false),
             ))
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((
                 web::resource("/login").route(web::post().to(login)),
                 web::resource("/logout").to(logout),

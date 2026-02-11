@@ -44,7 +44,7 @@ async fn main() -> io::Result<()> {
     web::server(async move || {
         App::new()
             .state(pool.clone()) // <- store db pool in app state
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .route("/{name}", web::get().to(index))
     })
     .bind("127.0.0.1:8080")?

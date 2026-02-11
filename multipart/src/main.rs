@@ -47,11 +47,13 @@ async fn main() -> std::io::Result<()> {
     let ip = "0.0.0.0:3000";
 
     web::server(async || {
-        App::new().wrap(middleware::Logger::default()).service(
-            web::resource("/")
-                .route(web::get().to(index))
-                .route(web::post().to(save_file)),
-        )
+        App::new()
+            .middleware(middleware::Logger::default())
+            .service(
+                web::resource("/")
+                    .route(web::get().to(index))
+                    .route(web::post().to(save_file)),
+            )
     })
     .bind(ip)?
     .run()

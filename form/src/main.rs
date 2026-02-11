@@ -10,7 +10,7 @@ struct AppState {
 async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .configure(app_config)
     })
     .bind("127.0.0.1:8080")?

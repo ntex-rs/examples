@@ -33,9 +33,9 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(Logger::default())
+            .middleware(Logger::default())
             // cookie session middleware
-            .wrap(CookieSession::signed(&[0; 32]).secure(false))
+            .middleware(CookieSession::signed(&[0; 32]).secure(false))
             .service(index)
     })
     .bind("127.0.0.1:8080")?

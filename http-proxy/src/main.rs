@@ -95,7 +95,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .state(Client::new())
             .state(forward_url.clone())
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .default_service(web::route().to(forward))
     })
     .bind((listen_addr, listen_port))?

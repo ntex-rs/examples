@@ -63,7 +63,7 @@ async fn main() -> io::Result<()> {
         App::new()
             // store db pool as Data object
             .state(pool.clone())
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((asyncio_weather, parallel_weather))
     })
     .bind("127.0.0.1:8080")?

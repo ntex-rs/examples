@@ -13,7 +13,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async || {
         App::new()
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((
                 web::resource("/index.html")
                     .route(web::get().to(|| async { "Hello world!" })),

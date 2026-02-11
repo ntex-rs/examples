@@ -66,7 +66,7 @@ async fn main() -> io::Result<()> {
             .state(counter3.clone()) // add shared state
             .state(counter2) // add thread-local state
             // enable logger
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             // register simple handler
             .service(web::resource("/").to(index))
     })

@@ -35,8 +35,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .state(pool.clone())
             // enable logger
-            .wrap(middleware::Logger::default())
-            .wrap(IdentityService::new(
+            .middleware(middleware::Logger::default())
+            .middleware(IdentityService::new(
                 CookieIdentityPolicy::new(utils::SECRET_KEY.as_bytes())
                     .name("auth")
                     .path("/")

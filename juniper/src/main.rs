@@ -47,7 +47,7 @@ async fn main() -> io::Result<()> {
     web::server(async move || {
         App::new()
             .state(schema.clone())
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((graphql, graphiql))
     })
     .bind("127.0.0.1:8080")?

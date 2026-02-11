@@ -40,8 +40,8 @@ async fn main() -> io::Result<()> {
         web::App::new()
             .state(templates)
             .state(pool.clone())
-            .wrap(Logger::default())
-            .wrap(session_store)
+            .middleware(Logger::default())
+            .middleware(session_store)
             .service((
                 web::resource("/").route(web::get().to(api::index)),
                 web::resource("/todo").route(web::post().to(api::create)),

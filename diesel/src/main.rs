@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // set up DB pool to be used with web::State<Pool> extractor
             .state(pool.clone())
-            .wrap(middleware::Logger::default())
+            .middleware(middleware::Logger::default())
             .service((get_user, add_user))
     })
     .bind(&bind)?
