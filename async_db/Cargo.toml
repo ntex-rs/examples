@@ -2,16 +2,17 @@
 name = "async_db"
 version = "5.0.0"
 authors = ["Darin Gordon <dkcdkg@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-env_logger = "0.11"
-futures = "0.3"
-derive_more = "0.99"
-num_cpus = "1.13"
-r2d2 = "0.8"
-r2d2_sqlite = "0.14"
-rusqlite = "0.21"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+ntex = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }
+derive_more = { workspace = true }
+num_cpus = { workspace = true }
+r2d2 = { workspace = true }
+r2d2_sqlite = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

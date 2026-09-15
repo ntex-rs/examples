@@ -15,9 +15,7 @@ struct UserTemplate<'a> {
 struct Index;
 
 #[web::get("/")]
-async fn index(
-    query: web::types::Query<HashMap<String, String>>,
-) -> Result<HttpResponse, Error> {
+async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
     let s = if let Some(name) = query.get("name") {
         UserTemplate {
             name,

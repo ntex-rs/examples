@@ -1,4 +1,4 @@
-use ntex::web::{self, middleware, App, HttpResponse};
+use ntex::web::{self, App, HttpResponse, middleware};
 use ntex_identity::{CookieIdentityPolicy, Identity, IdentityService};
 
 async fn index(id: Identity) -> String {
@@ -10,20 +10,19 @@ async fn index(id: Identity) -> String {
 
 async fn login(id: Identity) -> HttpResponse {
     id.remember("user1".to_owned());
-    HttpResponse::Found().header("location", "/").finish()
+    HttpResponse::Found().header("location", "/").build()
 }
 
 async fn logout(id: Identity) -> HttpResponse {
     id.forget();
-    HttpResponse::Found().header("location", "/").finish()
+    HttpResponse::Found().header("location", "/").build()
 }
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             .middleware(IdentityService::new(
                 CookieIdentityPolicy::new(&[0; 32])
@@ -38,7 +37,7 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/").route(web::get().to(index)),
             ))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("COOKIE"))?
     .run()
     .await
 }

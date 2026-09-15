@@ -1,36 +1,31 @@
-use ntex::web::{self, Error, HttpResponse};
+use ntex::web::{self, DefaultError, HttpResponse, WebError};
 
 use crate::common::{Part, Product};
 
-pub async fn get_products(
-    _query: web::types::Query<Option<Part>>,
-) -> Result<HttpResponse, Error> {
-    Ok(HttpResponse::Ok().finish())
+type Error = WebError<(), DefaultError>;
+
+pub async fn get_products(_query: web::types::Query<Option<Part>>) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().build())
 }
 
-pub async fn add_product(
-    _new_product: web::types::Json<Product>,
-) -> Result<HttpResponse, Error> {
-    Ok(HttpResponse::Ok().finish())
+pub async fn add_product(_new_product: web::types::Json<Product>) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().build())
 }
 
-pub async fn get_product_detail(
-    _id: web::types::Path<String>,
-) -> Result<HttpResponse, Error> {
-    Ok(HttpResponse::Ok().finish())
+pub async fn get_product_detail(_id: web::types::Path<String>) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().build())
 }
 
-pub async fn remove_product(
-    _id: web::types::Path<String>,
-) -> Result<HttpResponse, Error> {
-    Ok(HttpResponse::Ok().finish())
+pub async fn remove_product(_id: web::types::Path<String>) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::Ok().build())
 }
 
 #[cfg(test)]
 mod tests {
+    use ntex::http::{StatusCode, header};
+    use ntex::web::{App, test};
+
     use crate::appconfig::config_app;
-    use ntex::http::{header, StatusCode};
-    use ntex::web::{test, App};
 
     #[ntex::test]
     async fn test_add_product() {

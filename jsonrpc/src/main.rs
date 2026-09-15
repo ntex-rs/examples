@@ -99,10 +99,7 @@ impl ObjNetwork {
         String::from("pong")
     }
 
-    fn wait(
-        &self,
-        d: u64,
-    ) -> Pin<Box<dyn Future<Output = Result<String, Box<dyn error::Error>>>>> {
+    fn wait(&self, d: u64) -> Pin<Box<dyn Future<Output = Result<String, Box<dyn error::Error>>>>> {
         async move {
             sleep(Duration::from_secs(d)).await;
             Ok(String::from("pong"))

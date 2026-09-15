@@ -1,5 +1,5 @@
-use ntex::service::{Middleware, Service, ServiceCtx};
-use ntex::web::{Error, WebRequest, WebResponse};
+use ntex::service::{Ctx, Middleware, Service};
+use ntex::web::{State, WebRequest, WebResponse};
 
 // There are two steps in middleware processing.
 // 1. Middleware initialization, middleware factory gets called with
@@ -10,10 +10,10 @@ pub struct SayHi;
 // Middleware factory is `Middleware` trait from ntex-service crate
 // `S` - type of the next service
 // `B` - type of response's body
-impl<S, C> Middleware<S, C> for SayHi {
+impl<S, St> Middleware<S, St> for SayHi {
     type Service = SayHiMiddleware<S>;
 
-    fn create(&self, service: S, _: C) -> Self::Service {
+    fn create(&self, _: &St, service: S) -> Self::Service {
         SayHiMiddleware { service }
     }
 }
@@ -22,22 +22,21 @@ pub struct SayHiMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service<WebRequest<Err>> for SayHiMiddleware<S>
+impl<S, St: State> Service<St, WebRequest> for SayHiMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<St, WebRequest, Res = WebResponse>,
 {
-    type Response = WebResponse;
-    type Error = Error;
+    type Res = WebResponse;
+    type Error = S::Error;
 
-    ntex::forward_ready!(service);
-    ntex::forward_poll!(service);
-    ntex::forward_shutdown!(service);
+    ntex::forward_ready!(St, service);
+    ntex::forward_shutdown!(St, service);
 
     async fn call(
         &self,
-        req: WebRequest<Err>,
-        ctx: ServiceCtx<'_, Self>,
-    ) -> Result<Self::Response, Self::Error> {
+        req: WebRequest,
+        ctx: Ctx<'_, Self, St>,
+    ) -> Result<Self::Res, Self::Error> {
         println!("Hi from start. You requested: {}", req.path());
 
         let res = ctx.call(&self.service, req).await?;

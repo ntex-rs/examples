@@ -1,17 +1,17 @@
 [package]
 name = "async_pg"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["dowwie <dkcdkg@gmail.com>"]
-edition = "2018"
+edition = "2024"
 workspace = ".."
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-config = "0.10"
-deadpool-postgres = { version = "0.10", features = ["serde"] }
-derive_more = "0.99"
-dotenv = "0.15"
-serde = { version = "1.0", features = ["derive"] }
-tokio-pg-mapper = "0.2"
-tokio-pg-mapper-derive = "0.2"
-tokio-postgres = "0.7"
+ntex = { workspace = true, features = ["tokio"] }
+config = { workspace = true }
+deadpool-postgres = { workspace = true, features = ["serde"] }
+derive_more = { workspace = true }
+dotenv = { workspace = true }
+serde = { workspace = true }
+tokio-pg-mapper = { workspace = true }
+tokio-pg-mapper-derive = { workspace = true }
+tokio-postgres = { workspace = true }

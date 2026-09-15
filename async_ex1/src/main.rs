@@ -11,17 +11,17 @@
 //     2. ntex client features:
 //           - POSTing json body
 //     3. chaining futures into a single response used by an async endpoint
-
-use serde::{Deserialize, Serialize};
-
-use std::{collections::HashMap, io};
+use std::io;
 
 use futures::StreamExt;
-use ntex::client::Client;
-use ntex::util::BytesMut;
-use ntex::web::{self, error::ErrorBadRequest, App, Error, HttpResponse, HttpServer};
+use ntex::web::{self, App, AppState, HttpResponse, error::ErrorBadRequest, types};
+use ntex::{SharedCfg, client::Client, util::BytesMut, util::HashMap};
+use serde::{Deserialize, Serialize};
 use validator::Validate;
 use validator_derive::Validate;
+
+type State = AppState<Client>;
+type Error = web::WebError<State, web::DefaultError>;
 
 #[derive(Debug, Validate, Deserialize, Serialize)]
 struct SomeData {
@@ -46,31 +46,32 @@ struct HttpBinResponse {
 /// validate data, post json to httpbin, get it back in the response body, return deserialized
 async fn step_x(data: SomeData, client: &Client) -> Result<SomeData, Error> {
     // validate data
-    data.validate().map_err(ErrorBadRequest)?;
+    data.validate()
+        .map_err(|e| Error::from_err(ErrorBadRequest(e)))?;
 
     let mut res = client
         .post("https://httpbin.org/post")
         .send_json(&data)
         .await
-        .map_err(Error::from)?; // <- convert SendRequestError to an Error
+        .map_err(Error::from_err)?; // <- convert ClientError to an WebError
 
     let mut body = BytesMut::new();
     while let Some(chunk) = res.next().await {
-        body.extend_from_slice(&chunk?);
+        body.extend_from_slice(&chunk.map_err(Error::from_err)?);
     }
 
     let body: HttpBinResponse = serde_json::from_slice(&body).unwrap();
     Ok(body.json)
 }
 
-#[web::post("/something")]
+#[web::post("/something", state=AppState<Client>)]
 async fn create_something(
-    some_data: web::types::Json<SomeData>,
-    client: web::types::State<Client>,
+    some_data: types::Json<SomeData>,
+    st: types::State<AppState<Client>>,
 ) -> Result<HttpResponse, Error> {
-    let some_data_2 = step_x(some_data.into_inner(), &client).await?;
-    let some_data_3 = step_x(some_data_2, &client).await?;
-    let d = step_x(some_data_3, &client).await?;
+    let some_data_2 = step_x(some_data.into_inner(), &st).await?;
+    let some_data_3 = step_x(some_data_2, &st).await?;
+    let d = step_x(some_data_3, &st).await?;
 
     Ok(HttpResponse::Ok()
         .content_type("application/json")
@@ -79,14 +80,17 @@ async fn create_something(
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
     let endpoint = "127.0.0.1:8080";
 
     println!("Starting server at: {:?}", endpoint);
-    HttpServer::new(async || App::new().state(Client::new()).service(create_something))
-        .bind(endpoint)?
-        .run()
-        .await
+    web::HttpServer::new(async |_| {
+        App::new()
+            .service(create_something)
+            .build_with(AppState::new(Client::new()))
+    })
+    .bind(endpoint, SharedCfg::new("EX1"))?
+    .run()
+    .await
 }

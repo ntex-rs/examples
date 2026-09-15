@@ -16,8 +16,8 @@ async fn again() -> HttpResponse {
 async fn main() -> std::io::Result<()> {
     println!("Starting ntex-web server");
 
-    web::server(async || App::new().service((index, again)))
-        .bind("0.0.0.0:5000")?
+    web::server(async |_| App::new().service((index, again)))
+        .bind("0.0.0.0:5000", ntex::SharedCfg::new("S"))?
         .run()
         .await
 }

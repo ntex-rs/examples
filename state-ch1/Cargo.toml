@@ -1,5 +1,5 @@
 [package]
-name = "hello-world"
+name = "state-ch1"
 version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"

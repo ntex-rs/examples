@@ -1,13 +1,13 @@
 use ntex::http;
-use ntex::service::{Middleware, Service, ServiceCtx};
-use ntex::web::{Error, ErrorRenderer, HttpResponse, WebRequest, WebResponse};
+use ntex::service::{Ctx, Middleware, Service};
+use ntex::web::{HttpResponse, WebRequest, WebResponse};
 
 pub struct CheckLogin;
 
-impl<S, C> Middleware<S, C> for CheckLogin {
+impl<S, St> Middleware<S, St> for CheckLogin {
     type Service = CheckLoginMiddleware<S>;
 
-    fn create(&self, service: S, _: C) -> Self::Service {
+    fn create(&self, _: &St, service: S) -> Self::Service {
         CheckLoginMiddleware { service }
     }
 }
@@ -16,22 +16,21 @@ pub struct CheckLoginMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service<WebRequest<Err>> for CheckLoginMiddleware<S>
+impl<S, St> Service<St, WebRequest> for CheckLoginMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
-    Err: ErrorRenderer,
+    S: Service<St, WebRequest, Res = WebResponse>,
 {
-    type Response = WebResponse;
-    type Error = Error;
+    type Res = WebResponse;
+    type Error = S::Error;
 
-    ntex::forward_ready!(service);
-    ntex::forward_shutdown!(service);
+    ntex::forward_ready!(St, service);
+    ntex::forward_shutdown!(St, service);
 
     async fn call(
         &self,
-        req: WebRequest<Err>,
-        ctx: ServiceCtx<'_, Self>,
-    ) -> Result<Self::Response, Self::Error> {
+        req: WebRequest,
+        ctx: Ctx<'_, Self, St>,
+    ) -> Result<Self::Res, Self::Error> {
         // We only need to hook into the `start` for this middleware.
 
         let is_logged_in = false; // Change this to see the change in outcome in the browser
@@ -46,7 +45,7 @@ where
                 Ok(req.into_response(
                     HttpResponse::Found()
                         .header(http::header::LOCATION, "/login")
-                        .finish()
+                        .build()
                         .into_body(),
                 ))
             }

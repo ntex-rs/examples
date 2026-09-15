@@ -1,4 +1,4 @@
-use ntex::web::{self, middleware, App, HttpRequest};
+use ntex::web::{self, App, HttpRequest, middleware};
 
 async fn index(req: HttpRequest) -> &'static str {
     println!("REQ: {:?}", req);
@@ -7,10 +7,9 @@ async fn index(req: HttpRequest) -> &'static str {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -19,7 +18,7 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/").to(index),
             ))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("HW"))?
     .run()
     .await
 }
@@ -28,7 +27,7 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use ntex::util::Bytes;
-    use ntex::web::{test, App, Error};
+    use ntex::web::{App, Error, test};
     use ntex::{http, web};
 
     #[ntex::test]

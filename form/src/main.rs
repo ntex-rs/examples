@@ -1,36 +1,40 @@
 use serde::{Deserialize, Serialize};
 
-use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, middleware};
 
+type Error = WebError<AppState, web::DefaultError>;
+
+#[derive(Clone)]
 struct AppState {
     foo: String,
 }
 
+impl web::State for AppState {
+    type Error = web::DefaultError;
+}
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             .middleware(middleware::Logger::default())
             .configure(app_config)
+            .build_with(AppState {
+                foo: "bar".to_string(),
+            })
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("FORM"))?
     .run()
     .await
 }
 
-fn app_config(config: &mut web::ServiceConfig) {
-    config.service(
-        web::scope("/")
-            .state(AppState {
-                foo: "bar".to_string(),
-            })
-            .service((
-                web::resource("/").route(web::get().to(index)),
-                web::resource("/post1").route(web::post().to(handle_post_1)),
-                web::resource("/post2").route(web::post().to(handle_post_2)),
-                web::resource("/post3").route(web::post().to(handle_post_3)),
-            )),
-    );
+fn app_config(config: &mut web::ServiceConfig<AppState>) {
+    config.service(web::scope("/").service((
+        web::resource("/").route(web::get().to(index)),
+        web::resource("/post1").route(web::post().to(handle_post_1)),
+        web::resource("/post2").route(web::post().to(handle_post_2)),
+        web::resource("/post3").route(web::post().to(handle_post_3)),
+    )));
 }
 
 async fn index() -> Result<HttpResponse, Error> {
@@ -45,9 +49,7 @@ pub struct MyParams {
 }
 
 /// Simple handle POST request
-async fn handle_post_1(
-    params: web::types::Form<MyParams>,
-) -> Result<HttpResponse, Error> {
+async fn handle_post_1(params: web::types::Form<MyParams>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok()
         .content_type("text/plain")
         .body(format!("Your name is {}", params.name)))
@@ -65,10 +67,7 @@ async fn handle_post_2(
 }
 
 /// Request and POST Params
-async fn handle_post_3(
-    req: HttpRequest,
-    params: web::types::Form<MyParams>,
-) -> HttpResponse {
+async fn handle_post_3(req: HttpRequest, params: web::types::Form<MyParams>) -> HttpResponse {
     println!("Handling POST request: {:?}", req);
 
     HttpResponse::Ok()
@@ -81,9 +80,9 @@ mod tests {
 
     use super::*;
 
-    use ntex::http::body::{Body, ResponseBody};
-    use ntex::http::header::{HeaderValue, CONTENT_TYPE};
     use ntex::http::StatusCode;
+    use ntex::http::body::{Body, ResponseBody};
+    use ntex::http::header::{CONTENT_TYPE, HeaderValue};
     use ntex::web::test::{self, TestRequest};
     use ntex::web::types::Form;
 

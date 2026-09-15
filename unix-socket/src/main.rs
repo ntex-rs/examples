@@ -15,8 +15,7 @@ async fn main() -> std::io::Result<()> {
             // enable logger
             .middleware(middleware::Logger::default())
             .service((
-                web::resource("/index.html")
-                    .route(web::get().to(|| async { "Hello world!" })),
+                web::resource("/index.html").route(web::get().to(|| async { "Hello world!" })),
                 web::resource("/").to(index),
             ))
     })

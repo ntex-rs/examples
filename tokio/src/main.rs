@@ -49,10 +49,7 @@ async fn response_body(path: web::types::Path<String>) -> HttpResponse {
 }
 
 /// handler with path parameters like `/user/{name}/`
-async fn with_param(
-    req: HttpRequest,
-    path: web::types::Path<(String,)>,
-) -> HttpResponse {
+async fn with_param(req: HttpRequest, path: web::types::Path<(String,)>) -> HttpResponse {
     println!("{:?}", req);
 
     HttpResponse::Ok()
@@ -92,8 +89,7 @@ async fn main() -> io::Result<()> {
                         // with path parameters
                         web::resource("/user/{name}").route(web::get().to(with_param)),
                         // async response body
-                        web::resource("/async-body/{name}")
-                            .route(web::get().to(response_body)),
+                        web::resource("/async-body/{name}").route(web::get().to(response_body)),
                         web::resource("/test").to(|req: HttpRequest| async move {
                             match *req.method() {
                                 Method::GET => HttpResponse::Ok(),
@@ -110,14 +106,12 @@ async fn main() -> io::Result<()> {
                         // static files
                         fs::Files::new("/static", "static").show_files_listing(),
                         // redirect
-                        web::resource("/").route(web::get().to(
-                            |req: HttpRequest| async move {
-                                println!("{:?}", req);
-                                HttpResponse::Found()
-                                    .header(header::LOCATION, "static/welcome.html")
-                                    .finish()
-                            },
-                        )),
+                        web::resource("/").route(web::get().to(|req: HttpRequest| async move {
+                            println!("{:?}", req);
+                            HttpResponse::Found()
+                                .header(header::LOCATION, "static/welcome.html")
+                                .finish()
+                        })),
                     ))
                     // default
                     .default_service(

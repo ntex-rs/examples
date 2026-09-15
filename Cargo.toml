@@ -29,7 +29,7 @@ members = [
    "server-sent-events",
    "shutdown-server",
 #   "simple-auth-server",
-   "state",
+   "state-ch1",
    "static_index",
    "template_askama",
    "template_handlebars",
@@ -46,7 +46,67 @@ members = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.95"
+
+[workspace.dependencies]
+ntex = "4.0.0-beta.13"
+ntex-server = "4.1.0"
+ntex-service = "5.0.0"
+ntex-tls = "4.0.0"
+ntex-util = "4.0.0"
+
+ntex-cors = "4.0.0"
+ntex-files = "4.0.0"
+ntex-identity = "4.0.0"
+ntex-session = "4.0.0"
+ntex-multipart = "4.0.0"
+ntex-multipart-derive = "4.0.0"
+
+bitflags = "2"
+cookie = "0.18"
+config = "0.10"
+clap = "2.32"
+deadpool-postgres = { version = "0.10", features = ["serde"] }
+diesel = { version = "1.1", features = ["sqlite", "r2d2"] }
+dotenv = "0.15"
+derive_more = { version = "2.0.1", features = ["from", "display"] }
+env_logger = "0.11"
+futures = "0.3.34"
+futures-test = "0.3.34"
+http = "1"
+httpdate = "1.0"
+httparse = "1.10"
+json = "0.12"
+language-tags = "0.3"
+log = "0.4"
+mime = "0.3"
+mime_guess = "2.0"
+num_cpus = "1.17"
+openssl = "0.10"
+percent-encoding = "2.1"
+pin-project = "1.0"
+regex = "1.12.3"
+r2d2 = "0.8"
+r2d2_sqlite = "0.14"
+r2d2_mysql = "17.0"
+rand = "0.8"
+rusqlite = "0.21"
+serde = "1"
+serde_json = "1"
+serde_plain = "1"
+tokio-pg-mapper = "0.2"
+tokio-pg-mapper-derive = "0.2"
+tokio-postgres = "0.7"
+twoway = "0.2"
+tempfile = "3.4"
+thiserror = "2"
+time = { version = "0.3.54", default-features = false, features = ["std"] }
+validator = "0.10"
+validator_derive = "0.10"
+v_htmlescape = "0.15"
+url = "2.1"
+unicase = "2.6"
+uuid = { version = "1", features = ["serde", "v4"] }
 
 [profile.release]
 panic = 'abort'

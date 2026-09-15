@@ -1,14 +1,14 @@
 use futures::stream::StreamExt;
-use ntex::service::{Middleware, Service, ServiceCtx};
-use ntex::util::BytesMut;
-use ntex::web::{Error, ErrorRenderer, WebRequest, WebResponse};
+use ntex::service::{Ctx, Middleware, Service};
+use ntex::web::{State, WebError, WebRequest, WebResponse, WebResponseError};
+use ntex::{http::error, util::BytesMut};
 
 pub struct Logging;
 
-impl<S, C> Middleware<S, C> for Logging {
+impl<S, St> Middleware<S, St> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn create(&self, service: S, _: C) -> Self::Service {
+    fn create(&self, _: &St, service: S) -> Self::Service {
         LoggingMiddleware { service }
     }
 }
@@ -18,30 +18,35 @@ pub struct LoggingMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
+impl<S, St> Service<St, WebRequest> for LoggingMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error> + 'static,
-    Err: ErrorRenderer + 'static,
+    St: State,
+    S: Service<St, WebRequest, Res = WebResponse> + 'static,
+    S::Error: WebResponseError<St, St::Error>,
+    error::PayloadError: WebResponseError<St, St::Error>,
 {
-    type Response = WebResponse;
-    type Error = Error;
+    type Res = WebResponse;
+    type Error = WebError<St, St::Error>;
 
-    ntex::forward_ready!(service);
-    ntex::forward_shutdown!(service);
+    ntex::forward_ready!(St, service, WebError::from_err);
+    ntex::forward_shutdown!(St, service);
 
     async fn call(
         &self,
-        mut req: WebRequest<Err>,
-        ctx: ServiceCtx<'_, Self>,
-    ) -> Result<Self::Response, Self::Error> {
+        mut req: WebRequest,
+        ctx: Ctx<'_, Self, St>,
+    ) -> Result<Self::Res, Self::Error> {
         let mut body = BytesMut::new();
         let mut stream = req.take_payload();
         while let Some(chunk) = stream.next().await {
-            body.extend_from_slice(&chunk?);
+            body.extend_from_slice(&(chunk.map_err(WebError::from_err)?));
         }
 
         println!("request body: {:?}", body);
-        let res = ctx.call(&self.service, req).await?;
+        let res = ctx
+            .call(&self.service, req)
+            .await
+            .map_err(WebError::from_err)?;
 
         println!("response: {:?}", res.headers());
         Ok(res)

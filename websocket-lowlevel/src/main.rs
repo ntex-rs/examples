@@ -25,9 +25,7 @@ struct WsState {
 }
 
 /// WebSockets service factory
-async fn ws_service<F>(
-    (req, io, codec): (Request, Io<F>, h1::Codec),
-) -> Result<(), io::Error> {
+async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<(), io::Error> {
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
     match ws::handshake(req.head()) {
@@ -35,10 +33,7 @@ async fn ws_service<F>(
         Err(e) => {
             // send http handshake respone
             io.send(
-                h1::Message::Item((
-                    e.error_response().drop_body(),
-                    body::BodySize::None,
-                )),
+                h1::Message::Item((e.error_response().drop_body(), body::BodySize::None)),
                 &codec,
             )
             .await
@@ -159,9 +154,7 @@ async fn main() -> std::io::Result<()> {
                             // enable logger
                             .middleware(middleware::Logger::default())
                             // static files
-                            .service(
-                                fs::Files::new("/", "static/").index_file("index.html"),
-                            ),
+                            .service(fs::Files::new("/", "static/").index_file("index.html")),
                     )
                     // websocket handler, we need to verify websocket handshake
                     // and then switch to websokets streaming

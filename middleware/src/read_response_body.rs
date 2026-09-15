@@ -1,16 +1,16 @@
 use std::{rc::Rc, task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::service::{Middleware, Service, ServiceCtx};
+use ntex::service::{Ctx, Middleware, Service};
 use ntex::util::{Bytes, BytesMut};
-use ntex::web::{Error, WebRequest, WebResponse};
+use ntex::web::{WebRequest, WebResponse};
 
 pub struct Logging;
 
-impl<S, C> Middleware<S, C> for Logging {
+impl<S, St> Middleware<S, St> for Logging {
     type Service = LoggingMiddleware<S>;
 
-    fn create(&self, service: S, _: C) -> Self::Service {
+    fn create(&self, _: &St, service: S) -> Self::Service {
         LoggingMiddleware { service }
     }
 }
@@ -19,21 +19,17 @@ pub struct LoggingMiddleware<S> {
     service: S,
 }
 
-impl<S, Err> Service<WebRequest<Err>> for LoggingMiddleware<S>
+impl<S, St> Service<St, WebRequest> for LoggingMiddleware<S>
 where
-    S: Service<WebRequest<Err>, Response = WebResponse, Error = Error>,
+    S: Service<St, WebRequest, Res = WebResponse>,
 {
-    type Response = WebResponse;
-    type Error = Error;
+    type Res = WebResponse;
+    type Error = S::Error;
 
-    ntex::forward_ready!(service);
-    ntex::forward_shutdown!(service);
+    ntex::forward_ready!(St, service);
+    ntex::forward_shutdown!(St, service);
 
-    async fn call(
-        &self,
-        req: WebRequest<Err>,
-        ctx: ServiceCtx<'_, Self>,
-    ) -> Result<WebResponse, Error> {
+    async fn call(&self, req: WebRequest, ctx: Ctx<'_, Self, St>) -> Result<WebResponse, S::Error> {
         ctx.call(&self.service, req).await.map(|res| {
             res.map_body(move |_, body| {
                 Body::from_message(BodyLogger {

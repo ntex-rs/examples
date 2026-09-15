@@ -4,13 +4,11 @@ use futures::channel::mpsc::{self, UnboundedSender};
 use futures::{future::ready, SinkExt, StreamExt};
 
 use ntex::service::{
-    cfg::SharedCfg, chain, fn_factory_with_config, fn_service, fn_shutdown, map_config,
-    Service, ServiceFactory,
+    cfg::SharedCfg, chain, fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
+    ServiceFactory,
 };
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{
-    channel::oneshot, http, io::Io, rt, time, util, util::ByteString, util::Bytes,
-};
+use ntex::{channel::oneshot, http, io::Io, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 use super::server::{ClientMessage, ServerMessage};
@@ -61,10 +59,8 @@ impl Drop for WsChatSession {
 /// WebSockets service factory
 async fn ws_service(
     (sink, mut server): (ws::WsSink, mpsc::UnboundedSender<ServerMessage>),
-) -> Result<
-    impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
-    web::Error,
-> {
+) -> Result<impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>, web::Error>
+{
     let (tx, mut rx) = mpsc::unbounded();
 
     // register self in chat server.
@@ -130,9 +126,7 @@ async fn ws_service(
                                 state.borrow_mut().room.clone_from(&room);
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
-                                    let _ = srv
-                                        .send(ServerMessage::Join { id, name: room })
-                                        .await;
+                                    let _ = srv.send(ServerMessage::Join { id, name: room }).await;
                                 });
                                 None
                             } else {
@@ -246,13 +240,8 @@ async fn heartbeat(
 
 pub fn server(
     server: UnboundedSender<ServerMessage>,
-) -> impl ServiceFactory<
-    Io,
-    SharedCfg,
-    Response = (),
-    Error = http::error::DispatchError,
-    InitError = (),
-> {
+) -> impl ServiceFactory<Io, SharedCfg, Response = (), Error = http::error::DispatchError, InitError = ()>
+{
     // Create Http server with websocket support
     http::HttpService::new(
         App::new()
