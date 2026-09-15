@@ -1,0 +1,9 @@
+[package]
+name = "state-ch1"
+version = "4.0.0"
+authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+env_logger = { workspace = true }

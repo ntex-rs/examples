@@ -29,7 +29,7 @@ members = [
    "server-sent-events",
    "shutdown-server",
 #   "simple-auth-server",
-   "state",
+   "state-ch1",
    "static_index",
    "template_askama",
    "template_handlebars",
@@ -48,14 +48,11 @@ members = [
 edition = "2024"
 rust-version = "1.95"
 
-[patch.crates-io]
-ntex = { path = "../../ntex/ntex" }
-ntex-macros = { path = "../../ntex/ntex-macros" }
-ntex-tls = { path = "../../ntex/ntex-tls" }
-
 [workspace.dependencies]
-ntex = "4.0.0-beta.12"
+ntex = "4.0.0-beta.13"
+ntex-server = "4.1.0"
 ntex-service = "5.0.0"
+ntex-tls = "4.0.0"
 ntex-util = "4.0.0"
 
 ntex-cors = "4.0.0"
