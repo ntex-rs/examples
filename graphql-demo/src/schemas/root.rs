@@ -1,5 +1,5 @@
 use juniper::{FieldError, FieldResult, RootNode};
-use mysql::{from_row, params, Error as DBError, Row};
+use mysql::{Error as DBError, Row, from_row, params};
 
 use crate::db::Pool;
 
@@ -103,7 +103,7 @@ pub struct MutationRoot;
 impl MutationRoot {
     fn create_user(context: &Context, user: UserInput) -> FieldResult<User> {
         let mut conn = context.dbpool.get().unwrap();
-        let new_id = uuid::Uuid::new_v4().to_simple().to_string();
+        let new_id = uuid::Uuid::new_v4().simple().to_string();
 
         let insert: Result<Option<Row>, DBError> = conn.first_exec(
             "INSERT INTO user(id, name, email) VALUES(:id, :name, :email)",
@@ -135,7 +135,7 @@ impl MutationRoot {
 
     fn create_product(context: &Context, product: ProductInput) -> FieldResult<Product> {
         let mut conn = context.dbpool.get().unwrap();
-        let new_id = uuid::Uuid::new_v4().to_simple().to_string();
+        let new_id = uuid::Uuid::new_v4().simple().to_string();
 
         let insert: Result<Option<Row>, DBError> = conn.first_exec(
             "INSERT INTO product(id, user_id, name, price) VALUES(:id, :user_id, :name, :price)",

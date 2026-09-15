@@ -56,11 +56,7 @@ async fn messages(sink: IoRef, mut server: mpsc::UnboundedReceiver<ClientMessage
 /// helper method that sends ping to client every second.
 ///
 /// also this method checks heartbeats from client
-async fn heartbeat(
-    state: Rc<RefCell<ChatSession>>,
-    sink: IoRef,
-    mut rx: oneshot::Receiver<()>,
-) {
+async fn heartbeat(state: Rc<RefCell<ChatSession>>, sink: IoRef, mut rx: oneshot::Receiver<()>) {
     loop {
         match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             util::Either::Left(_) => {
@@ -137,9 +133,7 @@ pub fn server(
                                 state.borrow_mut().room.clone_from(&room);
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
-                                    let _ = srv
-                                        .send(ServerMessage::Join { id, name: room })
-                                        .await;
+                                    let _ = srv.send(ServerMessage::Join { id, name: room }).await;
                                 });
                             }
                             ChatRequest::Name(name) => {

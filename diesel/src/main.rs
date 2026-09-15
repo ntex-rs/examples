@@ -8,7 +8,7 @@ extern crate diesel;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use ntex::web::{self, middleware, App, Error, HttpResponse};
+use ntex::web::{self, types, middleware, App, WebError, HttpResponse};
 use uuid::Uuid;
 
 mod actions;
@@ -18,16 +18,16 @@ mod schema;
 type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
 /// Finds user by UID.
-#[web::get("/user/{user_id}")]
+#[web::get("/user/{user_id}", state=web::State<DbPool>)]
 async fn get_user(
-    pool: web::types::State<DbPool>,
-    user_uid: web::types::Path<Uuid>,
-) -> Result<HttpResponse, Error> {
+    pool: types::State<web::State<DbPool>>,
+    user_uid: types::Path<Uuid>,
+) -> Result<HttpResponse, WebError<web::State<DbPool>>> {
     let user_uid = user_uid.into_inner();
     let conn = pool.get().expect("couldn't get db connection from pool");
 
     // use web::block to offload blocking Diesel code without blocking server thread
-    let user = web::block(move || actions::find_user_by_uid(user_uid, &conn)).await?;
+    let user = web::block(move || actions::find_user_by_uid(user_uid, &conn)).await.map_err(WebError::from_err)?;
 
     if let Some(user) = user {
         Ok(HttpResponse::Ok().json(&user))
@@ -39,22 +39,21 @@ async fn get_user(
 }
 
 /// Inserts new user with name defined in form.
-#[web::post("/user")]
+#[web::post("/user", state=web::State<DbPool>)]
 async fn add_user(
-    pool: web::types::State<DbPool>,
-    form: web::types::Json<models::NewUser>,
-) -> Result<HttpResponse, Error> {
+    pool: types::State<web::State<DbPool>>,
+    form: types::Json<models::NewUser>,
+) -> Result<HttpResponse, WebError<web::State<DbPool>>> {
     let conn = pool.get().expect("couldn't get db connection from pool");
 
     // use web::block to offload blocking Diesel code without blocking server thread
-    let user = web::block(move || actions::insert_new_user(&form.name, &conn)).await?;
+    let user = web::block(move || actions::insert_new_user(&form.name, &conn)).await.map_err(WebError::from_err)?;
 
     Ok(HttpResponse::Ok().json(&user))
 }
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=info,diesel=debug");
     env_logger::init();
     dotenv::dotenv().ok();
 
@@ -70,14 +69,14 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server at: {}", &bind);
 
     // Start HTTP server
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            // set up DB pool to be used with web::State<Pool> extractor
-            .state(pool.clone())
             .middleware(middleware::Logger::default())
             .service((get_user, add_user))
+            // set up DB pool to be used with web::State<Pool> extractor
+            .build_with(web::State::new(pool.clone()))
     })
-    .bind(&bind)?
+    .bind(&bind, ntex::SharedCfg::new("DIESEL"))?
     .run()
     .await
 }

@@ -1,8 +1,7 @@
 use derive_more::{Display, From};
-use futures::{Future, TryFutureExt};
 use ntex::http::error::BlockingError;
-use ntex::web::{self, WebResponseError};
-use rusqlite::{Statement, NO_PARAMS};
+use ntex::web::{self, DefaultError, WebResponseError};
+use rusqlite::{NO_PARAMS, Statement};
 use serde::{Deserialize, Serialize};
 use std::{thread::sleep, time::Duration};
 
@@ -10,14 +9,14 @@ pub type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
 pub type Connection = r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>;
 type WeatherAggResult = Result<Vec<WeatherAgg>, rusqlite::Error>;
 
-#[derive(Debug, Display, From)]
+#[derive(Debug, Display, From, thiserror::Error)]
 pub enum Error {
     Poll(r2d2::Error),
     Sqlite(rusqlite::Error),
     Canceled,
 }
 
-impl WebResponseError for Error {}
+impl<St> WebResponseError<St, DefaultError> for Error {}
 
 impl From<BlockingError<Error>> for Error {
     fn from(err: BlockingError<Error>) -> Self {
@@ -41,10 +40,7 @@ pub enum Queries {
     GetTopTenColdestMonths,
 }
 
-pub fn execute(
-    pool: &Pool,
-    query: Queries,
-) -> impl Future<Output = Result<Vec<WeatherAgg>, BlockingError<Error>>> {
+pub async fn execute(pool: &Pool, query: Queries) -> Result<Vec<WeatherAgg>, BlockingError<Error>> {
     let pool = pool.clone();
     web::block(move || {
         // simulate an expensive query, see comments at top of main.rs
@@ -58,6 +54,7 @@ pub fn execute(
         };
         result.map_err(Error::from)
     })
+    .await
     .map_err(From::from)
 }
 

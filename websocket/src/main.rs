@@ -25,10 +25,8 @@ struct WsState {
 /// WebSockets service factory
 async fn ws_service(
     sink: ws::WsSink,
-) -> Result<
-    impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
-    web::Error,
-> {
+) -> Result<impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>, web::Error>
+{
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
     // disconnect notification
@@ -73,11 +71,7 @@ async fn ws_service(
 }
 
 /// helper method that sends ping to client every heartbeat interval
-async fn heartbeat(
-    state: Rc<RefCell<WsState>>,
-    sink: ws::WsSink,
-    mut rx: oneshot::Receiver<()>,
-) {
+async fn heartbeat(state: Rc<RefCell<WsState>>, sink: ws::WsSink, mut rx: oneshot::Receiver<()>) {
     loop {
         match select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             Either::Left(_) => {

@@ -1,7 +1,7 @@
 use futures::StreamExt;
 use json::JsonValue;
 use ntex::util::{Bytes, BytesMut};
-use ntex::web::{self, error, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, error, middleware, types};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -11,13 +11,13 @@ struct MyObj {
 }
 
 /// This handler uses json extractor
-async fn index(item: web::types::Json<MyObj>) -> HttpResponse {
+async fn index(item: types::Json<MyObj>) -> HttpResponse {
     println!("model: {:?}", &item);
     HttpResponse::Ok().json(&item.0) // <- send response
 }
 
 /// This handler uses json extractor with limit
-async fn extract_item(item: web::types::Json<MyObj>, req: HttpRequest) -> HttpResponse {
+async fn extract_item(item: types::Json<MyObj>, req: HttpRequest) -> HttpResponse {
     println!("request: {:?}", req);
     println!("model: {:?}", item);
 
@@ -27,25 +27,25 @@ async fn extract_item(item: web::types::Json<MyObj>, req: HttpRequest) -> HttpRe
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
 
 /// This handler manually load request payload and parse json object
-async fn index_manual(mut payload: web::types::Payload) -> Result<HttpResponse, Error> {
+async fn index_manual(mut payload: types::Payload) -> Result<HttpResponse, WebError> {
     // payload is a stream of Bytes objects
     let mut body = BytesMut::new();
     while let Some(chunk) = payload.next().await {
-        let chunk = chunk?;
+        let chunk = chunk.map_err(WebError::from_err)?;
         // limit max size of in-memory payload
         if (body.len() + chunk.len()) > MAX_SIZE {
-            return Err(error::ErrorBadRequest("overflow").into());
+            return Err(WebError::from_err(error::ErrorBadRequest("overflow")));
         }
         body.extend_from_slice(&chunk);
     }
 
     // body is loaded, now we can deserialize serde-json
-    let obj = serde_json::from_slice::<MyObj>(&body)?;
+    let obj = serde_json::from_slice::<MyObj>(&body).map_err(WebError::from_err)?;
     Ok(HttpResponse::Ok().json(&obj)) // <- send response
 }
 
 /// This handler manually load request payload and parse json-rust
-async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, Error> {
+async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, WebError> {
     // body is loaded, now we can deserialize json-rust
     let result = json::parse(std::str::from_utf8(&body).unwrap()); // return Result
     let injson: JsonValue = match result {
@@ -59,25 +59,29 @@ async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, Error> {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(async || {
+    let cfg = ntex::SharedCfg::new("JSON")
+        .add(
+            web::WebAppConfig::new().set_state(types::JsonConfig::default().limit(4096)), // <- limit size of the payload (global configuration)
+        )
+        .build();
+    let cfg2 = cfg.clone();
+
+    web::server(async move |_| {
         App::new()
+            .config(cfg2.get())
             // enable logger
             .middleware(middleware::Logger::default())
-            .state(web::types::JsonConfig::default().limit(4096)) // <- limit size of the payload (global configuration)
             .service((
                 web::resource("/extractor").route(web::post().to(index)),
-                web::resource("/extractor2")
-                    .state(web::types::JsonConfig::default().limit(1024)) // <- limit size of the payload (resource level)
-                    .route(web::post().to(extract_item)),
+                web::resource("/extractor2").route(web::post().to(extract_item)),
                 web::resource("/manual").route(web::post().to(index_manual)),
                 web::resource("/mjsonrust").route(web::post().to(index_mjsonrust)),
                 web::resource("/").route(web::post().to(index)),
             ))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", cfg)?
     .run()
     .await
 }
@@ -85,15 +89,14 @@ async fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ntex::web::{self, test, App};
+    use ntex::web::{self, App, test};
     use ntex::{http, util::Bytes};
 
     #[ntex::test]
     async fn test_index() -> Result<(), Error> {
-        let app = test::init_service(
-            App::new().service(web::resource("/").route(web::post().to(index))),
-        )
-        .await;
+        let app =
+            test::init_service(App::new().service(web::resource("/").route(web::post().to(index))))
+                .await;
 
         let req = test::TestRequest::post()
             .uri("/")

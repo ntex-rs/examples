@@ -24,10 +24,7 @@ async fn run() -> Result<(), io::Error> {
     // open websockets connection over http transport
     let con = ws::WsClient::builder("http://127.0.0.1:8080/ws/")
         .openssl(builder.build())
-        .build(
-            SharedCfg::new("WS")
-                .add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
-        )
+        .build(SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)))
         .await
         .unwrap()
         .connect()

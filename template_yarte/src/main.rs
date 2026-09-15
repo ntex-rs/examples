@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use ntex::web::{
-    self, error::ErrorInternalServerError, middleware, App, Error, HttpResponse,
-};
+use ntex::web::{self, error::ErrorInternalServerError, middleware, App, Error, HttpResponse};
 use yarte::TemplateMin;
 
 #[derive(TemplateMin)]
@@ -12,9 +10,7 @@ struct IndexTemplate {
 }
 
 #[web::get("/")]
-async fn index(
-    query: web::types::Query<HashMap<String, String>>,
-) -> Result<HttpResponse, Error> {
+async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
     IndexTemplate { query }
         .call()
         .map(|body| {

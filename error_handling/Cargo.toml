@@ -1,14 +1,13 @@
 [package]
 name = "error_handling"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["dowwie <dkcdkg@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-thiserror = "1"
-derive_more = "0.99"
-futures = "0.3"
-serde = "1"
-rand = "0.8"
-env_logger = "0.11"
+ntex = { workspace = true }
+thiserror = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+rand = { workspace = true }
+env_logger = { workspace = true }

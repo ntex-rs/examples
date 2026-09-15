@@ -64,10 +64,7 @@ async fn main() -> Result<(), std::io::Error> {
                     "/name" => {
                         if v.len() == 2 {
                             ioref
-                                .encode(
-                                    ChatRequest::Name(v[1].to_owned()),
-                                    &ClientChatCodec,
-                                )
+                                .encode(ChatRequest::Name(v[1].to_owned()), &ClientChatCodec)
                                 .unwrap();
                         } else {
                             println!("!!! name is required")
@@ -89,8 +86,7 @@ async fn main() -> Result<(), std::io::Error> {
     let (tx, mut rx) = oneshot::channel();
     rt::spawn(async move {
         loop {
-            match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await
-            {
+            match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
                 util::Either::Left(_) => {
                     // heartbeat
                     let _ = ioref.encode(ChatRequest::Ping, &ClientChatCodec);

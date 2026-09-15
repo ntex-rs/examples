@@ -6,6 +6,7 @@ mod config {
         pub server_addr: String,
         pub pg: deadpool_postgres::Config,
     }
+
     impl Config {
         pub fn from_env() -> Result<Self, ConfigError> {
             let mut cfg = ::config::Config::new();
@@ -32,7 +33,7 @@ mod models {
 mod errors {
     use deadpool_postgres::PoolError;
     use derive_more::{Display, From};
-    use ntex::web::{HttpRequest, HttpResponse, WebResponseError};
+    use ntex::web::{DefaultError, HttpResponse, WebResponseError};
     use tokio_pg_mapper::Error as PGMError;
     use tokio_postgres::error::Error as PGError;
 
@@ -45,23 +46,24 @@ mod errors {
     }
     impl std::error::Error for MyError {}
 
-    impl WebResponseError for MyError {
-        fn error_response(&self, _: &HttpRequest) -> HttpResponse {
+    impl<St> WebResponseError<St, DefaultError> for MyError {
+        fn error_response(&self, _: &St) -> HttpResponse {
             match *self {
-                MyError::NotFound => HttpResponse::NotFound().finish(),
+                MyError::NotFound => HttpResponse::NotFound().build(),
                 MyError::PoolError(ref err) => {
                     HttpResponse::InternalServerError().body(err.to_string())
                 }
-                _ => HttpResponse::InternalServerError().finish(),
+                _ => HttpResponse::InternalServerError().build(),
             }
         }
     }
 }
 
 mod db {
-    use crate::{errors::MyError, models::User};
     use deadpool_postgres::Client;
     use tokio_pg_mapper::FromTokioPostgresRow;
+
+    use crate::{errors::MyError, models::User};
 
     pub async fn add_user(client: &Client, user_info: User) -> Result<User, MyError> {
         let _stmt = include_str!("../sql/add_user.sql");
@@ -88,19 +90,37 @@ mod db {
 }
 
 mod handlers {
-    use crate::{db, errors::MyError, models::User};
     use deadpool_postgres::{Client, Pool};
-    use ntex::web::{self, Error, HttpResponse};
+    use ntex::web::{self, DefaultError, HttpResponse, WebError, types};
+
+    use crate::{db, errors::MyError, models::User};
+
+    type Error = WebError<HttpState, DefaultError>;
+
+    #[derive(Clone)]
+    pub struct HttpState {
+        pub pool: Pool,
+    }
+
+    impl web::State for HttpState {
+        type Error = web::DefaultError;
+    }
 
     pub async fn add_user(
-        user: web::types::Json<User>,
-        db_pool: web::types::State<Pool>,
+        user: types::Json<User>,
+        st: types::State<HttpState>,
     ) -> Result<HttpResponse, Error> {
         let user_info: User = user.into_inner();
 
-        let client: Client = db_pool.get().await.map_err(MyError::PoolError)?;
+        let client: Client = st
+            .pool
+            .get()
+            .await
+            .map_err(|e| Error::from_err(MyError::PoolError(e)))?;
 
-        let new_user = db::add_user(&client, user_info).await?;
+        let new_user = db::add_user(&client, user_info)
+            .await
+            .map_err(Error::from_err)?;
 
         Ok(HttpResponse::Ok().json(&new_user))
     }
@@ -108,7 +128,7 @@ mod handlers {
 
 use deadpool_postgres::Runtime;
 use dotenv::dotenv;
-use handlers::add_user;
+use handlers::{HttpState, add_user};
 use ntex::web::{self, App};
 use tokio_postgres::NoTls;
 
@@ -119,12 +139,12 @@ async fn main() -> std::io::Result<()> {
     let config = crate::config::Config::from_env().unwrap();
     let pool = config.pg.create_pool(Some(Runtime::Tokio1), NoTls).unwrap();
 
-    let server = web::server(async move || {
+    let server = web::server(async move |_| {
         App::new()
-            .state(pool.clone())
             .service(web::resource("/users").route(web::post().to(add_user)))
+            .build_with(HttpState { pool: pool.clone() })
     })
-    .bind(config.server_addr.clone())?
+    .bind(config.server_addr.clone(), ntex::SharedCfg::new("PG"))?
     .run();
     println!("Server running at http://{}/", config.server_addr);
 

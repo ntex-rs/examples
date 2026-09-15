@@ -2,7 +2,7 @@ use ntex::web;
 
 use crate::handlers::{parts, products};
 
-pub fn config_app(cfg: &mut web::ServiceConfig) {
+pub fn config_app(cfg: &mut web::ServiceConfig<()>) {
     // domain includes: /products/{product_id}/parts/{part_id}
     cfg.service(
         web::scope("/products").service((

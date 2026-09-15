@@ -12,51 +12,41 @@ http errors will be chosen, each with an equal chance of being selected:
 
 This example demonstrates how to override error rendering
 for all errors. Two types are required: one must implement
-the ntex::web::error::ErrorRenderer trait, while the other must
-implement the ntex::web::ErrorContainer trait. All errors used in
+the ntex::web::State trait, while the other must
+implement the ntex::web::WebResponseError trait. All errors used in
 the application must be convertible to an `error container`.
 */
+use ntex::web::{self, App, HttpResponse, WebResponseError, types::Json};
+use rand::{Rng, distributions::Distribution, distributions::Standard, thread_rng};
 
-use derive_more::Display;
-use ntex::web::{self, types::Json, App, HttpRequest, HttpResponse, WebResponseError};
-use rand::{
-    distributions::{Distribution, Standard},
-    thread_rng, Rng,
-};
+struct MyErr;
 
-struct MyErrRenderer;
+#[derive(Copy, Clone, Debug)]
+struct MyState;
 
-impl ntex::web::error::ErrorRenderer for MyErrRenderer {
-    type Container = MyErrContainer;
+impl web::State for MyState {
+    type Error = MyErr;
 }
 
 #[derive(thiserror::Error, Debug)]
 #[error("MyErrContainer({0})")]
-struct MyErrContainer(Box<dyn WebResponseError<MyErrRenderer>>);
+struct MyErrContainer(Box<dyn WebResponseError<MyState, MyErr>>);
 
-impl ntex::web::ErrorContainer for MyErrContainer {
-    fn error_response(&self, req: &HttpRequest) -> HttpResponse {
-        self.0.error_response(req)
+impl web::WebResponseError<MyState, MyErr> for MyErrContainer {
+    fn error_response(&self, st: &MyState) -> HttpResponse {
+        self.0.error_response(st)
     }
 }
 
-impl ntex::http::ResponseError for MyErrContainer {}
-
-impl From<CustomError> for MyErrContainer {
-    fn from(e: CustomError) -> MyErrContainer {
-        MyErrContainer(Box::new(e))
-    }
-}
-
-#[derive(Debug, Display)]
+#[derive(Debug, thiserror::Error)]
 pub enum CustomError {
-    #[display(fmt = "Custom Error 1")]
+    #[error("Custom Error 1")]
     CustomOne,
-    #[display(fmt = "Custom Error 2")]
+    #[error("Custom Error 2")]
     CustomTwo,
-    #[display(fmt = "Custom Error 3")]
+    #[error("Custom Error 3")]
     CustomThree,
-    #[display(fmt = "Custom Error 4")]
+    #[error("Custom Error 4")]
     CustomFour,
 }
 
@@ -71,30 +61,37 @@ impl Distribution<CustomError> for Standard {
     }
 }
 
-/// ntex uses `ResponseError` for conversion of errors to a response
-impl WebResponseError<MyErrRenderer> for CustomError {
-    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
+/// ntex uses `WebResponseError` for conversion of errors to a response.
+/// renderer can access application state.
+impl WebResponseError<MyState, MyErr> for CustomError {
+    fn error_response(&self, _: &MyState) -> HttpResponse {
         match self {
             CustomError::CustomOne => {
                 println!("do some stuff related to CustomOne error");
-                HttpResponse::Forbidden().finish()
+                HttpResponse::Forbidden().build()
             }
 
             CustomError::CustomTwo => {
                 println!("do some stuff related to CustomTwo error");
-                HttpResponse::Unauthorized().finish()
+                HttpResponse::Unauthorized().build()
             }
 
             CustomError::CustomThree => {
                 println!("do some stuff related to CustomThree error");
-                HttpResponse::InternalServerError().finish()
+                HttpResponse::InternalServerError().build()
             }
 
             _ => {
                 println!("do some stuff related to CustomFour error");
-                HttpResponse::BadRequest().finish()
+                HttpResponse::BadRequest().build()
             }
         }
+    }
+}
+
+impl From<CustomError> for MyErrContainer {
+    fn from(err: CustomError) -> Self {
+        MyErrContainer(Box::new(err))
     }
 }
 
@@ -115,17 +112,17 @@ struct TestPayload {
     dummy: u32,
 }
 
-/// ntex uses `ResponseError` for conversion of errors to a response
-impl From<ntex::web::error::JsonPayloadError> for MyErrContainer {
-    fn from(e: ntex::web::error::JsonPayloadError) -> MyErrContainer {
-        MyErrContainer(Box::new(e))
+impl From<web::error::JsonPayloadError> for MyErrContainer {
+    fn from(err: web::error::JsonPayloadError) -> Self {
+        MyErrContainer(Box::new(err))
     }
 }
 
-impl WebResponseError<MyErrRenderer> for ntex::web::error::JsonPayloadError {
-    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
+/// Implement WebResponseError for JsonPayloadError
+impl WebResponseError<MyState, MyErr> for web::error::JsonPayloadError {
+    fn error_response(&self, _: &MyState) -> HttpResponse {
         println!("do some stuff related to json error");
-        HttpResponse::BadRequest().finish()
+        HttpResponse::BadRequest().build()
     }
 }
 
@@ -137,14 +134,14 @@ async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, MyErrContain
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=info");
     env_logger::init();
 
-    web::server(async move || {
-        App::with(MyErrRenderer)
+    web::server(async move |_| {
+        App::new()
             .service(web::resource("/something").route(web::get().to(do_something)))
+            .build_with(MyState)
     })
-    .bind("127.0.0.1:8088")?
+    .bind("127.0.0.1:8088", ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

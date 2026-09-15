@@ -2,9 +2,9 @@
 name = "cookie-auth"
 version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-ntex-identity = "3.2.0"
-env_logger = "0.11"
+ntex = { workspace = true }
+ntex-identity = { workspace = true }
+env_logger = { workspace = true }

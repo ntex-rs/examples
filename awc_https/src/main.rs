@@ -1,18 +1,17 @@
-use ntex::client::{Client, Connector};
-use ntex::web::{self, App, HttpResponse};
-use ntex::SharedCfg;
-use openssl::ssl::{SslConnector, SslMethod};
+use ntex::web::{self, types, App, HttpResponse};
+use ntex::{client::Client, connect::openssl::SslConnector, SharedCfg};
+use openssl::ssl;
 
-async fn index(client: web::types::State<Client>) -> HttpResponse {
+async fn index(client: types::State<web::AppState<Client>>) -> HttpResponse {
     let now = std::time::Instant::now();
-    let payload =
-        client
+    let payload = client
+        .st()
         .get("https://upload.wikimedia.org/wikipedia/commons/f/ff/Pizigani_1367_Chart_10MB.jpg")
         .send()
         .await
         .unwrap()
         .body()
-        .limit(20_000_000)  // sets max allowable payload size
+        .limit(20_000_000) // sets max allowable payload size
         .await
         .unwrap();
 
@@ -28,20 +27,22 @@ async fn index(client: web::types::State<Client>) -> HttpResponse {
 async fn main() -> std::io::Result<()> {
     let port = 3000;
 
-    web::server(async || {
-        let builder = SslConnector::builder(SslMethod::tls()).unwrap();
+    web::server(async |_| {
+        let connector = SslConnector::new(
+            ssl::SslConnector::builder(ssl::SslMethod::tls())
+                .unwrap()
+                .build(),
+        );
 
         let client = Client::builder()
-            .connector::<&str>(Connector::default().openssl(builder.build()))
-            .build(SharedCfg::default())
-            .await
-            .unwrap();
+            .secure_connector(connector)
+            .build(SharedCfg::default());
 
         App::new()
-            .state(client)
             .service(web::resource("/").to(index))
+            .build_with(web::AppState::new(client))
     })
-    .bind(("0.0.0.0", port))?
+    .bind(("0.0.0.0", port), SharedCfg::new("AWC"))?
     .run()
     .await
 }

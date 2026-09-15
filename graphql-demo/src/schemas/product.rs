@@ -1,4 +1,4 @@
-use mysql::{from_row, params, Error as DBError, Row};
+use mysql::{Error as DBError, Row, from_row, params};
 
 use crate::schemas::root::Context;
 use crate::schemas::user::User;

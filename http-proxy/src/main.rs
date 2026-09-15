@@ -1,24 +1,36 @@
-use std::net::ToSocketAddrs;
+use std::{io, net::ToSocketAddrs};
 
-use clap::{value_t, Arg};
+use clap::{Arg, value_t};
 use ntex::client::Client;
 use ntex::util::Bytes;
-use ntex::web::{self, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, middleware, types};
 use url::Url;
+
+type Error = WebError<AppState>;
+
+#[derive(Clone)]
+struct AppState {
+    url: Url,
+    client: Client,
+}
+
+impl web::State for AppState {
+    type Error = web::DefaultError;
+}
 
 async fn forward(
     req: HttpRequest,
     body: Bytes,
-    url: web::types::State<Url>,
-    client: web::types::State<Client>,
+    st: types::State<AppState>,
 ) -> Result<HttpResponse, Error> {
-    let mut new_url = url.get_ref().clone();
+    let mut new_url = st.url.clone();
     new_url.set_path(req.uri().path());
     new_url.set_query(req.uri().query());
 
     // TODO: This forwarded implementation is incomplete as it only handles the inofficial
     // X-Forwarded-For header but not the official Forwarded one.
-    let forwarded_req = client
+    let forwarded_req = st
+        .client
         .request_from(new_url.as_str(), req.head())
         .no_decompress();
     let forwarded_req = if let Some(addr) = req.head().peer_addr() {
@@ -27,22 +39,23 @@ async fn forward(
         forwarded_req
     };
 
-    let res = forwarded_req.send_body(body).await.map_err(Error::from)?;
+    let res = forwarded_req
+        .send_body(body)
+        .await
+        .map_err(Error::from_err)?;
 
-    let mut client_resp = HttpResponse::build(res.status());
+    let mut client_resp = HttpResponse::builder(res.status());
     // Remove `Connection` as per
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Connection#Directives
-    for (header_name, header_value) in
-        res.headers().iter().filter(|(h, _)| *h != "connection")
-    {
+    for (header_name, header_value) in res.headers().iter().filter(|(h, _)| *h != "connection") {
         client_resp.header(header_name.clone(), header_value.clone());
     }
 
-    Ok(client_resp.body(res.body().await?))
+    Ok(client_resp.body(res.body().await.map_err(Error::from_err)?))
 }
 
 #[ntex::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> io::Result<()> {
     let matches = clap::App::new("HTTP Proxy")
         .arg(
             Arg::with_name("listen_addr")
@@ -78,8 +91,7 @@ async fn main() -> std::io::Result<()> {
     let listen_port = value_t!(matches, "listen_port", u16).unwrap_or_else(|e| e.exit());
 
     let forwarded_addr = matches.value_of("forward_addr").unwrap();
-    let forwarded_port =
-        value_t!(matches, "forward_port", u16).unwrap_or_else(|e| e.exit());
+    let forwarded_port = value_t!(matches, "forward_port", u16).unwrap_or_else(|e| e.exit());
 
     let forward_url = Url::parse(&format!(
         "http://{}",
@@ -91,15 +103,16 @@ async fn main() -> std::io::Result<()> {
     ))
     .unwrap();
 
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            .state(Client::new())
-            .state(forward_url.clone())
             .middleware(middleware::Logger::default())
             .default_service(web::route().to(forward))
+            .build_with(AppState {
+                url: forward_url.clone(),
+                client: Client::new(),
+            })
     })
-    .bind((listen_addr, listen_port))?
-    .stop_runtime()
+    .bind((listen_addr, listen_port), ntex::SharedCfg::new("PROXY"))?
     .run()
     .await
 }

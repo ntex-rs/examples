@@ -46,14 +46,10 @@ pub async fn create(
     let pool = (*pool).clone();
 
     if params.description.is_empty() {
-        session::set_flash(
-            &session,
-            FlashMessage::error("Description cannot be empty"),
-        )?;
+        session::set_flash(&session, FlashMessage::error("Description cannot be empty"))?;
         Ok(redirect_to("/"))
     } else {
-        web::block(move || db::create_task(params.into_inner().description, &pool))
-            .await?;
+        web::block(move || db::create_task(params.into_inner().description, &pool)).await?;
         session::set_flash(&session, FlashMessage::success("Task successfully added"))?;
         Ok(redirect_to("/"))
     }

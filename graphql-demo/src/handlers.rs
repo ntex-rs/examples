@@ -1,26 +1,36 @@
 use std::sync::Arc;
 
-use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
-use ntex::web::{self, Error, HttpResponse};
+use juniper::http::graphiql::graphiql_source;
+use ntex::web::{self, DefaultError, HttpResponse, WebError, types};
 
 use crate::db::Pool;
-use crate::schemas::root::{create_schema, Context, Schema};
+use crate::schemas::root::{Context, Schema};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub pool: Pool,
+    pub schema: Arc<Schema>,
+}
+
+impl web::State for AppState {
+    type Error = DefaultError;
+}
 
 pub async fn graphql(
-    pool: web::types::State<Pool>,
-    schema: web::types::State<Arc<Schema>>,
-    data: web::types::Json<GraphQLRequest>,
-) -> Result<HttpResponse, Error> {
-    let schema = (*schema).clone();
+    st: types::State<AppState>,
+    data: types::Json<GraphQLRequest>,
+) -> Result<HttpResponse, WebError<AppState>> {
+    let schema = st.schema.clone();
     let ctx = Context {
-        dbpool: pool.get_ref().to_owned(),
+        dbpool: st.pool.clone(),
     };
     let res = web::block(move || {
         let res = data.execute(&schema, &ctx);
         serde_json::to_string(&res)
     })
-    .await?;
+    .await
+    .map_err(WebError::from_err)?;
 
     Ok(HttpResponse::Ok()
         .content_type("application/json")
@@ -33,10 +43,8 @@ pub async fn graphql_playground() -> HttpResponse {
         .body(graphiql_source("/graphql"))
 }
 
-pub fn register(config: &mut web::ServiceConfig) {
-    let schema = std::sync::Arc::new(create_schema());
+pub fn register(config: &mut web::ServiceConfig<AppState>) {
     config
-        .state(schema)
         .route("/graphql", web::post().to(graphql))
         .route("/graphiql", web::get().to(graphql_playground));
 }

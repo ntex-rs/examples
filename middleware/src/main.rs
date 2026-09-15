@@ -1,4 +1,5 @@
 #![allow(dead_code, clippy::type_complexity)]
+use std::convert::Infallible;
 
 use ntex::web;
 
@@ -9,14 +10,13 @@ mod simple;
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "debug");
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         web::App::new()
             .filter(|req: web::WebRequest<_>| async move {
                 println!("Hi from start. You requested: {}", req.path());
-                Ok(req)
+                Ok::<_, Infallible>(req)
             })
             .middleware(simple::SayHi)
             .middleware(read_request_body::Logging)
@@ -25,11 +25,13 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/login").to(|| async {
                 "You are on /login. Go to src/redirect.rs to change this behavior."
             }))
-            .service(web::resource("/").to(|| async {
-                "Hello, middleware! Check the console where the server is run."
-            }))
+            .service(
+                web::resource("/").to(|| async {
+                    "Hello, middleware! Check the console where the server is run."
+                }),
+            )
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("MW"))?
     .run()
     .await
 }

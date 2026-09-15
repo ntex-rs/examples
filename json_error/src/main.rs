@@ -2,12 +2,11 @@
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::io;
 
-use ntex::http::StatusCode;
-use ntex::web::{self, App, HttpRequest, WebResponseError};
+use ntex::{http::StatusCode, web};
 use serde::Serialize;
 use serde_json::{json, to_string_pretty};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, thiserror::Error)]
 struct Error {
     msg: String,
     status: u16,
@@ -19,12 +18,11 @@ impl Display for Error {
     }
 }
 
-impl WebResponseError for Error {
+impl<St> web::WebResponseError<St, web::DefaultError> for Error {
     // builds the actual response to send back when an error occurs
-    fn error_response(&self, _: &HttpRequest) -> web::HttpResponse {
+    fn error_response(&self, _: &St) -> web::HttpResponse {
         let err_json = json!({ "error": self.msg });
-        web::HttpResponse::build(StatusCode::from_u16(self.status).unwrap())
-            .json(&err_json)
+        web::HttpResponse::builder(StatusCode::from_u16(self.status).unwrap()).json(&err_json)
     }
 }
 
@@ -41,8 +39,8 @@ async fn main() -> io::Result<()> {
     let ip_address = "127.0.0.1:8000";
     println!("Running server on {}", ip_address);
 
-    web::server(async || App::new().service(index))
-        .bind(ip_address)
+    web::server(async |_| web::App::new().service(index))
+        .bind(ip_address, ntex::SharedCfg::new("EX"))
         .expect("Can not bind to port 8000")
         .run()
         .await

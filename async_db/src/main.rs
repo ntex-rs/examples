@@ -15,20 +15,20 @@ in a thread-pool using `web::block` with two examples:
 use std::io;
 
 use futures::future::join_all;
-use ntex::web::{self, middleware, App, HttpResponse, HttpServer};
+use ntex::web::{self, App, AppState, HttpResponse, HttpServer, middleware, types};
 use r2d2_sqlite::{self, SqliteConnectionManager};
 
 mod db;
 use db::{Error, Pool, Queries};
 
 /// Version 1: Calls 4 queries in sequential order, as an asynchronous handler
-#[web::get("/asyncio_weather")]
-async fn asyncio_weather(db: web::types::State<Pool>) -> Result<HttpResponse, Error> {
+#[web::get("/asyncio_weather", state=AppState<Pool>)]
+async fn asyncio_weather(st: types::State<AppState<Pool>>) -> Result<HttpResponse, Error> {
     let result = vec![
-        db::execute(&db, Queries::GetTopTenHottestYears).await?,
-        db::execute(&db, Queries::GetTopTenColdestYears).await?,
-        db::execute(&db, Queries::GetTopTenHottestMonths).await?,
-        db::execute(&db, Queries::GetTopTenColdestMonths).await?,
+        db::execute(&st, Queries::GetTopTenHottestYears).await?,
+        db::execute(&st, Queries::GetTopTenColdestYears).await?,
+        db::execute(&st, Queries::GetTopTenHottestMonths).await?,
+        db::execute(&st, Queries::GetTopTenColdestMonths).await?,
     ];
 
     Ok(HttpResponse::Ok().json(&result))
@@ -36,13 +36,13 @@ async fn asyncio_weather(db: web::types::State<Pool>) -> Result<HttpResponse, Er
 
 /// Version 2: Calls 4 queries in parallel, as an asynchronous handler
 /// Returning Error types turn into None values in the response
-#[web::get("/parallel_weather")]
-async fn parallel_weather(db: web::types::State<Pool>) -> Result<HttpResponse, Error> {
+#[web::get("/parallel_weather", state=AppState<Pool>)]
+async fn parallel_weather(st: types::State<AppState<Pool>>) -> Result<HttpResponse, Error> {
     let fut_result = vec![
-        Box::pin(db::execute(&db, Queries::GetTopTenHottestYears)),
-        Box::pin(db::execute(&db, Queries::GetTopTenColdestYears)),
-        Box::pin(db::execute(&db, Queries::GetTopTenHottestMonths)),
-        Box::pin(db::execute(&db, Queries::GetTopTenColdestMonths)),
+        Box::pin(db::execute(&st, Queries::GetTopTenHottestYears)),
+        Box::pin(db::execute(&st, Queries::GetTopTenColdestYears)),
+        Box::pin(db::execute(&st, Queries::GetTopTenHottestMonths)),
+        Box::pin(db::execute(&st, Queries::GetTopTenColdestMonths)),
     ];
     let result: Result<Vec<_>, _> = join_all(fut_result).await.into_iter().collect();
 
@@ -51,22 +51,21 @@ async fn parallel_weather(db: web::types::State<Pool>) -> Result<HttpResponse, E
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=info");
-    env_logger::init();
+    let _ = env_logger::try_init();
 
     // Start N db executor actors (N = number of cores avail)
     let manager = SqliteConnectionManager::file("weather.db");
     let pool = Pool::new(manager).unwrap();
 
     // Start http server
-    HttpServer::new(async move || {
+    HttpServer::new(async move |_| {
         App::new()
-            // store db pool as Data object
-            .state(pool.clone())
             .middleware(middleware::Logger::default())
             .service((asyncio_weather, parallel_weather))
+            // store db pool as Data object
+            .build_with(AppState::new(pool.clone()))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("DB"))?
     .run()
     .await
 }

@@ -1,9 +1,7 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::{channel::mpsc, future::ready, SinkExt, StreamExt};
-use ntex::service::{
-    fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
-};
+use ntex::service::{fn_factory_with_config, fn_service, fn_shutdown, map_config, Service};
 use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
 use ntex::{chain, channel::oneshot, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
@@ -57,10 +55,8 @@ impl Drop for WsChatSession {
 /// WebSockets service factory
 async fn ws_service(
     (sink, mut server): (ws::WsSink, mpsc::UnboundedSender<ServerMessage>),
-) -> Result<
-    impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>,
-    web::Error,
-> {
+) -> Result<impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>, web::Error>
+{
     let (tx, mut rx) = mpsc::unbounded();
 
     // register self in chat server.
@@ -126,9 +122,7 @@ async fn ws_service(
                                 state.borrow_mut().room = room.clone();
                                 let mut srv = server.clone();
                                 rt::spawn(async move {
-                                    let _ = srv
-                                        .send(ServerMessage::Join { id, name: room })
-                                        .await;
+                                    let _ = srv.send(ServerMessage::Join { id, name: room }).await;
                                 });
                                 None
                             } else {
