@@ -1,10 +1,10 @@
 use std::io::Write;
 
 use futures::{StreamExt, TryStreamExt};
-use ntex::web::{self, middleware, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError, middleware};
 use ntex_multipart::Multipart;
 
-async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
+async fn save_file(mut payload: Multipart) -> Result<HttpResponse, WebError> {
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
         // let content_type = field.content_disposition().unwrap();
@@ -19,7 +19,9 @@ async fn save_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
         while let Some(chunk) = field.next().await {
             let data = chunk.unwrap();
             // filesystem operations are blocking, we have to use threadpool
-            f = web::block(move || f.write_all(&data).map(|_| f)).await?;
+            f = web::block(move || f.write_all(&data).map(|_| f))
+                .await
+                .map_err(WebError::from_err)?;
         }
     }
     Ok(HttpResponse::Ok().into())
@@ -41,12 +43,11 @@ async fn index() -> HttpResponse {
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     std::fs::create_dir_all("./tmp").unwrap();
 
     let ip = "0.0.0.0:3000";
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             .middleware(middleware::Logger::default())
             .service(
@@ -55,7 +56,7 @@ async fn main() -> std::io::Result<()> {
                     .route(web::post().to(save_file)),
             )
     })
-    .bind(ip)?
+    .bind(ip, ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

@@ -1,12 +1,11 @@
-use ntex::web::{self, middleware, App};
+use ntex::web::{self, App, middleware};
 use ntex_files as fs;
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -15,7 +14,7 @@ async fn main() -> std::io::Result<()> {
                 fs::Files::new("/", "./static/").index_file("index.html"),
             )
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

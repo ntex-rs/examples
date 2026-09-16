@@ -3,15 +3,26 @@
 //! A simple example integrating juniper in ntex
 use std::{io, sync::Arc};
 
-use juniper::http::graphiql::graphiql_source;
 use juniper::http::GraphQLRequest;
-use ntex::web::{self, middleware, App, Error, HttpResponse};
+use juniper::http::graphiql::graphiql_source;
+use ntex::web::{self, App, HttpResponse, WebError, middleware, types};
 
 mod schema;
 
-use crate::schema::{create_schema, Schema};
+use crate::schema::{Schema, create_schema};
 
-#[web::get("/graphiql")]
+type Error = WebError<AppState>;
+
+#[derive(Clone)]
+struct AppState {
+    schema: Arc<Schema>,
+}
+
+impl web::State for AppState {
+    type Error = web::DefaultError;
+}
+
+#[web::get("/graphiql", state=AppState)]
 async fn graphiql() -> HttpResponse {
     let html = graphiql_source("http://127.0.0.1:8080/graphql");
     HttpResponse::Ok()
@@ -19,17 +30,18 @@ async fn graphiql() -> HttpResponse {
         .body(html)
 }
 
-#[web::post("/graphql")]
+#[web::post("/graphql", state=AppState)]
 async fn graphql(
-    st: web::types::State<Arc<Schema>>,
-    data: web::types::Json<GraphQLRequest>,
+    st: types::State<AppState>,
+    data: types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
     let st = (*st).clone();
     let user = web::block(move || {
-        let res = data.execute(&st, &());
+        let res = data.execute(&st.schema, &());
         serde_json::to_string(&res)
     })
-    .await?;
+    .await
+    .map_err(Error::from_err)?;
     Ok(HttpResponse::Ok()
         .content_type("application/json")
         .body(user))
@@ -37,20 +49,21 @@ async fn graphql(
 
 #[ntex::main]
 async fn main() -> io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     // Create Juniper schema
     let schema = Arc::new(create_schema());
 
     // Start http server
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            .state(schema.clone())
             .middleware(middleware::Logger::default())
             .service((graphql, graphiql))
+            .build_with(AppState {
+                schema: schema.clone(),
+            })
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("J"))?
     .run()
     .await
 }

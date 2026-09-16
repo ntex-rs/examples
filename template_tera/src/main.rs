@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 
-use ntex::web::{self, error, middleware, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, error, middleware, types};
 use tera::Tera;
 
+type Error = web::WebError<AppState>;
+type AppState = web::AppState<tera::Tera>;
+
 // store tera template in application state
-#[web::get("/")]
+#[web::get("/", state=AppState)]
 async fn index(
-    tmpl: web::types::State<tera::Tera>,
-    query: web::types::Query<HashMap<String, String>>,
+    tmpl: types::State<AppState>,
+    query: types::Query<HashMap<String, String>>,
 ) -> Result<HttpResponse, Error> {
     let s = if let Some(name) = query.get("name") {
         // submitted form
@@ -15,28 +18,27 @@ async fn index(
         ctx.insert("name", &name.to_owned());
         ctx.insert("text", &"Welcome!".to_owned());
         tmpl.render("user.html", &ctx)
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?
+            .map_err(|_| Error::from_err(error::ErrorInternalServerError("Template error")))?
     } else {
         tmpl.render("index.html", &tera::Context::new())
-            .map_err(|_| error::ErrorInternalServerError("Template error"))?
+            .map_err(|_| Error::from_err(error::ErrorInternalServerError("Template error")))?
     };
     Ok(HttpResponse::Ok().content_type("text/html").body(s))
 }
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         let tera = Tera::new(concat!(env!("CARGO_MANIFEST_DIR"), "/templates/**/*")).unwrap();
 
         App::new()
-            .state(tera)
             .middleware(middleware::Logger::default()) // enable logger
             .service(index)
+            .build_with(AppState::new(tera))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

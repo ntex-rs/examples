@@ -1,12 +1,12 @@
 [package]
 name = "template-askama"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-askama = "0.9"
+ntex = { workspace = true }
+askama = { workspace = true }
 
 [build-dependencies]
-askama = "0.9"
+askama = { workspace = true }
