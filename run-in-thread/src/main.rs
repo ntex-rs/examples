@@ -2,7 +2,7 @@ use std::sync::mpsc;
 use std::{thread, time};
 
 use ntex::server::Server;
-use ntex::web::{self, middleware, App, HttpRequest};
+use ntex::web::{self, App, HttpRequest, middleware};
 
 async fn index(req: HttpRequest) -> &'static str {
     println!("REQ: {:?}", req);
@@ -12,14 +12,14 @@ async fn index(req: HttpRequest) -> &'static str {
 #[ntex::main]
 async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
     // srv is server controller type, `dev::Server`
-    let srv = web::server(async || {
+    let srv = web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
             .service(web::resource("/index.html").to(|| async { "Hello world!" }))
             .service(web::resource("/").to(index))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("THREAD"))?
     .run();
 
     // send server controller to main thread
@@ -31,7 +31,9 @@ async fn run_app(tx: mpsc::Sender<Server>) -> std::io::Result<()> {
 
 #[ntex::main]
 async fn main() {
-    std::env::set_var("RUST_LOG", "trace");
+    unsafe {
+        std::env::set_var("RUST_LOG", "trace");
+    }
     env_logger::init();
 
     let (tx, rx) = mpsc::channel();

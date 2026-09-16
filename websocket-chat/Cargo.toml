@@ -1,19 +1,19 @@
 [package]
 name = "websocket-chat"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [[bin]]
 name = "websocket-chat-server"
 path = "src/main.rs"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-ntex-files = "3.1"
+ntex = { workspace = true, features = ["tokio"] }
+ntex-files = { workspace = true }
 
-rand = "0.8"
-futures = "0.3"
-env_logger = "0.11"
-serde = "1.0"
-serde_json = "1.0"
+rand = { workspace = true }
+futures = { workspace = true }
+env_logger = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

@@ -93,12 +93,12 @@ mod tests {
     impl BodyTest for ResponseBody<Body> {
         fn as_str(&self) -> &str {
             match self {
-                ResponseBody::Body(ref b) => match b {
-                    Body::Bytes(ref by) => std::str::from_utf8(by).unwrap(),
+                ResponseBody::Body(b) => match b {
+                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
                     _ => panic!(),
                 },
-                ResponseBody::Other(ref b) => match b {
-                    Body::Bytes(ref by) => std::str::from_utf8(by).unwrap(),
+                ResponseBody::Other(b) => match b {
+                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
                     _ => panic!(),
                 },
             }
@@ -134,10 +134,16 @@ mod tests {
 
     #[ntex::test]
     async fn handle_post_1_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service_st(
+            AppState {
+                foo: "bar".to_string(),
+            },
+            App::new().configure(app_config),
+        )
+        .await;
         let req = test::TestRequest::post()
             .uri("/post1")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -148,7 +154,7 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.response().body().as_str(), "Your name is John");
+        assert_eq!(resp.body().as_str(), "Your name is John");
     }
 
     // #[ntex::test]
@@ -177,10 +183,16 @@ mod tests {
 
     #[ntex::test]
     async fn handle_post_2_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service_st(
+            AppState {
+                foo: "bar".to_string(),
+            },
+            App::new().configure(app_config),
+        )
+        .await;
         let req = test::TestRequest::post()
             .uri("/post2")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -193,7 +205,7 @@ mod tests {
             HeaderValue::from_static("text/plain")
         );
         assert_eq!(
-            resp.response().body().as_str(),
+            resp.body().as_str(),
             "Your name is John, and in AppState I have foo: bar"
         );
     }
@@ -217,10 +229,16 @@ mod tests {
 
     #[ntex::test]
     async fn handle_post_3_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service_st(
+            AppState {
+                foo: "bar".to_string(),
+            },
+            App::new().configure(app_config),
+        )
+        .await;
         let req = test::TestRequest::post()
             .uri("/post3")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -231,6 +249,6 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.response().body().as_str(), "Your name is John");
+        assert_eq!(resp.body().as_str(), "Your name is John");
     }
 }

@@ -5,7 +5,9 @@ mod web;
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=info,server=trace");
+    unsafe {
+        std::env::set_var("RUST_LOG", "ntex=info,server=trace");
+    }
     env_logger::init();
 
     println!("Started chat server");
@@ -18,12 +20,18 @@ async fn main() -> std::io::Result<()> {
 
     // Create server
     ntex::server::build()
-        .bind("tcp", "127.0.0.1:12345", async move |_| {
-            tcp::server(tcp_srv.clone())
-        })?
-        .bind("websockets", "127.0.0.1:8080", async move |_| {
-            web::server(ws_srv.clone())
-        })?
+        .bind(
+            "tcp",
+            "127.0.0.1:12345",
+            ntex::SharedCfg::new("TCP"),
+            async move |_| tcp::server(tcp_srv.clone()),
+        )?
+        .bind(
+            "websockets",
+            "127.0.0.1:8080",
+            ntex::SharedCfg::new("WEBSOCKETS"),
+            async move |_| web::server(ws_srv.clone()),
+        )?
         .run()
         .await
 }

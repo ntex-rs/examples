@@ -1,34 +1,38 @@
 // use ntex_files::NamedFile;
 use ntex::http;
-use ntex::web::{self, error, Error, HttpResponse};
+use ntex::web::{self, HttpResponse, WebError, error};
 use ntex_session::Session;
 use serde::Deserialize;
-use tera::{Context, Tera};
+use tera::Context;
 
-use crate::db;
 use crate::session::{self, FlashMessage};
+use crate::{AppState, db};
+
+type Error = WebError<AppState>;
 
 pub async fn index(
-    pool: web::types::State<db::PgPool>,
-    tmpl: web::types::State<Tera>,
+    state: web::types::State<AppState>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
-    let pool = (*pool).clone();
-    let tasks = web::block(move || db::get_all_tasks(&pool)).await?;
+    let pool = state.pool.clone();
+    let tasks = web::block(move || db::get_all_tasks(&pool))
+        .await
+        .map_err(Error::from_err)?;
 
     let mut context = Context::new();
     context.insert("tasks", &tasks);
 
     //Session is set during operations on other endpoints
     //that can redirect to index
-    if let Some(flash) = session::get_flash(&session)? {
+    if let Some(flash) = session::get_flash(&session).map_err(Error::from_err)? {
         context.insert("msg", &(flash.kind, flash.message));
         session::clear_flash(&session);
     }
 
-    let rendered = tmpl
+    let rendered = state
+        .templates
         .render("index.html.tera", &context)
-        .map_err(error::ErrorInternalServerError)?;
+        .map_err(|err| Error::from_err(error::ErrorInternalServerError(err)))?;
 
     Ok(HttpResponse::Ok().body(rendered))
 }
@@ -40,17 +44,21 @@ pub struct CreateForm {
 
 pub async fn create(
     params: web::types::Form<CreateForm>,
-    pool: web::types::State<db::PgPool>,
+    state: web::types::State<AppState>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
-    let pool = (*pool).clone();
+    let pool = state.pool.clone();
 
     if params.description.is_empty() {
-        session::set_flash(&session, FlashMessage::error("Description cannot be empty"))?;
+        session::set_flash(&session, FlashMessage::error("Description cannot be empty"))
+            .map_err(Error::from_err)?;
         Ok(redirect_to("/"))
     } else {
-        web::block(move || db::create_task(params.into_inner().description, &pool)).await?;
-        session::set_flash(&session, FlashMessage::success("Task successfully added"))?;
+        web::block(move || db::create_task(params.into_inner().description, &pool))
+            .await
+            .map_err(Error::from_err)?;
+        session::set_flash(&session, FlashMessage::success("Task successfully added"))
+            .map_err(Error::from_err)?;
         Ok(redirect_to("/"))
     }
 }
@@ -66,45 +74,50 @@ pub struct UpdateForm {
 }
 
 pub async fn update(
-    db: web::types::State<db::PgPool>,
+    state: web::types::State<AppState>,
     params: web::types::Path<UpdateParams>,
     form: web::types::Form<UpdateForm>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     match form._method.as_ref() {
-        "put" => toggle(db, params).await,
-        "delete" => delete(db, params, session).await,
+        "put" => toggle(state, params).await,
+        "delete" => delete(state, params, session).await,
         unsupported_method => {
             let msg = format!("Unsupported HTTP method: {}", unsupported_method);
-            Err(error::ErrorBadRequest(msg).into())
+            Err(Error::from_err(error::ErrorBadRequest(msg)))
         }
     }
 }
 
 async fn toggle(
-    pool: web::types::State<db::PgPool>,
+    state: web::types::State<AppState>,
     params: web::types::Path<UpdateParams>,
 ) -> Result<HttpResponse, Error> {
-    let pool = (*pool).clone();
-    web::block(move || db::toggle_task(params.id, &pool)).await?;
+    let pool = state.pool.clone();
+    web::block(move || db::toggle_task(params.id, &pool))
+        .await
+        .map_err(Error::from_err)?;
     Ok(redirect_to("/"))
 }
 
 async fn delete(
-    pool: web::types::State<db::PgPool>,
+    state: web::types::State<AppState>,
     params: web::types::Path<UpdateParams>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
-    let pool = (*pool).clone();
-    web::block(move || db::delete_task(params.id, &pool)).await?;
-    session::set_flash(&session, FlashMessage::success("Task was deleted."))?;
+    let pool = state.pool.clone();
+    web::block(move || db::delete_task(params.id, &pool))
+        .await
+        .map_err(Error::from_err)?;
+    session::set_flash(&session, FlashMessage::success("Task was deleted."))
+        .map_err(Error::from_err)?;
     Ok(redirect_to("/"))
 }
 
 fn redirect_to(location: &str) -> HttpResponse {
     HttpResponse::Found()
         .header(http::header::LOCATION, location)
-        .finish()
+        .build()
 }
 
 // pub fn bad_request<B>(res: dev::WebResponse<B>) -> Result<ErrorHandlerResponse<B>> {

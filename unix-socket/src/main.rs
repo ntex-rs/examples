@@ -1,4 +1,4 @@
-use ntex::web::{self, middleware, App, HttpRequest};
+use ntex::web::{self, App, HttpRequest, middleware};
 
 async fn index(_req: HttpRequest) -> &'static str {
     "Hello world!"
@@ -7,10 +7,12 @@ async fn index(_req: HttpRequest) -> &'static str {
 #[ntex::main]
 #[cfg(unix)]
 async fn main() -> std::io::Result<()> {
-    ::std::env::set_var("RUST_LOG", "info");
+    unsafe {
+        ::std::env::set_var("RUST_LOG", "info");
+    }
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -19,7 +21,7 @@ async fn main() -> std::io::Result<()> {
                 web::resource("/").to(index),
             ))
     })
-    .bind_uds("/tmp/ntex-uds.socket")?
+    .bind_uds("/tmp/ntex-uds.socket", ntex::SharedCfg::new("UDS"))?
     .run()
     .await
 }

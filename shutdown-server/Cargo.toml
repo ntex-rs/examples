@@ -1,11 +1,11 @@
 [package]
 name = "shutdown-server"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Rob Ede <robjtede@icloud.com>"]
-edition = "2018"
+edition = "2024"
 description = "Send a request to the server to shut it down"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-env_logger = "0.11"
-futures = "0.3"
+ntex = { workspace = true, features = ["tokio"] }
+env_logger = { workspace = true }
+futures = { workspace = true }

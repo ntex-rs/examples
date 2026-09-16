@@ -1,11 +1,11 @@
 [package]
 name = "server-sent-events"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Arve Seljebu"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
-env_logger = "0.11"
-futures = "0.3"
-tokio = { version = "1", features = ["sync"] }
+ntex = { workspace = true, features = ["tokio"] }
+env_logger = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }

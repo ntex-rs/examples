@@ -27,11 +27,11 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use ntex::util::Bytes;
-    use ntex::web::{App, Error, test};
+    use ntex::web::{App, WebError, test};
     use ntex::{http, web};
 
     #[ntex::test]
-    async fn test_index() -> Result<(), Error> {
+    async fn test_index() -> Result<(), WebError> {
         let app = App::new().route("/", web::get().to(index));
         let app = test::init_service(app).await;
 

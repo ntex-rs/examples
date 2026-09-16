@@ -6,6 +6,7 @@ extern crate log;
 use std::{env, io};
 
 use dotenv::dotenv;
+use ntex::server::ServerAppConfig;
 use ntex::web;
 use ntex::web::middleware::Logger;
 use ntex_files as fs;
@@ -20,26 +21,49 @@ mod session;
 
 static SESSION_SIGNING_KEY: &[u8] = &[0; 32];
 
+#[derive(Clone)]
+pub struct AppState {
+    pool: db::PgPool,
+    templates: Tera,
+}
+
+impl web::State for AppState {
+    type Error = web::DefaultError;
+}
+
+struct AppConfig {
+    pool: db::PgPool,
+}
+
+impl ServerAppConfig for AppConfig {
+    type State = AppState;
+
+    async fn create(&self) -> io::Result<Self::State> {
+        Ok(AppState {
+            pool: self.pool.clone(),
+            templates: Tera::new("templates/**/*").map_err(io::Error::other)?,
+        })
+    }
+}
+
 #[ntex::main]
 async fn main() -> io::Result<()> {
     dotenv().ok();
 
-    env::set_var("RUST_LOG", "todo=debug,ntex=info");
+    unsafe {
+        env::set_var("RUST_LOG", "todo=debug,ntex=info");
+    }
     env_logger::init();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = db::init_pool(&database_url).expect("Failed to create pool");
 
-    let app = async move || {
+    let app = async move |_: &AppState| {
         debug!("Constructing the App");
-
-        let templates: Tera = Tera::new("templates/**/*").unwrap();
 
         let session_store = CookieSession::signed(SESSION_SIGNING_KEY).secure(false);
 
         web::App::new()
-            .state(templates)
-            .state(pool.clone())
             .middleware(Logger::default())
             .middleware(session_store)
             .service((
@@ -51,5 +75,8 @@ async fn main() -> io::Result<()> {
     };
 
     debug!("Starting server");
-    web::server(app).bind("localhost:8088")?.run().await
+    web::server_with_config(AppConfig { pool }, app)
+        .bind("localhost:8088", ntex::SharedCfg::new("TODO"))?
+        .run()
+        .await
 }

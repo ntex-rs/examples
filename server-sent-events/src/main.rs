@@ -2,23 +2,23 @@ use std::sync::Arc;
 use std::{pin::Pin, sync::Mutex, task::Context, task::Poll, time::Duration};
 
 use futures::Stream;
-use ntex::web::{self, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError};
 use ntex::{time::interval, util::Bytes};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Receiver, Sender, channel};
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
     let data = Broadcaster::create();
 
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            .state(data.clone())
             .route("/", web::get().to(index))
             .route("/events", web::get().to(new_client))
             .route("/broadcast/{msg}", web::get().to(broadcast))
+            .build_with(AppState::new(data.clone()))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("SSE"))?
     .run()
     .await
 }
@@ -31,7 +31,9 @@ async fn index() -> HttpResponse {
         .body(content)
 }
 
-async fn new_client(broadcaster: web::types::State<Mutex<Broadcaster>>) -> HttpResponse {
+type AppState = web::AppState<Arc<Mutex<Broadcaster>>>;
+
+async fn new_client(broadcaster: web::types::State<AppState>) -> HttpResponse {
     let rx = broadcaster.lock().unwrap().new_client();
 
     HttpResponse::Ok()
@@ -42,7 +44,7 @@ async fn new_client(broadcaster: web::types::State<Mutex<Broadcaster>>) -> HttpR
 
 async fn broadcast(
     msg: web::types::Path<String>,
-    broadcaster: web::types::State<Mutex<Broadcaster>>,
+    broadcaster: web::types::State<AppState>,
 ) -> HttpResponse {
     broadcaster.lock().unwrap().send(&msg.into_inner());
 
@@ -114,7 +116,7 @@ impl Broadcaster {
 struct Client(Receiver<Bytes>);
 
 impl Stream for Client {
-    type Item = Result<Bytes, Error>;
+    type Item = Result<Bytes, WebError<AppState>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.0).poll_recv(cx) {
