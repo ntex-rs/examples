@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
-use ntex::web::{self, error::ErrorInternalServerError, middleware, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError, error, middleware, types};
 use yarte::TemplateMin;
 
 #[derive(TemplateMin)]
 #[template(path = "index")]
 struct IndexTemplate {
-    query: web::types::Query<HashMap<String, String>>,
+    query: types::Query<HashMap<String, String>>,
 }
 
 #[web::get("/")]
-async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
+async fn index(
+    query: web::types::Query<HashMap<String, String>>,
+) -> Result<HttpResponse, WebError> {
     IndexTemplate { query }
         .call()
         .map(|body| {
@@ -18,21 +20,20 @@ async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<Http
                 .content_type("text/html; charset=utf-8")
                 .body(body)
         })
-        .map_err(|_| ErrorInternalServerError("Some error message").into())
+        .map_err(|_| WebError::from_err(error::ErrorInternalServerError("Some error message")))
 }
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
     env_logger::init();
 
     // start http server
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default()) // enable logger
             .service(index)
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

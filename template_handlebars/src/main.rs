@@ -2,12 +2,14 @@
 extern crate serde_json;
 
 use handlebars::Handlebars;
-use ntex::web::{self, App, HttpResponse};
+use ntex::web::{self, App, HttpResponse, types};
 use std::{io, sync::Arc};
 
+type AppState = web::AppState<Arc<Handlebars<'static>>>;
+
 // Macro documentation can be found in the ntex_macros crate
-#[web::get("/")]
-async fn index(hb: web::types::State<Arc<Handlebars<'static>>>) -> HttpResponse {
+#[web::get("/", state=AppState)]
+async fn index(hb: types::State<AppState>) -> HttpResponse {
     let data = json!({
         "name": "Handlebars"
     });
@@ -16,11 +18,8 @@ async fn index(hb: web::types::State<Arc<Handlebars<'static>>>) -> HttpResponse 
     HttpResponse::Ok().body(body)
 }
 
-#[web::get("/{user}/{data}")]
-async fn user(
-    hb: web::types::State<Arc<Handlebars<'static>>>,
-    info: web::types::Path<(String, String)>,
-) -> HttpResponse {
+#[web::get("/{user}/{data}", state=AppState)]
+async fn user(hb: types::State<AppState>, info: types::Path<(String, String)>) -> HttpResponse {
     let data = json!({
         "user": info.0,
         "data": info.1
@@ -41,12 +40,12 @@ async fn main() -> io::Result<()> {
         .unwrap();
     let handlebars_ref = Arc::new(handlebars);
 
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            .state(handlebars_ref.clone())
             .service((index, user))
+            .build_with(AppState::new(handlebars_ref.clone()))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
     .run()
     .await
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use askama::Template;
-use ntex::web::{self, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError};
 
 #[derive(Template)]
 #[template(path = "user.html")]
@@ -15,7 +15,9 @@ struct UserTemplate<'a> {
 struct Index;
 
 #[web::get("/")]
-async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<HttpResponse, Error> {
+async fn index(
+    query: web::types::Query<HashMap<String, String>>,
+) -> Result<HttpResponse, WebError> {
     let s = if let Some(name) = query.get("name") {
         UserTemplate {
             name,
@@ -32,8 +34,8 @@ async fn index(query: web::types::Query<HashMap<String, String>>) -> Result<Http
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     // start http server
-    web::server(async move || App::new().service(index))
-        .bind("127.0.0.1:8080")?
+    web::server(async move |_| App::new().service(index))
+        .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
         .run()
         .await
 }
