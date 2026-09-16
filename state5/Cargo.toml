@@ -1,10 +1,11 @@
 [package]
-name = "openssl-example"
+name = "state5"
 version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
 ntex = { workspace = true, features = ["openssl"] }
 env_logger = { workspace = true }
 openssl = { workspace = true }
+uuid = { workspace = true }
