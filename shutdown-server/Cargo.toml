@@ -6,6 +6,6 @@ edition = "2024"
 description = "Send a request to the server to shut it down"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }

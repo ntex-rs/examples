@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 ntex-identity = { workspace = true }
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 argonautica = "0.2"
 chrono = { version = "0.4.6", features = ["serde"] }
 derive_more = { workspace = true }

@@ -5,7 +5,7 @@ authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 
 futures = { workspace = true }
 env_logger = { workspace = true }

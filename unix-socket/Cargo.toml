@@ -5,5 +5,5 @@ authors = ["Messense Lv <messense@icloud.com>"]
 edition = "2024"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 env_logger = { workspace = true }

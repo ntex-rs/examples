@@ -5,7 +5,7 @@ version = "4.0.0"
 edition = "2024"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 ntex-files = { workspace = true }
 ntex-session = { workspace = true }
 dotenv = { workspace = true }

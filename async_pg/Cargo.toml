@@ -6,7 +6,7 @@ edition = "2024"
 workspace = ".."
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 config = { workspace = true }
 deadpool-postgres = { workspace = true, features = ["serde"] }
 derive_more = { workspace = true }

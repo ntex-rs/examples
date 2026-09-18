@@ -6,5 +6,5 @@ edition = "2024"
 description = "Run ntex in separate thread"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 env_logger = { workspace = true }

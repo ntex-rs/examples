@@ -9,7 +9,7 @@ name = "websocket-chat-server"
 path = "src/main.rs"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 ntex-files = { workspace = true }
 
 rand = { workspace = true }

@@ -17,7 +17,7 @@ name = "websocket-tcp-chat-tcp-client"
 path = "src/client-tcp.rs"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 ntex-mqtt = "9.0"
 ntex-amqp = "6.0"
 ntex-files = { workspace = true }

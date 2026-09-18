@@ -13,7 +13,7 @@ name = "websocket-client"
 path = "src/client.rs"
 
 [dependencies]
-ntex = { workspace = true, features = ["tokio"] }
+ntex = { workspace = true }
 ntex-files = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }
