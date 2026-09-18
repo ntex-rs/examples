@@ -3,12 +3,12 @@
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use futures::future::{select, Either};
-use ntex::http::{body, h1, HttpService, Request, ResponseError};
+use futures::future::{Either, select};
+use ntex::http::{HttpService, Request, ResponseError, body, h1};
 use ntex::io::{Io, IoRef};
-use ntex::service::{chain_factory, fn_service, Pipeline, ServiceFactory};
-use ntex::web::{middleware, App};
-use ntex::{channel::oneshot, rt, server, time, util::Bytes, ws};
+use ntex::service::{Pipeline, Service, fn_service, service};
+use ntex::web::{App, middleware};
+use ntex::{SharedCfg, channel::oneshot, rt, server, time, util::Bytes, ws};
 use ntex_files as fs;
 use ntex_tls::openssl::SslAcceptor;
 use openssl::ssl::{self, SslFiletype, SslMethod};
@@ -44,7 +44,7 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
         Ok(mut res) => {
             // send http handshake respone
             io.encode(
-                h1::Message::Item((res.finish().drop_body(), body::BodySize::None)),
+                h1::Message::Item((res.build().drop_body(), body::BodySize::None)),
                 &codec,
             )
             .map_err(|_| io::Error::other("WebSockets io error"))?;
@@ -126,7 +126,9 @@ async fn heartbeat(
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=trace");
+    unsafe {
+        std::env::set_var("RUST_LOG", "ntex=trace");
+    }
     env_logger::init();
 
     let mut builder = ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
@@ -143,35 +145,42 @@ async fn main() -> std::io::Result<()> {
 
     server::Server::builder()
         // start http server on 127.0.0.1:8080
-        .bind("http", "127.0.0.1:8080", async move |_| {
-            chain_factory(SslAcceptor::new(acceptor.clone()))
-                .map_err(|_| io::Error::other("ssl error"))
-                .and_then({
-                    let ws_service = Pipeline::new(fn_service(ws_service));
+        .bind(
+            "http",
+            "127.0.0.1:8080",
+            SharedCfg::new("HTTP"),
+            async move |_| {
+                service(SslAcceptor::new(acceptor.clone()))
+                    .map_err(|_| io::Error::other("ssl error"))
+                    .and_then({
+                        let ws_service = Rc::new(Pipeline::new((), fn_service(ws_service)));
 
-                    HttpService::new(
-                        App::new()
-                            // enable logger
-                            .middleware(middleware::Logger::default())
-                            // static files
-                            .service(fs::Files::new("/", "static/").index_file("index.html")),
-                    )
-                    // websocket handler, we need to verify websocket handshake
-                    // and then switch to websokets streaming
-                    .h1_control(move |req: h1::Control<_, _>| {
-                        let ack = if let h1::Control::Upgrade(upg) = req {
+                        HttpService::new(
+                            App::new()
+                                // enable logger
+                                .middleware(middleware::Logger::default())
+                                // static files
+                                .service(fs::Files::new("/", "static/").index_file("index.html")),
+                        )
+                        // websocket handler, we need to verify websocket handshake
+                        // and then switch to websokets streaming
+                        .h1_control(move |req: h1::Control<_, _>| {
                             let ws_service = ws_service.clone();
-                            upg.handle(|req, io, codec| async move {
-                                ws_service.call((req, io, codec)).await
-                            })
-                        } else {
-                            req.ack()
-                        };
-                        async move { Ok::<_, io::Error>(ack) }
+                            async move {
+                                let ack = if let h1::Control::Upgrade(upg) = req {
+                                    let (ack, io, req, codec) = upg.handle();
+                                    ws_service.call((req, io, codec)).await?;
+                                    ack
+                                } else {
+                                    req.ack()
+                                };
+                                Ok::<_, io::Error>(ack)
+                            }
+                        })
+                        .map_err(|_| io::Error::other("http error"))
                     })
-                    .map_err(|_| io::Error::other("http error"))
-                })
-        })?
+            },
+        )?
         .run()
         .await
 }

@@ -1,17 +1,21 @@
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::channel::mpsc::{self, UnboundedSender};
-use futures::{future::ready, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt, future::ready};
 
-use ntex::service::{
-    cfg::SharedCfg, chain, fn_factory_with_config, fn_service, fn_shutdown, map_config, Service,
-    ServiceFactory,
-};
-use ntex::web::{self, ws, App, Error, HttpRequest, HttpResponse};
+use ntex::service::{Service, fn_service_st, service as chain_service};
+use ntex::web::{self, App, HttpRequest, HttpResponse, ws};
 use ntex::{channel::oneshot, http, io::Io, rt, time, util, util::ByteString, util::Bytes};
 use ntex_files as fs;
 
 use super::server::{ClientMessage, ServerMessage};
+
+#[derive(Clone)]
+struct ChatState(mpsc::UnboundedSender<ServerMessage>);
+
+impl web::State for ChatState {
+    type Error = web::DefaultError;
+}
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -19,20 +23,12 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Entry point for our route
-async fn chat_route(
-    req: HttpRequest,
-    srv: web::types::State<mpsc::UnboundedSender<ServerMessage>>,
-) -> Result<HttpResponse, Error> {
-    let srv = srv.get_ref().clone();
-    ws::start(
-        req,
-        None::<&str>,
-        // inject chat server send to a ws_service factory
-        map_config(fn_factory_with_config(ws_service), move |cfg| {
-            (cfg, srv.clone())
-        }),
-    )
-    .await
+async fn chat_route(req: HttpRequest, srv: web::types::State<ChatState>) -> HttpResponse {
+    let srv = srv.0.clone();
+    if let Ok(service) = ws_service(srv).await {
+        let _ = ws::start(&req, None::<&str>, service).await;
+    }
+    HttpResponse::Ok().build()
 }
 
 struct WsChatSession {
@@ -58,9 +54,11 @@ impl Drop for WsChatSession {
 
 /// WebSockets service factory
 async fn ws_service(
-    (sink, mut server): (ws::WsSink, mpsc::UnboundedSender<ServerMessage>),
-) -> Result<impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>, web::Error>
-{
+    mut server: mpsc::UnboundedSender<ServerMessage>,
+) -> Result<
+    impl Service<ws::WsSink, ws::Frame, Res = Option<ws::Message>, Error = io::Error>,
+    io::Error,
+> {
     let (tx, mut rx) = mpsc::unbounded();
 
     // register self in chat server.
@@ -82,15 +80,13 @@ async fn ws_service(
         name: None,
     }));
 
-    // start server messages handler, it reads chat messages and sends to the peer
-    rt::spawn(messages(sink.clone(), rx));
-
-    // start heartbeat task
-    let (tx, rx) = oneshot::channel();
-    rt::spawn(heartbeat(state.clone(), sink.clone(), server.clone(), rx));
+    let (tx, heartbeat_rx) = oneshot::channel();
+    let tasks = Rc::new(RefCell::new(Some((rx, heartbeat_rx))));
 
     // handler service for incoming websockets frames
-    let service = fn_service(move |frame| {
+    let task_state = state.clone();
+    let task_server = server.clone();
+    let service = fn_service_st(move |_: &ws::WsSink, frame| {
         println!("WEBSOCKET MESSAGE: {:?}", frame);
 
         let item = match frame {
@@ -174,12 +170,24 @@ async fn ws_service(
     });
 
     // handler service for shutdown notification that stop heartbeat task
-    let on_shutdown = fn_shutdown(async move || {
-        let _ = tx.send(());
-    });
+    let service = chain_service(service)
+        .readiness(async move |sink| {
+            if let Some((messages_rx, heartbeat_rx)) = tasks.borrow_mut().take() {
+                rt::spawn(messages(sink.clone(), messages_rx));
+                rt::spawn(heartbeat(
+                    task_state.clone(),
+                    sink.clone(),
+                    task_server.clone(),
+                    heartbeat_rx,
+                ));
+            }
+            Ok::<_, io::Error>(())
+        })
+        .shutdown(async move |_| {
+            let _ = tx.send(());
+        });
 
-    // pipe our service with on_shutdown callback
-    Ok(chain(service).and_then(on_shutdown))
+    Ok(service)
 }
 
 /// Handle messages from chat server, we simply send it to the peer websocket connection
@@ -240,21 +248,24 @@ async fn heartbeat(
 
 pub fn server(
     server: UnboundedSender<ServerMessage>,
-) -> impl ServiceFactory<Io, SharedCfg, Response = (), Error = http::error::DispatchError, InitError = ()>
-{
+) -> impl Service<(), Io, Res = (), Error = http::error::DispatchError> {
     // Create Http server with websocket support
     http::HttpService::new(
-        App::new()
-            .state(server)
+        App::<ChatState, ()>::new()
             // redirect to websocket.html
-            .service(web::resource("/").route(web::get().to(|| async {
-                HttpResponse::Found()
-                    .header("LOCATION", "/static/websocket.html")
-                    .finish()
-            })))
+            .service(
+                web::resource::<ChatState, (), _>("/").route(web::get::<ChatState, ()>().to(
+                    || async {
+                        HttpResponse::Found()
+                            .header("LOCATION", "/static/websocket.html")
+                            .build()
+                    },
+                )),
+            )
             // websocket
-            .service(web::resource("/ws/").to(chat_route))
+            .service(web::resource::<ChatState, (), _>("/ws/").to(chat_route))
             // static resources
-            .service(fs::Files::new("/static/", "static/")),
+            .service(fs::Files::new("/static/", "static/"))
+            .build_with(ChatState(server)),
     )
 }

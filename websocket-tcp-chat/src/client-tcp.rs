@@ -1,8 +1,8 @@
 //! Simple websocket client.
 use std::{thread, time::Duration};
 
-use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{channel::oneshot, rt, time, util, SharedCfg};
+use futures::{SinkExt, StreamExt, channel::mpsc};
+use ntex::{SharedCfg, channel::oneshot, rt, time, util};
 
 mod codec;
 use self::codec::{ChatRequest, ChatResponse, ClientChatCodec};
@@ -12,7 +12,9 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 #[ntex::main]
 async fn main() -> Result<(), std::io::Error> {
-    std::env::set_var("RUST_LOG", "ntex=trace,ntex_io=info,ntex_tokio=info");
+    unsafe {
+        std::env::set_var("RUST_LOG", "ntex=trace,ntex_io=info,ntex_tokio=info");
+    }
     env_logger::init();
 
     // open tcp connection
@@ -25,16 +27,18 @@ async fn main() -> Result<(), std::io::Error> {
     let (mut tx, mut rx) = mpsc::unbounded();
 
     // start console read loop
-    thread::spawn(move || loop {
-        let mut cmd = String::new();
-        if std::io::stdin().read_line(&mut cmd).is_err() {
-            println!("error");
-            return;
-        }
+    thread::spawn(move || {
+        loop {
+            let mut cmd = String::new();
+            if std::io::stdin().read_line(&mut cmd).is_err() {
+                println!("error");
+                return;
+            }
 
-        // send text to server
-        if futures::executor::block_on(tx.send(cmd)).is_err() {
-            return;
+            // send text to server
+            if futures::executor::block_on(tx.send(cmd)).is_err() {
+                return;
+            }
         }
     });
 

@@ -93,14 +93,14 @@ mod tests {
     use ntex::{http, util::Bytes};
 
     #[ntex::test]
-    async fn test_index() -> Result<(), Error> {
+    async fn test_index() -> Result<(), WebError> {
         let app =
             test::init_service(App::new().service(web::resource("/").route(web::post().to(index))))
                 .await;
 
         let req = test::TestRequest::post()
             .uri("/")
-            .set_json(&MyObj {
+            .json(&MyObj {
                 name: "my-name".to_owned(),
                 number: 43,
             })

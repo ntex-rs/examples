@@ -1,8 +1,8 @@
 //! Simple websocket client.
 use std::{io, thread, time::Duration};
 
-use futures::{channel::mpsc, SinkExt, StreamExt};
-use ntex::{io::IoConfig, rt, time, util::Bytes, ws, SharedCfg};
+use futures::{SinkExt, StreamExt, channel::mpsc};
+use ntex::{SharedCfg, io::IoConfig, rt, time, util::Bytes, ws};
 use openssl::ssl;
 
 /// How often heartbeat pings are sent
@@ -10,7 +10,9 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 #[ntex::main]
 async fn main() -> Result<(), io::Error> {
-    std::env::set_var("RUST_LOG", "ntex=trace");
+    unsafe {
+        std::env::set_var("RUST_LOG", "ntex=trace");
+    }
     env_logger::init();
 
     run().await
@@ -22,30 +24,33 @@ async fn run() -> Result<(), io::Error> {
     builder.set_verify(ssl::SslVerifyMode::NONE);
 
     // open websockets connection over http transport
-    let con = ws::WsClient::builder("http://127.0.0.1:8080/ws/")
-        .openssl(builder.build())
-        .build(SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)))
-        .await
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
+    let con = ws::WsClient::new(
+        "http://127.0.0.1:8080/ws/",
+        SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
+    )
+    .unwrap()
+    .openssl(builder.build())
+    .connect()
+    .await
+    .unwrap();
 
     println!("Got response: {:?}", con.response());
 
     let (mut tx, mut rx) = mpsc::unbounded();
 
     // start console read loop
-    thread::spawn(move || loop {
-        let mut cmd = String::new();
-        if io::stdin().read_line(&mut cmd).is_err() {
-            println!("error");
-            return;
-        }
+    thread::spawn(move || {
+        loop {
+            let mut cmd = String::new();
+            if io::stdin().read_line(&mut cmd).is_err() {
+                println!("error");
+                return;
+            }
 
-        // send text to server
-        if futures::executor::block_on(tx.send(ws::Message::Text(cmd.into()))).is_err() {
-            return;
+            // send text to server
+            if futures::executor::block_on(tx.send(ws::Message::Text(cmd.into()))).is_err() {
+                return;
+            }
         }
     });
 

@@ -1,16 +1,16 @@
 [package]
 name = "r2d2-example"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [dependencies]
-ntex = { version = "3.0", features = ["tokio"] }
+ntex = { workspace = true }
 
-futures = "0.3"
-env_logger = "0.11"
-uuid = { version = "1", features = ["v4"] }
+futures = { workspace = true }
+env_logger = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
 
-r2d2 = "0.8"
-r2d2_sqlite = "0.14"
-rusqlite = "0.21"
+r2d2 = { workspace = true }
+r2d2_sqlite = { workspace = true }
+rusqlite = { workspace = true }

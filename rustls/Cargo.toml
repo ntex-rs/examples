@@ -1,16 +1,16 @@
 [package]
 name = "rustls-example"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
-edition = "2018"
+edition = "2024"
 
 [[bin]]
 name = "rustls-server"
 path = "src/main.rs"
 
 [dependencies]
-env_logger = "0.11"
+env_logger = { workspace = true }
 rustls = "0.23"
 rustls-pemfile = "2"
-ntex = { version = "3.0", features = ["rustls", "tokio"] }
-ntex-files = "3.1.0"
+ntex = { workspace = true, features = ["rustls", "tokio"] }
+ntex-files = { workspace = true }

@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::BufReader;
 
-use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
+use ntex::web::{self, App, HttpRequest, HttpResponse, middleware};
 use ntex_files::Files;
 use rustls::ServerConfig;
 use rustls_pemfile::certs;
@@ -17,7 +17,9 @@ async fn index(req: HttpRequest) -> HttpResponse {
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "info");
+        unsafe {
+            std::env::set_var("RUST_LOG", "info");
+        }
     }
     env_logger::init();
 
@@ -31,7 +33,7 @@ async fn main() -> std::io::Result<()> {
         .with_single_cert(cert_chain, key)
         .unwrap();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -41,11 +43,11 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/").route(web::get().to(|| async {
                 HttpResponse::Found()
                     .header("LOCATION", "/index.html")
-                    .finish()
+                    .build()
             })))
             .service(Files::new("/static", "static"))
     })
-    .bind_rustls("127.0.0.1:8443", &config)?
+    .bind_rustls("127.0.0.1:8443", &config, ntex::SharedCfg::new("RUSTLS"))?
     .run()
     .await
 }

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::{error, pin::Pin, sync::RwLock, time::Duration};
 
 use futures::{Future, FutureExt};
-use ntex::web::{self, middleware, App, Error, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError, middleware};
 use ntex::{time::sleep, util::Bytes};
 use serde_json::Value;
 
@@ -15,7 +15,7 @@ mod convention;
 /// The main handler for JSONRPC server.
 async fn rpc_handler(
     body: Bytes,
-    app_state: web::types::State<Arc<AppState>>,
+    app_state: web::types::State<AppState>,
 ) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
@@ -47,7 +47,7 @@ async fn rpc_handler(
 }
 
 async fn rpc_select(
-    app_state: &AppState,
+    app_state: &RpcState,
     method: &str,
     params: Vec<Value>,
 ) -> Result<Value, convention::ErrorData> {
@@ -116,30 +116,35 @@ impl ObjNetwork {
     }
 }
 
-pub struct AppState {
+pub struct RpcState {
     network: RwLock<ObjNetwork>,
 }
 
-impl AppState {
+impl RpcState {
     pub fn new(network: RwLock<ObjNetwork>) -> Self {
         Self { network }
     }
 }
 
+type AppState = web::AppState<Arc<RpcState>>;
+type Error = WebError<AppState>;
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "info");
+    unsafe {
+        std::env::set_var("RUST_LOG", "info");
+    }
     env_logger::init();
 
-    let app_state = Arc::new(AppState::new(RwLock::new(ObjNetwork::new())));
+    let app_state = Arc::new(RpcState::new(RwLock::new(ObjNetwork::new())));
 
-    web::server(async move || {
+    web::server(async move |_| {
         App::new()
-            .state(app_state.clone())
             .middleware(middleware::Logger::default())
             .service(web::resource("/").route(web::post().to(rpc_handler)))
+            .build_with(AppState::new(app_state.clone()))
     })
-    .bind("127.0.0.1:8080")
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("JSONRPC"))
     .unwrap()
     .run()
     .await

@@ -4,7 +4,7 @@
 
 use futures::channel::mpsc::{self, UnboundedSender};
 use futures::{SinkExt, StreamExt};
-use rand::{self, rngs::ThreadRng, Rng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use ntex::rt;
 use ntex::util::{HashMap, HashSet};
@@ -48,7 +48,7 @@ pub enum ServerMessage {
 pub struct ChatServer {
     sessions: HashMap<usize, UnboundedSender<ClientMessage>>,
     rooms: HashMap<String, HashSet<usize>>,
-    rng: ThreadRng,
+    rng: StdRng,
 }
 
 impl Default for ChatServer {
@@ -60,7 +60,7 @@ impl Default for ChatServer {
         ChatServer {
             rooms,
             sessions: HashMap::default(),
-            rng: rand::thread_rng(),
+            rng: StdRng::from_entropy(),
         }
     }
 }
@@ -94,7 +94,7 @@ impl ChatServer {
                 self.send_message("Main", "Someone joined", 0);
 
                 // register session with random id
-                let id = self.rng.gen::<usize>();
+                let id = self.rng.r#gen::<usize>();
                 self.sessions.insert(id, sender.clone());
 
                 // auto join session to Main room
@@ -175,16 +175,16 @@ impl ChatServer {
 pub fn start() -> UnboundedSender<ServerMessage> {
     let (tx, mut rx) = mpsc::unbounded();
 
-    rt::Arbiter::new().exec_fn(move || {
-        rt::spawn(async move {
-            let mut srv = ChatServer::default();
+    let arbiter = rt::Arbiter::new();
+    let stop = arbiter.clone();
+    arbiter.handle().spawn(async move {
+        let mut srv = ChatServer::default();
 
-            while let Some(msg) = rx.next().await {
-                srv.handle(msg);
-            }
+        while let Some(msg) = rx.next().await {
+            srv.handle(msg);
+        }
 
-            rt::Arbiter::current().stop();
-        });
+        stop.stop();
     });
 
     tx

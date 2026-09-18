@@ -3,11 +3,10 @@
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
-use futures::future::{ready, select, Either};
-use ntex::service::{fn_factory_with_config, fn_shutdown, Service};
+use futures::future::{Either, ready, select};
+use ntex::service::{fn_service_st, service as chain_service};
 use ntex::util::Bytes;
-use ntex::web::{self, middleware, ws, App, Error, HttpRequest, HttpResponse};
-use ntex::{chain, fn_service};
+use ntex::web::{self, App, HttpRequest, middleware, ws};
 use ntex::{channel::oneshot, rt, time};
 use ntex_files as fs;
 
@@ -22,21 +21,17 @@ struct WsState {
     hb: Instant,
 }
 
-/// WebSockets service factory
-async fn ws_service(
-    sink: ws::WsSink,
-) -> Result<impl Service<ws::Frame, Response = Option<ws::Message>, Error = io::Error>, web::Error>
-{
+/// do websocket handshake and start web sockets service
+async fn ws_index(req: HttpRequest) {
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
     // disconnect notification
     let (tx, rx) = oneshot::channel();
-
-    // start heartbeat task
-    rt::spawn(heartbeat(state.clone(), sink, rx));
+    let heartbeat_rx = Rc::new(RefCell::new(Some(rx)));
 
     // handler service for incoming websockets frames
-    let service = fn_service(move |frame| {
+    let heartbeat_state = state.clone();
+    let service = fn_service_st(move |_: &ws::WsSink, frame| {
         let item = match frame {
             // update heartbeat
             ws::Frame::Ping(msg) => {
@@ -58,16 +53,22 @@ async fn ws_service(
             // ignore other frames
             _ => None,
         };
-        ready(Ok(item))
+        ready(Ok::<_, io::Error>(item))
     });
 
     // handler service for shutdown notification that stop heartbeat task
-    let on_shutdown = fn_shutdown(async move || {
-        let _ = tx.send(());
-    });
+    let service = chain_service(service)
+        .readiness(async move |sink| {
+            if let Some(rx) = heartbeat_rx.borrow_mut().take() {
+                rt::spawn(heartbeat(heartbeat_state.clone(), sink.clone(), rx));
+            }
+            Ok::<_, io::Error>(())
+        })
+        .shutdown(async move |_| {
+            let _ = tx.send(());
+        });
 
-    // pipe our service with on_shutdown callback
-    Ok(chain(service).and_then(on_shutdown))
+    let _ = ws::start(&req, None::<&str>, service).await;
 }
 
 /// helper method that sends ping to client every heartbeat interval
@@ -99,17 +100,14 @@ async fn heartbeat(state: Rc<RefCell<WsState>>, sink: ws::WsSink, mut rx: onesho
     }
 }
 
-/// do websocket handshake and start web sockets service
-async fn ws_index(req: HttpRequest) -> Result<HttpResponse, Error> {
-    ws::start(req, None::<&str>, fn_factory_with_config(ws_service)).await
-}
-
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    std::env::set_var("RUST_LOG", "ntex=trace,trace");
+    unsafe {
+        std::env::set_var("RUST_LOG", "ntex=trace,trace");
+    }
     env_logger::init();
 
-    web::server(async || {
+    web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -119,7 +117,7 @@ async fn main() -> std::io::Result<()> {
             .service(fs::Files::new("/", "static/").index_file("index.html"))
     })
     // start http server on 127.0.0.1:8080
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET"))?
     .workers(1)
     .run()
     .await

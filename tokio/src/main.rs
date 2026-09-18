@@ -1,20 +1,20 @@
 use std::{env, io};
 
-use ntex::http::{header, Method, StatusCode};
-use ntex::web::{self, error, guard, middleware, App, Error, HttpRequest, HttpResponse};
+use ntex::http::{Method, StatusCode, header};
+use ntex::web::{self, App, HttpRequest, HttpResponse, error, guard, middleware};
 use ntex::{channel::mpsc, util::Bytes};
 use ntex_files as fs;
 use ntex_session::{CookieSession, Session};
 
 /// favicon handler
 #[web::get("/favicon")]
-async fn favicon() -> Result<fs::NamedFile, Error> {
+async fn favicon() -> Result<fs::NamedFile, io::Error> {
     Ok(fs::NamedFile::open("static/favicon.ico")?)
 }
 
 /// simple index handler
 #[web::get("/welcome")]
-async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse, Error> {
+async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse, error::JsonError> {
     println!("{:?}", req);
 
     // session
@@ -28,13 +28,13 @@ async fn welcome(session: Session, req: HttpRequest) -> Result<HttpResponse, Err
     session.set("counter", counter)?;
 
     // response
-    Ok(HttpResponse::build(StatusCode::OK)
+    Ok(HttpResponse::builder(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
         .body(include_str!("../static/welcome.html")))
 }
 
 /// 404 handler
-async fn p404() -> Result<fs::NamedFile, Error> {
+async fn p404() -> Result<fs::NamedFile, io::Error> {
     Ok(fs::NamedFile::open("static/404.html")?.set_status_code(StatusCode::NOT_FOUND))
 }
 
@@ -43,7 +43,7 @@ async fn response_body(path: web::types::Path<String>) -> HttpResponse {
     let text = format!("Hello {}!", *path);
 
     let (tx, rx_body) = mpsc::channel();
-    let _ = tx.send(Ok::<_, Error>(Bytes::from(text)));
+    let _ = tx.send(Ok::<_, io::Error>(Bytes::from(text)));
 
     HttpResponse::Ok().streaming(rx_body)
 }
@@ -68,12 +68,14 @@ async fn match_all_paths(path: web::types::Path<String>) -> HttpResponse {
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    env::set_var("RUST_LOG", "ntex=info");
+    unsafe {
+        env::set_var("RUST_LOG", "ntex=info");
+    }
     env_logger::init();
 
     ntex::rt::System::new("main", ntex::rt::DefaultRuntime)
         .run_local(async {
-            web::server(async || {
+            web::server(async |_| {
                 App::new()
                     // cookie session middleware
                     .middleware(CookieSession::signed(&[0; 32]).secure(false))
@@ -110,7 +112,7 @@ async fn main() -> io::Result<()> {
                             println!("{:?}", req);
                             HttpResponse::Found()
                                 .header(header::LOCATION, "static/welcome.html")
-                                .finish()
+                                .build()
                         })),
                     ))
                     // default
@@ -126,7 +128,7 @@ async fn main() -> io::Result<()> {
                             ),
                     )
             })
-            .bind("127.0.0.1:8080")?
+            .bind("127.0.0.1:8080", ntex::SharedCfg::new("TOKIO"))?
             .run()
             .await
         })
