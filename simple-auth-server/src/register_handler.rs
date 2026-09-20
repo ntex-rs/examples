@@ -1,22 +1,24 @@
 use diesel::prelude::*;
-use ntex::web::{self, error::BlockingError, HttpResponse};
+use ntex::web::{self, HttpResponse, error::BlockingError};
 use serde::Deserialize;
 
+use crate::AppState;
 use crate::errors::ServiceError;
 use crate::models::{Invitation, Pool, SlimUser, User};
 use crate::utils::hash_password;
-// UserData is used to extract data from a post request by the client
+/// Registration details submitted by the client.
 #[derive(Debug, Deserialize)]
 pub struct UserData {
     pub password: String,
 }
 
 pub async fn register_user(
+    state: &AppState,
+    _: (),
     invitation_id: web::types::Path<String>,
     user_data: web::types::Json<UserData>,
-    pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
-    let pool = (*pool).clone();
+    let pool = state.st().clone();
     let res = web::block(move || {
         query(
             invitation_id.into_inner(),

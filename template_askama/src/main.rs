@@ -33,7 +33,7 @@ async fn index(
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    // start http server
+    // Start the HTTP server.
     web::server(async move |_| App::new().service(index))
         .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?
         .run()

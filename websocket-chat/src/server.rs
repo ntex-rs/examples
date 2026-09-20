@@ -1,6 +1,5 @@
-//! `ChatServer` maintains list of connection client session.
-//! And manages available rooms. Peers send messages to other peers in same
-//! room through `ChatServer`.
+//! `ChatServer` tracks connected sessions and available rooms. Peers use it to
+//! send messages to other members of the same room.
 
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::collections::{HashMap, HashSet};
@@ -9,7 +8,7 @@ use futures::channel::mpsc::{self, UnboundedSender};
 use futures::{SinkExt, StreamExt};
 use ntex::rt;
 
-/// Chat server sends this messages to session
+/// A message sent from the chat server to a client session.
 #[derive(Debug)]
 pub enum ClientMessage {
     Id(usize),
@@ -17,34 +16,33 @@ pub enum ClientMessage {
     Rooms(Vec<String>),
 }
 
-/// Message for chat server communications
+/// A message sent to the chat server.
 pub enum ServerMessage {
-    /// New chat session is created
+    /// A new client session connected.
     Connect(UnboundedSender<ClientMessage>),
-    /// Client session is closed
+    /// A client session disconnected.
     Disconnect(usize),
-    /// Send message to specific room
+    /// Send a message to a room.
     Message {
-        /// Id of the client session
+        /// Client session ID.
         id: usize,
-        /// Peer message
+        /// Message text.
         msg: String,
-        /// Room name
+        /// Room name.
         room: String,
     },
-    /// List of available rooms
+    /// List the available rooms.
     ListRooms(usize),
-    /// Join room, if room does not exists create new one.
+    /// Join a room, creating it if necessary.
     Join {
-        /// Client id
+        /// Client session ID.
         id: usize,
-        /// Room name
+        /// Room name.
         name: String,
     },
 }
 
-/// `ChatServer` manages chat rooms and responsible for coordinating chat
-/// session. implementation is super primitive
+/// Coordinates client sessions and chat rooms.
 pub struct ChatServer {
     sessions: HashMap<usize, UnboundedSender<ClientMessage>>,
     rooms: HashMap<String, HashSet<usize>>,
@@ -53,7 +51,7 @@ pub struct ChatServer {
 
 impl Default for ChatServer {
     fn default() -> ChatServer {
-        // default room
+        // Create the default room.
         let mut rooms = HashMap::new();
         rooms.insert("Main".to_owned(), HashSet::new());
 
@@ -66,7 +64,7 @@ impl Default for ChatServer {
 }
 
 impl ChatServer {
-    /// Send message to all users in the room
+    /// Sends a message to every client in a room.
     fn send_message(&mut self, room: &str, message: &str, skip_id: usize) {
         if let Some(sessions) = self.rooms.get(room) {
             for id in sessions {

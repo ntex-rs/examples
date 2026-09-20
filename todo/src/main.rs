@@ -67,9 +67,9 @@ async fn main() -> io::Result<()> {
             .middleware(Logger::default())
             .middleware(session_store)
             .service((
-                web::resource("/").route(web::get().to(api::index)),
-                web::resource("/todo").route(web::post().to(api::create)),
-                web::resource("/todo/{id}").route(web::post().to(api::update)),
+                web::resource("/").route(web::get().to_with_state(api::index)),
+                web::resource("/todo").route(web::post().to_with_state(api::create)),
+                web::resource("/todo/{id}").route(web::post().to_with_state(api::update)),
                 fs::Files::new("/static", "static/"),
             ))
     };

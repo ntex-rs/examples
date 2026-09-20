@@ -1,4 +1,4 @@
-//! chat tcp server
+//! TCP chat server.
 use std::{cell::RefCell, rc::Rc, time::Duration, time::Instant};
 
 use futures::channel::mpsc::UnboundedSender;
@@ -25,18 +25,18 @@ struct ChatSession {
     room: String,
     /// peer name
     name: Option<String>,
-    /// server connectino
+    /// Connection to the chat server.
     server: mpsc::UnboundedSender<ServerMessage>,
 }
 
 impl Drop for ChatSession {
     fn drop(&mut self) {
-        // notify chat server
+        // Notify the chat server when this session closes.
         let _ = self.server.send(ServerMessage::Disconnect(self.id));
     }
 }
 
-/// Handle messages from chat server, we simply send it to the peer tcp connection
+/// Forwards chat-server messages to the TCP client.
 async fn messages(sink: IoRef, mut server: mpsc::UnboundedReceiver<ClientMessage>) {
     while let Some(msg) = server.next().await {
         println!("GOT chat server message: {:?}", msg);
@@ -53,19 +53,17 @@ async fn messages(sink: IoRef, mut server: mpsc::UnboundedReceiver<ClientMessage
     }
 }
 
-/// helper method that sends ping to client every second.
-///
-/// also this method checks heartbeats from client
+/// Disconnects clients that stop sending heartbeat messages.
 async fn heartbeat(state: Rc<RefCell<ChatSession>>, sink: IoRef, mut rx: oneshot::Receiver<()>) {
     loop {
         match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             util::Either::Left(_) => {
-                // check client heartbeats
+                // Check whether the client has responded recently.
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
                     println!("Tcp Client heartbeat failed, disconnecting!");
 
-                    // close connection
+                    // Close the connection.
                     sink.close();
                     return;
                 } else {
@@ -81,7 +79,7 @@ async fn heartbeat(state: Rc<RefCell<ChatSession>>, sink: IoRef, mut rx: oneshot
     }
 }
 
-/// Start tcp server that will accept incoming tcp connection
+/// Starts the TCP server.
 pub fn server(
     server: UnboundedSender<ServerMessage>,
 ) -> impl Service<(), Io, Res = (), Error = ()> {
@@ -90,10 +88,10 @@ pub fn server(
         async move {
             let (tx, mut rx) = mpsc::unbounded();
 
-            // register self in chat server.
+            // Register this client with the chat server.
             server.send(ServerMessage::Connect(tx)).await.unwrap();
 
-            // read first message from server, it shoould contain session id
+            // The first server message contains the assigned session ID.
             let id = if let Some(ClientMessage::Id(id)) = rx.next().await {
                 id
             } else {
@@ -109,7 +107,7 @@ pub fn server(
                 name: None,
             }));
 
-            // start server messages handler, it reads chat messages and sends to the peer
+            // Forward chat-server messages to this client.
             rt::spawn(messages(io.get_ref(), rx));
 
             // start heartbeat task
@@ -140,7 +138,7 @@ pub fn server(
                                 state.borrow_mut().name = Some(name);
                             }
                             ChatRequest::Message(msg) => {
-                                // send message to chat server
+                                // Forward the message to the chat server.
                                 let mut srv = server.clone();
                                 let msg = ServerMessage::Message {
                                     id,

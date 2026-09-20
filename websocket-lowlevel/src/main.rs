@@ -1,4 +1,4 @@
-//! Simple echo websocket server.
+//! Simple WebSocket echo server.
 //! Open `http://localhost:8080/ws/index.html` in browser
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
@@ -24,12 +24,12 @@ struct WsState {
     hb: Instant,
 }
 
-/// WebSockets service factory
+/// Creates the WebSocket service for one client.
 async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<(), io::Error> {
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
     match ws::handshake(req.head()) {
-        // invalid websockets handshake request
+        // Reject an invalid WebSocket handshake.
         Err(e) => {
             // send http handshake respone
             io.send(
@@ -59,7 +59,7 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
     // start heartbeat task
     rt::spawn(heartbeat(io.get_ref(), state.clone(), codec.clone(), rx));
 
-    // websockets handler service
+    // Handle incoming WebSocket frames.
     loop {
         match io.recv(&codec).await {
             Ok(Some(frame)) => {
@@ -93,7 +93,7 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
     Ok(())
 }
 
-/// helper method that sends ping to client every heartbeat interval
+/// Sends heartbeat pings and disconnects unresponsive clients.
 async fn heartbeat(
     io: IoRef,
     state: Rc<RefCell<WsState>>,
@@ -103,7 +103,7 @@ async fn heartbeat(
     loop {
         match select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             Either::Left(_) => {
-                // check client heartbeats
+                // Check whether the client has responded recently.
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
                     println!("Websocket Client heartbeat failed, disconnecting!");
@@ -144,7 +144,7 @@ async fn main() -> std::io::Result<()> {
     let acceptor = builder.build();
 
     server::Server::builder()
-        // start http server on 127.0.0.1:8080
+        // Start the HTTP server on 127.0.0.1:8080.
         .bind(
             "http",
             "127.0.0.1:8080",
@@ -162,7 +162,7 @@ async fn main() -> std::io::Result<()> {
                                 // static files
                                 .service(fs::Files::new("/", "static/").index_file("index.html")),
                         )
-                        // websocket handler, we need to verify websocket handshake
+                        // Verify the WebSocket handshake before starting the service.
                         // and then switch to websokets streaming
                         .h1_control(move |req: h1::Control<_, _>| {
                             let ws_service = ws_service.clone();

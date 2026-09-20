@@ -9,9 +9,8 @@ async fn hello() -> &'static str {
     "Hello world!"
 }
 
-#[web::post("/stop", state = AppState)]
-async fn stop(stopper: web::types::State<AppState>) -> HttpResponse {
-    // make request that sends message through the Sender
+async fn stop(stopper: &AppState, _: ()) -> HttpResponse {
+    // Notify the control thread that the server should stop.
     stopper.send(()).unwrap();
 
     HttpResponse::NoContent().build()
@@ -24,35 +23,38 @@ async fn main() -> std::io::Result<()> {
     }
     env_logger::init();
 
-    // create a channel
+    // Create the shutdown channel.
     let (tx, rx) = mpsc::channel::<()>();
     let _stopper = tx.clone();
 
     let bind = "127.0.0.1:8080";
 
-    // start server as normal but don't .await after .run() yet
+    // Start the server without awaiting it yet.
     let server = web::server(async move |_| {
-        // give the server a Sender in .data
+        // Store the shutdown sender in application state.
         let stopper = tx.clone();
 
         App::new()
             .middleware(middleware::Logger::default())
-            .service((hello, stop))
+            .service((
+                hello,
+                web::resource("/stop").route(web::post().to_with_state(stop)),
+            ))
             .build_with(AppState::new(stopper))
     })
     .bind(bind, ntex::SharedCfg::new("SHUTDOWN"))?
     .run();
 
-    // clone the Server handle
+    // Clone the server handle for the control thread.
     let srv = server.clone();
     thread::spawn(move || {
-        // wait for shutdown signal
+        // Wait for the handler to request shutdown.
         rx.recv().unwrap();
 
-        // stop server gracefully
+        // Stop the server gracefully.
         executor::block_on(srv.stop(true))
     });
 
-    // run server
+    // Wait until the server stops.
     server.await
 }

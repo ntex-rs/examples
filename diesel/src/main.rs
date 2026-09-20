@@ -1,14 +1,14 @@
-//! Ntex Diesel integration example
+//! ntex Diesel integration example.
 //!
-//! Diesel does not support tokio, so we have to run it in separate threads using the web::block
-//! function which offloads blocking code (like Diesel's) in order to not block the server's thread.
+//! Diesel operations are synchronous, so this example runs them through
+//! `web::block` instead of blocking a server worker.
 
 #[macro_use]
 extern crate diesel;
 
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use ntex::web::{self, types, middleware, App, WebError, HttpResponse};
+use ntex::web::{self, App, HttpResponse, WebError, middleware, types};
 use uuid::Uuid;
 
 mod actions;
@@ -16,38 +16,50 @@ mod models;
 mod schema;
 
 type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
+type AppState = web::AppState<DbPool>;
+type Error = WebError<AppState>;
 
 /// Finds user by UID.
-#[web::get("/user/{user_id}", state=web::State<DbPool>)]
 async fn get_user(
-    pool: types::State<web::State<DbPool>>,
+    pool: &AppState,
+    _: (),
     user_uid: types::Path<Uuid>,
-) -> Result<HttpResponse, WebError<web::State<DbPool>>> {
+) -> Result<HttpResponse, Error> {
     let user_uid = user_uid.into_inner();
-    let conn = pool.get().expect("couldn't get db connection from pool");
+    let pool = pool.st().clone();
 
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let user = web::block(move || actions::find_user_by_uid(user_uid, &conn)).await.map_err(WebError::from_err)?;
+    // Run the synchronous Diesel query on the blocking thread pool.
+    let user = web::block(move || {
+        let conn = pool.get().expect("couldn't get db connection from pool");
+        actions::find_user_by_uid(user_uid, &conn)
+    })
+    .await
+    .map_err(WebError::from_err)?;
 
     if let Some(user) = user {
         Ok(HttpResponse::Ok().json(&user))
     } else {
-        let res = HttpResponse::NotFound()
-            .body(format!("No user found with uid: {}", user_uid));
+        let res = HttpResponse::NotFound().body(format!("No user found with uid: {}", user_uid));
         Ok(res)
     }
 }
 
 /// Inserts new user with name defined in form.
-#[web::post("/user", state=web::State<DbPool>)]
 async fn add_user(
-    pool: types::State<web::State<DbPool>>,
+    pool: &AppState,
+    _: (),
     form: types::Json<models::NewUser>,
-) -> Result<HttpResponse, WebError<web::State<DbPool>>> {
-    let conn = pool.get().expect("couldn't get db connection from pool");
+) -> Result<HttpResponse, Error> {
+    let pool = pool.st().clone();
+    let form = form.into_inner();
 
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let user = web::block(move || actions::insert_new_user(&form.name, &conn)).await.map_err(WebError::from_err)?;
+    // Run the synchronous Diesel query on the blocking thread pool.
+    let user = web::block(move || {
+        let conn = pool.get().expect("couldn't get db connection from pool");
+        actions::insert_new_user(&form.name, &conn)
+    })
+    .await
+    .map_err(WebError::from_err)?;
 
     Ok(HttpResponse::Ok().json(&user))
 }
@@ -57,7 +69,7 @@ async fn main() -> std::io::Result<()> {
     env_logger::init();
     dotenv::dotenv().ok();
 
-    // set up database connection pool
+    // Create the database connection pool.
     let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL");
     let manager = ConnectionManager::<SqliteConnection>::new(connspec);
     let pool = r2d2::Pool::builder()
@@ -72,9 +84,9 @@ async fn main() -> std::io::Result<()> {
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .service((get_user, add_user))
-            // set up DB pool to be used with web::State<Pool> extractor
-            .build_with(web::State::new(pool.clone()))
+            .route("/user/{user_id}", web::get().to_with_state(get_user))
+            .route("/user", web::post().to_with_state(add_user))
+            .build_with(AppState::new(pool.clone()))
     })
     .bind(&bind, ntex::SharedCfg::new("DIESEL"))?
     .run()
