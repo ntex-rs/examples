@@ -1,10 +1,7 @@
-use diesel::prelude::*;
 use diesel::PgConnection;
-use futures::future::{ready, Ready};
+use diesel::prelude::*;
 use ntex::http::Payload;
-use ntex::web::{
-    self, error::BlockingError, Error, FromRequest, HttpRequest, HttpResponse,
-};
+use ntex::web::{self, FromRequest, HttpRequest, HttpResponse, error::BlockingError};
 use ntex_identity::{Identity, RequestIdentity};
 use serde::Deserialize;
 
@@ -22,39 +19,43 @@ pub struct AuthData {
 // simple aliasing makes the intentions clear and its more readable
 pub type LoggedUser = SlimUser;
 
-impl<Err> FromRequest<Err> for LoggedUser {
-    type Error = Error;
-    type Future = Ready<Result<LoggedUser, Error>>;
+impl FromRequest<crate::AppState> for LoggedUser {
+    type Error = ServiceError;
 
-    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+    async fn from_request(
+        _: &crate::AppState,
+        req: &HttpRequest,
+        _: &mut Payload,
+    ) -> Result<Self, Self::Error> {
         let id = req.get_identity();
 
-        ready(if let Some(identity) = id {
-            serde_json::from_str::<LoggedUser>(&identity).map_err(From::from)
+        if let Some(identity) = id {
+            serde_json::from_str::<LoggedUser>(&identity).map_err(|_| ServiceError::Unauthorized)
         } else {
             Err(ServiceError::Unauthorized.into())
-        })
+        }
     }
 }
 
 pub async fn logout(id: Identity) -> HttpResponse {
     id.forget();
-    HttpResponse::Ok().finish()
+    HttpResponse::Ok().build()
 }
 
 pub async fn login(
+    state: &crate::AppState,
+    _: (),
     auth_data: web::types::Json<AuthData>,
     id: Identity,
-    pool: web::types::State<Pool>,
 ) -> Result<HttpResponse, ServiceError> {
-    let pool = (*pool).clone();
+    let pool = state.st().clone();
     let res = web::block(move || query(auth_data.into_inner(), pool)).await;
 
     match res {
         Ok(user) => {
             let user_string = serde_json::to_string(&user).unwrap();
             id.remember(user_string);
-            Ok(HttpResponse::Ok().finish())
+            Ok(HttpResponse::Ok().build())
         }
         Err(err) => match err {
             BlockingError::Error(service_error) => Err(service_error),

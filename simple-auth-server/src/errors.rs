@@ -1,39 +1,37 @@
 use derive_more::Display;
 use diesel::result::{DatabaseErrorKind, Error as DBError};
-use ntex::web::{HttpRequest, HttpResponse, WebResponseError};
+use ntex::web::{DefaultError, HttpResponse, WebResponseError};
 use std::convert::From;
 use uuid::Error as ParseError;
 
 #[derive(Debug, Display)]
 pub enum ServiceError {
-    #[display(fmt = "Internal Server Error")]
+    #[display("Internal Server Error")]
     InternalServerError,
 
-    #[display(fmt = "BadRequest: {}", _0)]
+    #[display("BadRequest: {_0}")]
     BadRequest(String),
 
-    #[display(fmt = "Unauthorized")]
+    #[display("Unauthorized")]
     Unauthorized,
 }
 
-// impl ResponseError trait allows to convert our errors into http responses with appropriate data
-impl WebResponseError for ServiceError {
-    fn error_response(&self, _: &HttpRequest) -> HttpResponse {
+impl std::error::Error for ServiceError {}
+
+// Convert application errors into appropriate HTTP responses.
+impl WebResponseError<crate::AppState, DefaultError> for ServiceError {
+    fn error_response(&self, _: &crate::AppState) -> HttpResponse {
         match self {
-            ServiceError::InternalServerError => HttpResponse::InternalServerError()
-                .json(&"Internal Server Error, Please try later"),
-            ServiceError::BadRequest(ref message) => {
-                HttpResponse::BadRequest().json(message)
+            ServiceError::InternalServerError => {
+                HttpResponse::InternalServerError().json(&"Internal Server Error, Please try later")
             }
-            ServiceError::Unauthorized => {
-                HttpResponse::Unauthorized().json(&"Unauthorized")
-            }
+            ServiceError::BadRequest(message) => HttpResponse::BadRequest().json(message),
+            ServiceError::Unauthorized => HttpResponse::Unauthorized().json(&"Unauthorized"),
         }
     }
 }
 
-// we can return early in our handlers if UUID provided by the user is not valid
-// and provide a custom message
+// Return a clear client error when an invalid UUID is provided.
 impl From<ParseError> for ServiceError {
     fn from(_: ParseError) -> ServiceError {
         ServiceError::BadRequest("Invalid UUID".into())
@@ -47,8 +45,7 @@ impl From<DBError> for ServiceError {
         match error {
             DBError::DatabaseError(kind, info) => {
                 if let DatabaseErrorKind::UniqueViolation = kind {
-                    let message =
-                        info.details().unwrap_or_else(|| info.message()).to_string();
+                    let message = info.details().unwrap_or_else(|| info.message()).to_string();
                     return ServiceError::BadRequest(message);
                 }
                 ServiceError::InternalServerError

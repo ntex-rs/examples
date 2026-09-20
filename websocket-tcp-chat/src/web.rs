@@ -22,8 +22,8 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 /// How long before lack of client response causes a timeout
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Entry point for our route
-async fn chat_route(req: HttpRequest, srv: web::types::State<ChatState>) -> HttpResponse {
+/// Upgrades an HTTP request to a WebSocket chat session.
+async fn chat_route(srv: &ChatState, _: (), req: HttpRequest) -> HttpResponse {
     let srv = srv.0.clone();
     if let Ok(service) = ws_service(srv).await {
         let _ = ws::start(&req, None::<&str>, service).await;
@@ -32,27 +32,26 @@ async fn chat_route(req: HttpRequest, srv: web::types::State<ChatState>) -> Http
 }
 
 struct WsChatSession {
-    /// unique session id
+    /// Unique session ID.
     id: usize,
-    /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
-    /// otherwise we drop connection.
+    /// Time of the most recent heartbeat from the client.
     hb: Instant,
-    /// joined room
+    /// Room currently joined by the client.
     room: String,
-    /// peer name
+    /// Optional display name.
     name: Option<String>,
-    /// server connectino
+    /// Connection to the chat server.
     server: mpsc::UnboundedSender<ServerMessage>,
 }
 
 impl Drop for WsChatSession {
     fn drop(&mut self) {
-        // notify chat server
+        // Notify the chat server when this session closes.
         let _ = self.server.send(ServerMessage::Disconnect(self.id));
     }
 }
 
-/// WebSockets service factory
+/// Creates the WebSocket service for one client.
 async fn ws_service(
     mut server: mpsc::UnboundedSender<ServerMessage>,
 ) -> Result<
@@ -61,17 +60,17 @@ async fn ws_service(
 > {
     let (tx, mut rx) = mpsc::unbounded();
 
-    // register self in chat server.
+    // Register this client with the chat server.
     server.send(ServerMessage::Connect(tx)).await.unwrap();
 
-    // read first message from server, it shoould contain session id
+    // The first server message contains the assigned session ID.
     let id = if let Some(ClientMessage::Id(id)) = rx.next().await {
         id
     } else {
         panic!();
     };
 
-    // create chat session
+    // Create state for this WebSocket session.
     let state = Rc::new(RefCell::new(WsChatSession {
         id,
         hb: Instant::now(),
@@ -83,7 +82,7 @@ async fn ws_service(
     let (tx, heartbeat_rx) = oneshot::channel();
     let tasks = Rc::new(RefCell::new(Some((rx, heartbeat_rx))));
 
-    // handler service for incoming websockets frames
+    // Handle incoming WebSocket frames.
     let task_state = state.clone();
     let task_server = server.clone();
     let service = fn_service_st(move |_: &ws::WsSink, frame| {
@@ -102,7 +101,7 @@ async fn ws_service(
             ws::Frame::Text(text) => {
                 let m = String::from_utf8(Vec::from(&text[..])).unwrap();
 
-                // we check for `/sss` type of messages
+                // Messages beginning with `/` are chat commands.
                 if m.starts_with('/') {
                     let v: Vec<&str> = m.splitn(2, ' ').collect();
                     match v[0] {
@@ -151,7 +150,7 @@ async fn ws_service(
                     } else {
                         m
                     };
-                    // send message to chat server
+                    // Forward the message to the chat server.
                     let mut srv = server.clone();
                     let msg = ServerMessage::Message {
                         id,
@@ -169,7 +168,7 @@ async fn ws_service(
         ready(Ok(item))
     });
 
-    // handler service for shutdown notification that stop heartbeat task
+    // Stop the heartbeat task when the WebSocket service shuts down.
     let service = chain_service(service)
         .readiness(async move |sink| {
             if let Some((messages_rx, heartbeat_rx)) = tasks.borrow_mut().take() {
@@ -190,7 +189,7 @@ async fn ws_service(
     Ok(service)
 }
 
-/// Handle messages from chat server, we simply send it to the peer websocket connection
+/// Forwards chat-server messages to the WebSocket client.
 async fn messages(sink: ws::WsSink, mut server: mpsc::UnboundedReceiver<ClientMessage>) {
     while let Some(msg) = server.next().await {
         println!("GOT chat server message: {:?}", msg);
@@ -208,9 +207,7 @@ async fn messages(sink: ws::WsSink, mut server: mpsc::UnboundedReceiver<ClientMe
     }
 }
 
-/// helper method that sends ping to client every second.
-///
-/// also this method checks heartbeats from client
+/// Sends heartbeat pings and disconnects unresponsive clients.
 async fn heartbeat(
     state: Rc<RefCell<WsChatSession>>,
     sink: ws::WsSink,
@@ -220,16 +217,15 @@ async fn heartbeat(
     loop {
         match util::select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             util::Either::Left(_) => {
-                // check client heartbeats
+                // Check whether the client has responded recently.
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
                     println!("Websocket Client heartbeat failed, disconnecting!");
 
-                    // notify chat server
+                    // Notify the chat server.
                     let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
 
-                    // disconnect connection
-                    // let _ = sink.close();
+                    // Disconnect the client.
                     return;
                 } else {
                     // send ping
@@ -249,10 +245,10 @@ async fn heartbeat(
 pub fn server(
     server: UnboundedSender<ServerMessage>,
 ) -> impl Service<(), Io, Res = (), Error = http::error::DispatchError> {
-    // Create Http server with websocket support
+    // Start the HTTP server with WebSocket support.
     http::HttpService::new(
         App::<ChatState, ()>::new()
-            // redirect to websocket.html
+            // Redirect browsers to the chat page.
             .service(
                 web::resource::<ChatState, (), _>("/").route(web::get::<ChatState, ()>().to(
                     || async {
@@ -262,9 +258,9 @@ pub fn server(
                     },
                 )),
             )
-            // websocket
-            .service(web::resource::<ChatState, (), _>("/ws/").to(chat_route))
-            // static resources
+            // Accept WebSocket connections.
+            .service(web::resource::<ChatState, (), _>("/ws/").to_with_state(chat_route))
+            // Serve the browser client assets.
             .service(fs::Files::new("/static/", "static/"))
             .build_with(ChatState(server)),
     )

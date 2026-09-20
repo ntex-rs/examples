@@ -1,4 +1,3 @@
-// use ntex_files::NamedFile;
 use ntex::http;
 use ntex::web::{self, HttpResponse, WebError, error};
 use ntex_session::Session;
@@ -10,10 +9,7 @@ use crate::{AppState, db};
 
 type Error = WebError<AppState>;
 
-pub async fn index(
-    state: web::types::State<AppState>,
-    session: Session,
-) -> Result<HttpResponse, Error> {
+pub async fn index(state: &AppState, _: (), session: Session) -> Result<HttpResponse, Error> {
     let pool = state.pool.clone();
     let tasks = web::block(move || db::get_all_tasks(&pool))
         .await
@@ -22,8 +18,7 @@ pub async fn index(
     let mut context = Context::new();
     context.insert("tasks", &tasks);
 
-    //Session is set during operations on other endpoints
-    //that can redirect to index
+    // Show a message set by an operation that redirected back to this page.
     if let Some(flash) = session::get_flash(&session).map_err(Error::from_err)? {
         context.insert("msg", &(flash.kind, flash.message));
         session::clear_flash(&session);
@@ -43,8 +38,9 @@ pub struct CreateForm {
 }
 
 pub async fn create(
+    state: &AppState,
+    _: (),
     params: web::types::Form<CreateForm>,
-    state: web::types::State<AppState>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
     let pool = state.pool.clone();
@@ -74,7 +70,8 @@ pub struct UpdateForm {
 }
 
 pub async fn update(
-    state: web::types::State<AppState>,
+    state: &AppState,
+    _: (),
     params: web::types::Path<UpdateParams>,
     form: web::types::Form<UpdateForm>,
     session: Session,
@@ -90,7 +87,7 @@ pub async fn update(
 }
 
 async fn toggle(
-    state: web::types::State<AppState>,
+    state: &AppState,
     params: web::types::Path<UpdateParams>,
 ) -> Result<HttpResponse, Error> {
     let pool = state.pool.clone();
@@ -101,7 +98,7 @@ async fn toggle(
 }
 
 async fn delete(
-    state: web::types::State<AppState>,
+    state: &AppState,
     params: web::types::Path<UpdateParams>,
     session: Session,
 ) -> Result<HttpResponse, Error> {
@@ -119,32 +116,3 @@ fn redirect_to(location: &str) -> HttpResponse {
         .header(http::header::LOCATION, location)
         .build()
 }
-
-// pub fn bad_request<B>(res: dev::WebResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-//     let new_resp = NamedFile::open("static/errors/400.html")?
-//         .set_status_code(res.status())
-//         .into_response(res.request())?;
-//     Ok(ErrorHandlerResponse::Response(
-//         res.into_response(new_resp.into_body()),
-//     ))
-// }
-
-// pub fn not_found<B>(res: dev::ServiceResponse<B>) -> Result<ErrorHandlerResponse<B>> {
-//     let new_resp = NamedFile::open("static/errors/404.html")?
-//         .set_status_code(res.status())
-//         .into_response(res.request())?;
-//     Ok(ErrorHandlerResponse::Response(
-//         res.into_response(new_resp.into_body()),
-//     ))
-// }
-
-// pub fn internal_server_error<B>(
-//     res: dev::ServiceResponse<B>,
-// ) -> Result<ErrorHandlerResponse<B>> {
-//     let new_resp = NamedFile::open("static/errors/500.html")?
-//         .set_status_code(res.status())
-//         .into_response(res.request())?;
-//     Ok(ErrorHandlerResponse::Response(
-//         res.into_response(new_resp.into_body()),
-//     ))
-// }

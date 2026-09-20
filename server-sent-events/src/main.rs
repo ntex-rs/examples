@@ -14,8 +14,8 @@ async fn main() -> std::io::Result<()> {
     web::server(async move |_| {
         App::new()
             .route("/", web::get().to(index))
-            .route("/events", web::get().to(new_client))
-            .route("/broadcast/{msg}", web::get().to(broadcast))
+            .route("/events", web::get().to_with_state(new_client))
+            .route("/broadcast/{msg}", web::get().to_with_state(broadcast))
             .build_with(AppState::new(data.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("SSE"))?
@@ -33,7 +33,7 @@ async fn index() -> HttpResponse {
 
 type AppState = web::AppState<Arc<Mutex<Broadcaster>>>;
 
-async fn new_client(broadcaster: web::types::State<AppState>) -> HttpResponse {
+async fn new_client(broadcaster: &AppState, _: ()) -> HttpResponse {
     let rx = broadcaster.lock().unwrap().new_client();
 
     HttpResponse::Ok()
@@ -42,10 +42,7 @@ async fn new_client(broadcaster: web::types::State<AppState>) -> HttpResponse {
         .streaming(rx)
 }
 
-async fn broadcast(
-    msg: web::types::Path<String>,
-    broadcaster: web::types::State<AppState>,
-) -> HttpResponse {
+async fn broadcast(broadcaster: &AppState, _: (), msg: web::types::Path<String>) -> HttpResponse {
     broadcaster.lock().unwrap().send(&msg.into_inner());
 
     HttpResponse::Ok().body("msg sent")

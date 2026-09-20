@@ -6,7 +6,7 @@ use ntex_files::Files;
 use rustls::ServerConfig;
 use rustls_pemfile::certs;
 
-/// simple handle
+/// Returns request information as a response.
 async fn index(req: HttpRequest) -> HttpResponse {
     println!("{:?}", req);
     HttpResponse::Ok()
@@ -37,7 +37,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
-            // register simple handler, handle all methods
+            // Handle every method at this path.
             .service(web::resource("/index.html").to(index))
             // with path parameters
             .service(web::resource("/").route(web::get().to(|| async {

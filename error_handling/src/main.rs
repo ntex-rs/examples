@@ -61,8 +61,7 @@ impl Distribution<CustomError> for Standard {
     }
 }
 
-/// ntex uses `WebResponseError` for conversion of errors to a response.
-/// renderer can access application state.
+/// Converts this error into an HTTP response using application state.
 impl WebResponseError<MyState, MyErr> for CustomError {
     fn error_response(&self, _: &MyState) -> HttpResponse {
         match self {

@@ -3,7 +3,7 @@ use std::{convert::Infallible, io};
 use ntex::web::{self, middleware, App, HttpRequest, HttpResponse};
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 
-/// simple handle
+/// Returns request information as a response.
 async fn index(req: HttpRequest) -> Result<HttpResponse, Infallible> {
     println!("{:?}", req);
     Ok(HttpResponse::Ok()
@@ -28,7 +28,7 @@ async fn main() -> io::Result<()> {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
-            // register simple handler, handle all methods
+            // Handle every method at this path.
             .service(web::resource("/index.html").to(index))
             // with path parameters
             .service(web::resource("/").route(web::get().to(|| async {

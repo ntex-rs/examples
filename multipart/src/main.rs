@@ -7,8 +7,6 @@ use ntex_multipart::Multipart;
 async fn save_file(mut payload: Multipart) -> Result<HttpResponse, WebError> {
     // iterate over multipart stream
     while let Ok(Some(mut field)) = payload.try_next().await {
-        // let content_type = field.content_disposition().unwrap();
-        // let filename = content_type.get_filename().unwrap();
         let filename = "somename";
         let filepath = format!("./tmp/{}", filename);
         // File::create is blocking operation, use threadpool

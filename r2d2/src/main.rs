@@ -1,4 +1,4 @@
-//! Ntex r2d2 example
+//! ntex r2d2 example
 use std::io;
 
 use ntex::web::{self, App, HttpResponse, WebError, error, middleware};
@@ -8,13 +8,14 @@ use r2d2_sqlite::SqliteConnectionManager;
 type AppState = web::AppState<Pool<SqliteConnectionManager>>;
 type Error = WebError<AppState>;
 
-/// Async request handler. Ddb pool is stored in application state.
+/// Uses the database pool stored in application state.
 async fn index(
+    db: &AppState,
+    _: (),
     path: web::types::Path<String>,
-    db: web::types::State<AppState>,
 ) -> Result<HttpResponse, Error> {
-    // execute sync code in threadpool
-    let db = (**db).clone();
+    // Run the synchronous database work on the blocking thread pool.
+    let db = db.st().clone();
     let res = web::block(move || {
         let conn = db.get().unwrap();
         let uuid = format!("{}", uuid::Uuid::new_v4());
@@ -41,15 +42,15 @@ async fn main() -> io::Result<()> {
     }
     env_logger::init();
 
-    // r2d2 pool
+    // Create the r2d2 connection pool.
     let manager = SqliteConnectionManager::file("test.db");
     let pool = r2d2::Pool::new(manager).unwrap();
 
-    // start http server
+    // Start the HTTP server.
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .route("/{name}", web::get().to(index))
+            .route("/{name}", web::get().to_with_state(index))
             .build_with(AppState::new(pool.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("R2D2"))?

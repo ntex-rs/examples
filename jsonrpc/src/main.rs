@@ -13,10 +13,7 @@ use serde_json::Value;
 mod convention;
 
 /// The main handler for JSONRPC server.
-async fn rpc_handler(
-    body: Bytes,
-    app_state: web::types::State<AppState>,
-) -> Result<HttpResponse, Error> {
+async fn rpc_handler(app_state: &AppState, _: (), body: Bytes) -> Result<HttpResponse, Error> {
     let reqjson: convention::Request = match serde_json::from_slice(body.as_ref()) {
         Ok(ok) => ok,
         Err(_) => {
@@ -36,7 +33,7 @@ async fn rpc_handler(
         ..Default::default()
     };
 
-    match rpc_select(&app_state, reqjson.method.as_str(), reqjson.params).await {
+    match rpc_select(app_state, reqjson.method.as_str(), reqjson.params).await {
         Ok(ok) => result.result = ok,
         Err(e) => result.error = Some(e),
     }
@@ -141,7 +138,7 @@ async fn main() -> std::io::Result<()> {
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .service(web::resource("/").route(web::post().to(rpc_handler)))
+            .service(web::resource("/").route(web::post().to_with_state(rpc_handler)))
             .build_with(AppState::new(app_state.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("JSONRPC"))

@@ -1,4 +1,4 @@
-//! Simple echo websocket server.
+//! Simple WebSocket echo server.
 //! Open `http://localhost:8080/ws/index.html` in browser
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
@@ -21,7 +21,7 @@ struct WsState {
     hb: Instant,
 }
 
-/// do websocket handshake and start web sockets service
+/// Upgrades an HTTP request and starts the WebSocket service.
 async fn ws_index(req: HttpRequest) {
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
@@ -29,7 +29,7 @@ async fn ws_index(req: HttpRequest) {
     let (tx, rx) = oneshot::channel();
     let heartbeat_rx = Rc::new(RefCell::new(Some(rx)));
 
-    // handler service for incoming websockets frames
+    // Handle incoming WebSocket frames.
     let heartbeat_state = state.clone();
     let service = fn_service_st(move |_: &ws::WsSink, frame| {
         let item = match frame {
@@ -48,7 +48,7 @@ async fn ws_index(req: HttpRequest) {
                 String::from_utf8(Vec::from(text.as_ref())).unwrap().into(),
             )),
             ws::Frame::Binary(bin) => Some(ws::Message::Binary(bin)),
-            // close connection
+            // Close the connection.
             ws::Frame::Close(reason) => Some(ws::Message::Close(reason)),
             // ignore other frames
             _ => None,
@@ -56,7 +56,7 @@ async fn ws_index(req: HttpRequest) {
         ready(Ok::<_, io::Error>(item))
     });
 
-    // handler service for shutdown notification that stop heartbeat task
+    // Stop the heartbeat task when the WebSocket service shuts down.
     let service = chain_service(service)
         .readiness(async move |sink| {
             if let Some(rx) = heartbeat_rx.borrow_mut().take() {
@@ -71,12 +71,12 @@ async fn ws_index(req: HttpRequest) {
     let _ = ws::start(&req, None::<&str>, service).await;
 }
 
-/// helper method that sends ping to client every heartbeat interval
+/// Sends heartbeat pings and disconnects unresponsive clients.
 async fn heartbeat(state: Rc<RefCell<WsState>>, sink: ws::WsSink, mut rx: oneshot::Receiver<()>) {
     loop {
         match select(Box::pin(time::sleep(HEARTBEAT_INTERVAL)), &mut rx).await {
             Either::Left(_) => {
-                // check client heartbeats
+                // Check whether the client has responded recently.
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
                     println!("Websocket Client heartbeat failed, disconnecting!");
@@ -111,12 +111,12 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
-            // websocket route
+            // Accept WebSocket connections.
             .service(web::resource("/ws/").route(web::get().to(ws_index)))
             // static files
             .service(fs::Files::new("/", "static/").index_file("index.html"))
     })
-    // start http server on 127.0.0.1:8080
+    // Start the HTTP server on 127.0.0.1:8080.
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET"))?
     .workers(1)
     .run()

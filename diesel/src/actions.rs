@@ -24,8 +24,8 @@ pub fn insert_new_user(
     nm: &str,
     conn: &SqliteConnection,
 ) -> Result<models::User, diesel::result::Error> {
-    // It is common when using Diesel with Ntex to import schema-related
-    // modules inside a function's scope (rather than the normal module's scope)
+    // Diesel commonly imports schema modules inside the function that uses
+    // them.
     // to prevent import collisions and namespace pollution.
     use crate::schema::users::dsl::*;
 
