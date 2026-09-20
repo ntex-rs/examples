@@ -7,7 +7,7 @@
 use std::sync::{Arc, Mutex, atomic::AtomicUsize, atomic::Ordering};
 use std::{cell::Cell, io};
 
-use ntex::web::{self, App, HttpRequest, HttpResponse, middleware, types};
+use ntex::web::{self, App, HttpRequest, HttpResponse, middleware};
 use ntex::{SharedCfg, server::ServerAppConfig};
 
 #[derive(Clone)]
@@ -38,20 +38,20 @@ impl AppBuilder {
 impl ServerAppConfig for AppBuilder {
     type State = AppState;
 
-    // This method creates woroker state
+    // Create the state for one server worker.
     async fn create(&self) -> io::Result<Self::State> {
         Ok(AppState {
             counter1: self.counter1.clone(),
             counter2: self.counter2.clone(),
 
-            // Create some thread-local state
+            // Create state owned by this worker.
             counter3: Cell::new(0),
         })
     }
 }
 
-/// simple handle
-async fn index(st: types::State<AppState>, req: HttpRequest) -> HttpResponse {
+/// Shows and updates the shared and worker-local counters.
+async fn index(st: &AppState, _: (), req: HttpRequest) -> HttpResponse {
     println!("{:?}", req);
 
     // Increment the counters
@@ -84,7 +84,7 @@ async fn main() -> io::Result<()> {
             // Enable request logging.
             .middleware(middleware::Logger::default())
             // Register the request handler.
-            .service(web::resource("/").to(index))
+            .service(web::resource("/").to_with_state(index))
     })
     .bind("127.0.0.1:8080", SharedCfg::new("STATE"))?
     .run()

@@ -3,7 +3,7 @@ use std::{io, net::ToSocketAddrs};
 use clap::{Arg, value_t};
 use ntex::client::Client;
 use ntex::util::Bytes;
-use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, middleware, types};
+use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, middleware};
 use url::Url;
 
 type Error = WebError<AppState>;
@@ -19,16 +19,17 @@ impl web::State for AppState {
 }
 
 async fn forward(
+    st: &AppState,
+    _: (),
     req: HttpRequest,
     body: Bytes,
-    st: types::State<AppState>,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = st.url.clone();
     new_url.set_path(req.uri().path());
     new_url.set_query(req.uri().query());
 
-    // TODO: This forwarded implementation is incomplete as it only handles the inofficial
-    // X-Forwarded-For header but not the official Forwarded one.
+    // TODO: This forwarding implementation only handles the unofficial
+    // X-Forwarded-For header, not the standard Forwarded header.
     let forwarded_req = st
         .client
         .request_from(new_url.as_str(), req.head())
@@ -106,7 +107,7 @@ async fn main() -> io::Result<()> {
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .default_service(web::route().to(forward))
+            .default_service(web::route().to_with_state(forward))
             .build_with(AppState {
                 url: forward_url.clone(),
                 client: Client::new(),

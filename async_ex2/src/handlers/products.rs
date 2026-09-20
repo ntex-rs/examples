@@ -36,7 +36,7 @@ mod tests {
         let req = test::TestRequest::post()
             .uri("/products")
             .header(header::CONTENT_TYPE, "application/json")
-            .set_payload(payload)
+            .payload(payload)
             .to_request();
 
         let resp = app.call(req).await.unwrap();

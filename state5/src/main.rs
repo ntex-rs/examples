@@ -4,7 +4,7 @@ use std::{io, net::SocketAddr, rc::Rc, time::Instant};
 use ntex::io::{Io, Layer, types::PeerAddr};
 use ntex::service::{Pipeline, Service, State};
 use ntex::tls::openssl::{SslAcceptor, SslFilter};
-use ntex::web::{self, App, HttpRequest, HttpResponse, middleware, types};
+use ntex::web::{self, App, HttpRequest, HttpResponse, middleware};
 use ntex::{SharedCfg, http, server::ServerAppConfig};
 use openssl::ssl::{self, SslFiletype, SslMethod};
 use uuid::Uuid;
@@ -45,7 +45,7 @@ impl AppBuilder {
 impl ServerAppConfig for AppBuilder {
     type State = AppState;
 
-    // This method creates woroker state
+    // Create the state for one server worker.
     async fn create(&self) -> io::Result<Self::State> {
         Ok(AppState {
             ssl: Rc::new(Pipeline::new((), SslAcceptor::new(self.ssl.clone()))),
@@ -98,7 +98,7 @@ async fn tls(
 ) -> io::Result<State<ConnectionWithTls, Io<Layer<SslFilter>>>> {
     let State { req, state } = msg;
 
-    // ssl negotiation
+    // Perform the TLS handshake.
     let req = st.ssl.call(req).await?;
 
     Ok(State {
@@ -112,8 +112,8 @@ async fn tls(
     })
 }
 
-/// Connection state ConnectionWithTls is available for all http handlers.
-async fn index(st: types::State<ConnectionWithTls>, req: HttpRequest) -> HttpResponse {
+/// Uses the connection state made available to HTTP handlers.
+async fn index(st: &ConnectionWithTls, _: (), req: HttpRequest) -> HttpResponse {
     println!(
         "id: {:?} created: {:?}, peer-addr: {:?}, {req:?}",
         st.id, st.created, st.peer_addr
@@ -153,7 +153,7 @@ async fn main() -> io::Result<()> {
                                 // Enable request logging.
                                 .middleware(middleware::Logger::default())
                                 // Register the request handler.
-                                .service(web::resource("/").to(index)),
+                                .service(web::resource("/").to_with_state(index)),
                         )
                         .map_err(|e| io::Error::other(format!("{e}"))),
                     )

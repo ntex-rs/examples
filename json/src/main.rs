@@ -10,13 +10,13 @@ struct MyObj {
     number: i32,
 }
 
-/// This handler uses json extractor
+/// Extracts JSON from the request body.
 async fn index(item: types::Json<MyObj>) -> HttpResponse {
     println!("model: {:?}", &item);
     HttpResponse::Ok().json(&item.0) // <- send response
 }
 
-/// This handler uses json extractor with limit
+/// Extracts JSON while applying the configured payload limit.
 async fn extract_item(item: types::Json<MyObj>, req: HttpRequest) -> HttpResponse {
     println!("request: {:?}", req);
     println!("model: {:?}", item);
@@ -26,27 +26,27 @@ async fn extract_item(item: types::Json<MyObj>, req: HttpRequest) -> HttpRespons
 
 const MAX_SIZE: usize = 262_144; // max payload size is 256k
 
-/// This handler manually load request payload and parse json object
+/// Reads the request body and deserializes the JSON manually.
 async fn index_manual(mut payload: types::Payload) -> Result<HttpResponse, WebError> {
-    // payload is a stream of Bytes objects
+    // The payload is a stream of byte chunks.
     let mut body = BytesMut::new();
     while let Some(chunk) = payload.next().await {
         let chunk = chunk.map_err(WebError::from_err)?;
-        // limit max size of in-memory payload
+        // Limit the amount of request data held in memory.
         if (body.len() + chunk.len()) > MAX_SIZE {
             return Err(WebError::from_err(error::ErrorBadRequest("overflow")));
         }
         body.extend_from_slice(&chunk);
     }
 
-    // body is loaded, now we can deserialize serde-json
+    // Deserialize the buffered body with serde_json.
     let obj = serde_json::from_slice::<MyObj>(&body).map_err(WebError::from_err)?;
     Ok(HttpResponse::Ok().json(&obj)) // <- send response
 }
 
-/// This handler manually load request payload and parse json-rust
+/// Reads the request body and parses it with the json crate.
 async fn index_mjsonrust(body: Bytes) -> Result<HttpResponse, WebError> {
-    // body is loaded, now we can deserialize json-rust
+    // Parse the buffered body with the json crate.
     let result = json::parse(std::str::from_utf8(&body).unwrap()); // return Result
     let injson: JsonValue = match result {
         Ok(v) => v,
@@ -70,8 +70,8 @@ async fn main() -> std::io::Result<()> {
 
     web::server(async move |_| {
         App::new()
-            .config(cfg2.get())
-            // enable logger
+            .with_config(cfg2.get())
+            // Enable request logging.
             .middleware(middleware::Logger::default())
             .service((
                 web::resource("/extractor").route(web::post().to(index)),
@@ -93,14 +93,14 @@ mod tests {
     use ntex::{http, util::Bytes};
 
     #[ntex::test]
-    async fn test_index() -> Result<(), Error> {
+    async fn test_index() {
         let app =
             test::init_service(App::new().service(web::resource("/").route(web::post().to(index))))
                 .await;
 
         let req = test::TestRequest::post()
             .uri("/")
-            .set_json(&MyObj {
+            .json(&MyObj {
                 name: "my-name".to_owned(),
                 number: 43,
             })
@@ -112,7 +112,5 @@ mod tests {
         let bytes = test::read_body(resp).await;
 
         assert_eq!(bytes, Bytes::from(r##"{"name":"my-name","number":43}"##));
-
-        Ok(())
     }
 }

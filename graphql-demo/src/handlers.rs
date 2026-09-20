@@ -18,7 +18,8 @@ impl web::State for AppState {
 }
 
 pub async fn graphql(
-    st: types::State<AppState>,
+    st: &AppState,
+    _: (),
     data: types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, WebError<AppState>> {
     let schema = st.schema.clone();
@@ -45,6 +46,6 @@ pub async fn graphql_playground() -> HttpResponse {
 
 pub fn register(config: &mut web::ServiceConfig<AppState>) {
     config
-        .route("/graphql", web::post().to(graphql))
+        .route("/graphql", web::post().to_with_state(graphql))
         .route("/graphiql", web::get().to(graphql_playground));
 }

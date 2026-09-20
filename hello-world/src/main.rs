@@ -11,7 +11,7 @@ async fn main() -> std::io::Result<()> {
 
     web::server(async |_| {
         App::new()
-            // enable logger
+            // Enable request logging.
             .middleware(middleware::Logger::default())
             .service((
                 web::resource("/index.html").to(|| async { "Hello world!" }),
@@ -27,11 +27,11 @@ async fn main() -> std::io::Result<()> {
 mod tests {
     use super::*;
     use ntex::util::Bytes;
-    use ntex::web::{App, Error, test};
+    use ntex::web::{App, test};
     use ntex::{http, web};
 
     #[ntex::test]
-    async fn test_index() -> Result<(), Error> {
+    async fn test_index() {
         let app = App::new().route("/", web::get().to(index));
         let app = test::init_service(app).await;
 
@@ -43,7 +43,5 @@ mod tests {
         let bytes = test::read_body(resp).await;
 
         assert_eq!(bytes, Bytes::from(r##"Hello world!"##));
-
-        Ok(())
     }
 }

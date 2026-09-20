@@ -1,8 +1,8 @@
-use ntex::web::{self, types, App, HttpResponse};
+use ntex::web::{self, App, HttpResponse};
 use ntex::{client::Client, connect::openssl::SslConnector, SharedCfg};
 use openssl::ssl;
 
-async fn index(client: types::State<web::AppState<Client>>) -> HttpResponse {
+async fn index(client: &web::AppState<Client>, _: ()) -> HttpResponse {
     let now = std::time::Instant::now();
     let payload = client
         .st()
@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
             .build(SharedCfg::default());
 
         App::new()
-            .service(web::resource("/").to(index))
+            .service(web::resource("/").to_with_state(index))
             .build_with(web::AppState::new(client))
     })
     .bind(("0.0.0.0", port), SharedCfg::new("AWC"))?

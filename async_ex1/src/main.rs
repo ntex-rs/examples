@@ -1,16 +1,8 @@
-// This is a contrived example intended to illustrate ntex features.
-// *Imagine* that you have a process that involves 3 steps.  The steps here
-// are dumb in that they do nothing other than call an
-// httpbin endpoint that returns the json that was posted to it.  The intent
-// here is to illustrate how to chain these steps together as futures and return
-// a final result in a response.
+// This example runs submitted data through three asynchronous steps. Each step
+// posts the JSON to httpbin and reads the echoed value from its response.
 //
-// Ntex features illustrated here include:
-//     1. handling json input param
-//     2. validating user-submitted parameters using the 'validator' crate
-//     2. ntex client features:
-//           - POSTing json body
-//     3. chaining futures into a single response used by an async endpoint
+// It demonstrates JSON extraction, validation with the `validator` crate,
+// outgoing HTTP requests, and chaining async operations in a handler.
 use std::io;
 
 use futures::StreamExt;
@@ -43,9 +35,9 @@ struct HttpBinResponse {
     url: String,
 }
 
-/// validate data, post json to httpbin, get it back in the response body, return deserialized
+/// Validates the data, sends it to httpbin, and returns the echoed JSON.
 async fn step_x(data: SomeData, client: &Client) -> Result<SomeData, Error> {
-    // validate data
+    // Validate the submitted data before sending it.
     data.validate()
         .map_err(|e| Error::from_err(ErrorBadRequest(e)))?;
 
@@ -64,14 +56,14 @@ async fn step_x(data: SomeData, client: &Client) -> Result<SomeData, Error> {
     Ok(body.json)
 }
 
-#[web::post("/something", state=AppState<Client>)]
 async fn create_something(
+    st: &AppState<Client>,
+    _: (),
     some_data: types::Json<SomeData>,
-    st: types::State<AppState<Client>>,
 ) -> Result<HttpResponse, Error> {
-    let some_data_2 = step_x(some_data.into_inner(), &st).await?;
-    let some_data_3 = step_x(some_data_2, &st).await?;
-    let d = step_x(some_data_3, &st).await?;
+    let some_data_2 = step_x(some_data.into_inner(), st).await?;
+    let some_data_3 = step_x(some_data_2, st).await?;
+    let d = step_x(some_data_3, st).await?;
 
     Ok(HttpResponse::Ok()
         .content_type("application/json")
@@ -87,7 +79,7 @@ async fn main() -> io::Result<()> {
     println!("Starting server at: {:?}", endpoint);
     web::HttpServer::new(async |_| {
         App::new()
-            .service(create_something)
+            .route("/something", web::post().to_with_state(create_something))
             .build_with(AppState::new(Client::new()))
     })
     .bind(endpoint, SharedCfg::new("EX1"))?

@@ -3,11 +3,11 @@
 This project illustrates expensive and blocking database requests that runs
 in a thread-pool using `web::block` with two examples:
 
-    1. An asynchronous handler that executes 4 queries in *sequential order*,
-       collecting the results and returning them as a single serialized json object
+    1. An asynchronous handler that executes four queries in *sequential order*,
+       collecting the results and returning them as a single serialized JSON object.
 
-    2. An asynchronous handler that executes 4 queries in *parallel*,
-       collecting the results and returning them as a single serialized json object
+    2. An asynchronous handler that executes four queries in *parallel*,
+       collecting the results and returning them as a single serialized JSON object.
 
     Note: The use of sleep(Duration::from_secs(2)); in db.rs is to make performance
           improvement with parallelism more obvious.
@@ -15,34 +15,31 @@ in a thread-pool using `web::block` with two examples:
 use std::io;
 
 use futures::future::join_all;
-use ntex::web::{self, App, AppState, HttpResponse, HttpServer, middleware, types};
+use ntex::web::{self, App, AppState, HttpResponse, HttpServer, middleware};
 use r2d2_sqlite::{self, SqliteConnectionManager};
 
 mod db;
 use db::{Error, Pool, Queries};
 
-/// Version 1: Calls 4 queries in sequential order, as an asynchronous handler
-#[web::get("/asyncio_weather", state=AppState<Pool>)]
-async fn asyncio_weather(st: types::State<AppState<Pool>>) -> Result<HttpResponse, Error> {
+/// Runs four database queries sequentially.
+async fn asyncio_weather(st: &AppState<Pool>, _: ()) -> Result<HttpResponse, Error> {
     let result = vec![
-        db::execute(&st, Queries::GetTopTenHottestYears).await?,
-        db::execute(&st, Queries::GetTopTenColdestYears).await?,
-        db::execute(&st, Queries::GetTopTenHottestMonths).await?,
-        db::execute(&st, Queries::GetTopTenColdestMonths).await?,
+        db::execute(st, Queries::GetTopTenHottestYears).await?,
+        db::execute(st, Queries::GetTopTenColdestYears).await?,
+        db::execute(st, Queries::GetTopTenHottestMonths).await?,
+        db::execute(st, Queries::GetTopTenColdestMonths).await?,
     ];
 
     Ok(HttpResponse::Ok().json(&result))
 }
 
-/// Version 2: Calls 4 queries in parallel, as an asynchronous handler
-/// Returning Error types turn into None values in the response
-#[web::get("/parallel_weather", state=AppState<Pool>)]
-async fn parallel_weather(st: types::State<AppState<Pool>>) -> Result<HttpResponse, Error> {
+/// Runs four database queries concurrently.
+async fn parallel_weather(st: &AppState<Pool>, _: ()) -> Result<HttpResponse, Error> {
     let fut_result = vec![
-        Box::pin(db::execute(&st, Queries::GetTopTenHottestYears)),
-        Box::pin(db::execute(&st, Queries::GetTopTenColdestYears)),
-        Box::pin(db::execute(&st, Queries::GetTopTenHottestMonths)),
-        Box::pin(db::execute(&st, Queries::GetTopTenColdestMonths)),
+        Box::pin(db::execute(st, Queries::GetTopTenHottestYears)),
+        Box::pin(db::execute(st, Queries::GetTopTenColdestYears)),
+        Box::pin(db::execute(st, Queries::GetTopTenHottestMonths)),
+        Box::pin(db::execute(st, Queries::GetTopTenColdestMonths)),
     ];
     let result: Result<Vec<_>, _> = join_all(fut_result).await.into_iter().collect();
 
@@ -53,16 +50,23 @@ async fn parallel_weather(st: types::State<AppState<Pool>>) -> Result<HttpRespon
 async fn main() -> io::Result<()> {
     let _ = env_logger::try_init();
 
-    // Start N db executor actors (N = number of cores avail)
+    // Create the SQLite connection pool.
     let manager = SqliteConnectionManager::file("weather.db");
     let pool = Pool::new(manager).unwrap();
 
-    // Start http server
+    // Start the HTTP server.
     HttpServer::new(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .service((asyncio_weather, parallel_weather))
-            // store db pool as Data object
+            .route(
+                "/asyncio_weather",
+                web::get().to_with_state(asyncio_weather),
+            )
+            .route(
+                "/parallel_weather",
+                web::get().to_with_state(parallel_weather),
+            )
+            // Store the database pool in application state.
             .build_with(AppState::new(pool.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("DB"))?

@@ -1,6 +1,6 @@
-//! Ntex juniper example
+//! ntex Juniper example
 //!
-//! A simple example integrating juniper in ntex
+//! A simple example of integrating Juniper with ntex.
 use std::{io, sync::Arc};
 
 use juniper::http::GraphQLRequest;
@@ -30,12 +30,12 @@ async fn graphiql() -> HttpResponse {
         .body(html)
 }
 
-#[web::post("/graphql", state=AppState)]
 async fn graphql(
-    st: types::State<AppState>,
+    st: &AppState,
+    _: (),
     data: types::Json<GraphQLRequest>,
 ) -> Result<HttpResponse, Error> {
-    let st = (*st).clone();
+    let st = st.clone();
     let user = web::block(move || {
         let res = data.execute(&st.schema, &());
         serde_json::to_string(&res)
@@ -54,11 +54,14 @@ async fn main() -> io::Result<()> {
     // Create Juniper schema
     let schema = Arc::new(create_schema());
 
-    // Start http server
+    // Start the HTTP server.
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .service((graphql, graphiql))
+            .service((
+                web::resource("/graphql").route(web::post().to_with_state(graphql)),
+                graphiql,
+            ))
             .build_with(AppState {
                 schema: schema.clone(),
             })

@@ -32,7 +32,7 @@ fn app_config(config: &mut web::ServiceConfig<AppState>) {
     config.service(web::scope("/").service((
         web::resource("/").route(web::get().to(index)),
         web::resource("/post1").route(web::post().to(handle_post_1)),
-        web::resource("/post2").route(web::post().to(handle_post_2)),
+        web::resource("/post2").route(web::post().to_with_state(handle_post_2)),
         web::resource("/post3").route(web::post().to(handle_post_3)),
     )));
 }
@@ -48,16 +48,17 @@ pub struct MyParams {
     name: String,
 }
 
-/// Simple handle POST request
+/// Handles a form submission.
 async fn handle_post_1(params: web::types::Form<MyParams>) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Ok()
         .content_type("text/plain")
         .body(format!("Your name is {}", params.name)))
 }
 
-/// State and POST Params
+/// Handles a form submission using application state.
 async fn handle_post_2(
-    state: web::types::State<AppState>,
+    state: &AppState,
+    _: (),
     params: web::types::Form<MyParams>,
 ) -> HttpResponse {
     HttpResponse::Ok().content_type("text/plain").body(format!(
@@ -66,7 +67,7 @@ async fn handle_post_2(
     ))
 }
 
-/// Request and POST Params
+/// Handles a form submission with access to the request.
 async fn handle_post_3(req: HttpRequest, params: web::types::Form<MyParams>) -> HttpResponse {
     println!("Handling POST request: {:?}", req);
 
@@ -93,12 +94,12 @@ mod tests {
     impl BodyTest for ResponseBody<Body> {
         fn as_str(&self) -> &str {
             match self {
-                ResponseBody::Body(ref b) => match b {
-                    Body::Bytes(ref by) => std::str::from_utf8(by).unwrap(),
+                ResponseBody::Body(b) => match b {
+                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
                     _ => panic!(),
                 },
-                ResponseBody::Other(ref b) => match b {
-                    Body::Bytes(ref by) => std::str::from_utf8(by).unwrap(),
+                ResponseBody::Other(b) => match b {
+                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
                     _ => panic!(),
                 },
             }
@@ -134,10 +135,13 @@ mod tests {
 
     #[ntex::test]
     async fn handle_post_1_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service(App::new().configure(app_config).build_with(AppState {
+            foo: "bar".to_string(),
+        }))
+        .await;
         let req = test::TestRequest::post()
             .uri("/post1")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -148,39 +152,18 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.response().body().as_str(), "Your name is John");
+        assert_eq!(resp.body().as_str(), "Your name is John");
     }
-
-    // #[ntex::test]
-    // async fn handle_post_2_unit_test() {
-    // let app_state = AppState {
-    //     foo: "bar".to_string(),
-    // };
-
-    // let req = TestRequest::default().state(app_state).to_srv_request();
-    // let data = req.app_state::<AppState>().unwrap();
-    // let params = Form(MyParams {
-    //     name: "John".to_string(),
-    // });
-    // let resp = handle_post_2(data.clone(), params).await;
-
-    // assert_eq!(resp.status(), StatusCode::OK);
-    // assert_eq!(
-    //     resp.headers().get(CONTENT_TYPE).unwrap(),
-    //     HeaderValue::from_static("text/plain")
-    // );
-    // assert_eq!(
-    //     resp.body().as_str(),
-    //     "Your name is John, and in AppState I have foo: bar"
-    // );
-    // }
 
     #[ntex::test]
     async fn handle_post_2_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service(App::new().configure(app_config).build_with(AppState {
+            foo: "bar".to_string(),
+        }))
+        .await;
         let req = test::TestRequest::post()
             .uri("/post2")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -193,7 +176,7 @@ mod tests {
             HeaderValue::from_static("text/plain")
         );
         assert_eq!(
-            resp.response().body().as_str(),
+            resp.body().as_str(),
             "Your name is John, and in AppState I have foo: bar"
         );
     }
@@ -217,10 +200,13 @@ mod tests {
 
     #[ntex::test]
     async fn handle_post_3_integration_test() {
-        let app = test::init_service(App::new().configure(app_config)).await;
+        let app = test::init_service(App::new().configure(app_config).build_with(AppState {
+            foo: "bar".to_string(),
+        }))
+        .await;
         let req = test::TestRequest::post()
             .uri("/post3")
-            .set_form(&MyParams {
+            .form(&MyParams {
                 name: "John".to_string(),
             })
             .to_request();
@@ -231,6 +217,6 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.response().body().as_str(), "Your name is John");
+        assert_eq!(resp.body().as_str(), "Your name is John");
     }
 }

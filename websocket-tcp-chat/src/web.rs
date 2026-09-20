@@ -242,7 +242,7 @@ pub fn server(
     server: UnboundedSender<ServerMessage>,
 ) -> impl ServiceFactory<Io, SharedCfg, Response = (), Error = http::error::DispatchError, InitError = ()>
 {
-    // Create Http server with websocket support
+    // Start the HTTP server with WebSocket support.
     http::HttpService::new(
         App::new()
             .state(server)

@@ -107,8 +107,9 @@ mod handlers {
     }
 
     pub async fn add_user(
+        st: &HttpState,
+        _: (),
         user: types::Json<User>,
-        st: types::State<HttpState>,
     ) -> Result<HttpResponse, Error> {
         let user_info: User = user.into_inner();
 
@@ -141,7 +142,7 @@ async fn main() -> std::io::Result<()> {
 
     let server = web::server(async move |_| {
         App::new()
-            .service(web::resource("/users").route(web::post().to(add_user)))
+            .service(web::resource("/users").route(web::post().to_with_state(add_user)))
             .build_with(HttpState { pool: pool.clone() })
     })
     .bind(config.server_addr.clone(), ntex::SharedCfg::new("PG"))?

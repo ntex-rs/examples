@@ -6,10 +6,9 @@ use tera::Tera;
 type Error = web::WebError<AppState>;
 type AppState = web::AppState<tera::Tera>;
 
-// store tera template in application state
-#[web::get("/", state=AppState)]
 async fn index(
-    tmpl: types::State<AppState>,
+    tmpl: &AppState,
+    _: (),
     query: types::Query<HashMap<String, String>>,
 ) -> Result<HttpResponse, Error> {
     let s = if let Some(name) = query.get("name") {
@@ -35,7 +34,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .middleware(middleware::Logger::default()) // enable logger
-            .service(index)
+            .route("/", web::get().to_with_state(index))
             .build_with(AppState::new(tera))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("S"))?

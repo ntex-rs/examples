@@ -241,7 +241,7 @@ async fn main() -> std::io::Result<()> {
     // Start chat server actor
     let server = server::start();
 
-    // Create Http server with websocket support
+    // Start the HTTP server with WebSocket support.
     web::server(async move || {
         App::new()
             .state(server.clone())
