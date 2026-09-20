@@ -1,0 +1,11 @@
+[package]
+name = "test-mockall"
+version = "4.0.0"
+description = "Test a state-aware ntex function service with Mockall"
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
