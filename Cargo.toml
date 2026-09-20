@@ -36,12 +36,14 @@ members = [
    "template_handlebars",
    "template_tera",
    "template_yarte",
+   "test-mockall",
+   "test-shimforge",
    "todo",
    "tokio",
    "unix-socket",
    "websocket",
-   "websocket-lowlevel",
    "websocket-chat",
+   "websocket-lowlevel",
    "websocket-tcp-chat",
 ]
 
@@ -85,6 +87,7 @@ language-tags = "0.3"
 log = "0.4"
 mime = "0.3"
 mime_guess = "2.0"
+mockall = "0.15"
 num_cpus = "1.17"
 openssl = "0.10"
 percent-encoding = "2.1"
@@ -99,6 +102,7 @@ serde = "1"
 serde_json = "1"
 serde_derive = "1"
 serde_plain = "1"
+shimforge = "0.1.3"
 tokio-pg-mapper = "0.2"
 tokio-pg-mapper-derive = "0.2"
 tokio-postgres = "0.7"
