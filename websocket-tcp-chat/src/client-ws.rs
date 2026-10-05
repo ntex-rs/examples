@@ -16,7 +16,6 @@ async fn main() -> Result<(), io::Error> {
 
     // open websockets connection over http transport
     let con = ws::WsClient::new("http://127.0.0.1:8080/ws/", SharedCfg::default())
-        .unwrap()
         .connect()
         .await
         .unwrap();

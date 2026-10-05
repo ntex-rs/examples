@@ -18,12 +18,12 @@ path = "src/client-tcp.rs"
 
 [dependencies]
 ntex = { workspace = true }
-ntex-mqtt = "9.0"
-ntex-amqp = "6.0"
+ntex-mqtt = { workspace = true }
+ntex-amqp = { workspace = true }
 ntex-files = { workspace = true }
 
 rand = { workspace = true }
-byteorder = "1.4"
+byteorder = { workspace = true }
 futures = { workspace = true }
 env_logger = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

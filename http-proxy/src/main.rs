@@ -25,8 +25,8 @@ async fn forward(
     body: Bytes,
 ) -> Result<HttpResponse, Error> {
     let mut new_url = st.url.clone();
-    new_url.set_path(req.uri().path());
-    new_url.set_query(req.uri().query());
+    new_url.set_path(req.path());
+    new_url.set_query(req.uri().query().map(|q| q.as_str()));
 
     // TODO: This forwarding implementation only handles the unofficial
     // X-Forwarded-For header, not the standard Forwarded header.

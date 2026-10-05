@@ -8,7 +8,6 @@ edition = "2024"
 ntex = { workspace = true, features = ["tokio"] }
 ntex-files = { workspace = true }
 ntex-session = { workspace = true }
-ntex-rt = "3"
 futures = { workspace = true }
 env_logger = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
