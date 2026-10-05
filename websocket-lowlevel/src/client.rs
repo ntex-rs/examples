@@ -28,7 +28,6 @@ async fn run() -> Result<(), io::Error> {
         "http://127.0.0.1:8080/ws/",
         SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
     )
-    .unwrap()
     .openssl(builder.build())
     .connect()
     .await

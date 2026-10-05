@@ -49,24 +49,28 @@ members = [
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 
 [workspace.dependencies]
-ntex = "4.0.0-beta.14"
-ntex-server = "4.1.0"
-ntex-service = "5.0.0"
-ntex-tls = "4.0.0"
-ntex-util = "4.0.0"
+ntex = "4.0.0-beta.16"
+ntex-server = "4.2.0"
+ntex-service = "5.1.0"
+ntex-tls = "4.2.0"
+ntex-util = "4.2.1"
 
-ntex-cors = "4.0.0"
-ntex-files = "4.0.0"
-ntex-identity = "4.0.0"
-ntex-session = "4.0.0"
-ntex-multipart = "4.0.0"
-ntex-multipart-derive = "4.0.0"
+ntex-mqtt = "9.1"
+ntex-amqp = "6.1"
+
+ntex-cors = "4.1.0"
+ntex-files = "4.1.0"
+ntex-identity = "4.1.0"
+ntex-session = "4.1.0"
+ntex-multipart = "4.1.0"
+ntex-multipart-derive = "4.1.0"
 
 askama = "0.9"
 bitflags = "2"
+byteorder = "1.4"
 cookie = "0.18"
 config = "0.10"
 clap = "2.32"

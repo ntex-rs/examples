@@ -3,7 +3,7 @@ use std::io;
 
 use byteorder::{BigEndian, ByteOrder};
 use ntex::codec::{Decoder, Encoder};
-use ntex::util::{BufMut, BytesMut};
+use ntex::util::{BufMut, BytePages, BytesMut};
 use serde::{Deserialize, Serialize};
 use serde_json as json;
 
@@ -68,13 +68,12 @@ impl Encoder for ChatCodec {
     type Item = ChatResponse;
     type Error = io::Error;
 
-    fn encode(&self, msg: ChatResponse, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&self, msg: ChatResponse, dst: &mut BytePages) -> Result<(), Self::Error> {
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
 
-        dst.reserve(msg_ref.len() + 2);
         dst.put_u16(msg_ref.len() as u16);
-        dst.put(msg_ref);
+        dst.extend_from_slice(msg_ref);
 
         Ok(())
     }
@@ -109,13 +108,12 @@ impl Encoder for ClientChatCodec {
     type Item = ChatRequest;
     type Error = io::Error;
 
-    fn encode(&self, msg: ChatRequest, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&self, msg: ChatRequest, dst: &mut BytePages) -> Result<(), Self::Error> {
         let msg = json::to_string(&msg).unwrap();
         let msg_ref: &[u8] = msg.as_ref();
 
-        dst.reserve(msg_ref.len() + 2);
         dst.put_u16(msg_ref.len() as u16);
-        dst.put(msg_ref);
+        dst.extend_from_slice(msg_ref);
 
         Ok(())
     }
