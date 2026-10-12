@@ -5,7 +5,7 @@
 ### server
 
 ```bash
-cd examples/rustls
+cd tls/rustls
 cargo run (or ``cargo watch -x run``)
 # Started http server: 127.0.0.1:8443
 ```

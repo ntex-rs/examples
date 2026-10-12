@@ -7,7 +7,7 @@ Simple echo websocket server.
 ### server
 
 ```bash
-cd examples/websocket
+cd websockets/basic
 cargo run --bin server
 # Started http server: 127.0.0.1:8080
 ```
@@ -19,7 +19,7 @@ cargo run --bin server
 ### rust client
 
 ```bash
-cd examples/websocket
+cd websockets/basic
 cargo run --bin client
 ```
 

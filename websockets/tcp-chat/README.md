@@ -1,7 +1,7 @@
 # Websocket chat example
 
 This is extension of the
-[ntex chat example](https://github.com/ntex-rs/examples/tree/master/websocket-chat)
+[ntex chat example](https://github.com/ntex-rs/examples/tree/master/websockets/chat)
 
 Added features:
 

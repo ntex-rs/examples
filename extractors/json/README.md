@@ -7,7 +7,7 @@ Json's `Getting Started` guide using json (serde-json or json-rust) for Ntex
 ### server
 
 ```bash
-cd examples/json
+cd extractors/json
 cargo run
 # Started http server: 127.0.0.1:8080
 ```
