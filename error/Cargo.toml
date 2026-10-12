@@ -7,7 +7,7 @@ edition = "2024"
 [dependencies]
 ntex = { workspace = true }
 thiserror = { workspace = true }
-futures = { workspace = true }
 serde = { workspace = true }
 rand = { workspace = true }
 env_logger = { workspace = true }
+log = { workspace = true }

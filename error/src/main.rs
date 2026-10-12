@@ -1,131 +1,182 @@
-/*
-The goal of this example is to show how to propagate a custom error type,
-to a web handler that will evaluate the type of error that
-was raised and return an appropriate HTTPResponse.
+//! Custom error handling with an application-wide error domain.
+//!
+//! Handlers return `Result<T, E>`. When the result is an error, ntex renders
+//! it with the error's [`WebResponseError`] implementation. The trait is generic
+//! over two types: the application state (`St`) and the *error domain*
+//! (`Err`), which is selected by the state's [`web::State::Error`] type.
+//!
+//! Most applications use the default domain, [`web::DefaultError`], which comes
+//! with ready-made renderers for all ntex errors. This example defines its own
+//! domain instead. As a result, every error that can reach a client must have a
+//! `WebResponseError` implementation for that domain, including ntex's own
+//! errors, such as the JSON extractor's [`JsonPayloadError`]. This is checked at
+//! compile time and gives the application full control over how errors look:
+//! here all of them are rendered as JSON documents with the same shape.
+//!
+//! See the guide for details: <https://ntex.rs/docs/errors/>.
+use std::fmt;
 
-This example uses a 50/50 chance of returning 200 Ok, otherwise one of four possible
-http errors will be chosen, each with an equal chance of being selected:
-    1. 403 Forbidden
-    2. 401 Unauthorized
-    3. 500 InternalServerError
-    4. 400 BadRequest
-
-This example demonstrates how to override error rendering
-for all errors. Two types are required: one must implement
-the ntex::web::State trait, while the other must
-implement the ntex::web::WebResponseError trait. All errors used in
-the application must be convertible to an `error container`.
-*/
-use ntex::web::{self, App, HttpResponse, WebResponseError, types::Json};
+use ntex::http::StatusCode;
+use ntex::web::error::JsonPayloadError;
+use ntex::web::{self, App, HttpResponse, HttpResponseBuilder, WebResponseError, types::Json};
 use rand::{Rng, RngExt, distr::Distribution, distr::StandardUniform};
 
-struct MyErr;
+/// Marker type that names the application's error domain.
+///
+/// It is never constructed; it only appears as a type parameter of
+/// `WebResponseError<AppState, AppErrors>`.
+#[derive(Debug)]
+struct AppErrors;
 
-#[derive(Copy, Clone, Debug)]
-struct MyState;
-
-impl web::State for MyState {
-    type Error = MyErr;
+/// Application state.
+///
+/// The state is passed to every `error_response()` call, so renderers can use
+/// it, here to include the service name in error documents. Serving an
+/// application requires the state to be `Clone`.
+#[derive(Clone, Debug)]
+struct AppState {
+    service: &'static str,
 }
 
-#[derive(thiserror::Error, Debug)]
-#[error("MyErrContainer({0})")]
-struct MyErrContainer(Box<dyn WebResponseError<MyState, MyErr>>);
+/// Connects the state to the error domain.
+impl web::State for AppState {
+    type Error = AppErrors;
+}
 
-impl web::WebResponseError<MyState, MyErr> for MyErrContainer {
-    fn error_response(&self, st: &MyState) -> HttpResponse {
+/// The JSON document returned for every error.
+#[derive(serde::Serialize)]
+struct ErrorBody<'a> {
+    service: &'a str,
+    status: u16,
+    error: String,
+}
+
+/// Renders an error document with the given status and message.
+fn render_error(st: &AppState, status: StatusCode, msg: impl fmt::Display) -> HttpResponse {
+    HttpResponseBuilder::new(status).json(&ErrorBody {
+        service: st.service,
+        status: status.as_u16(),
+        error: msg.to_string(),
+    })
+}
+
+/// Errors produced by the application's business logic.
+///
+/// `thiserror` derives `std::error::Error` and `Display`, which is required by
+/// `WebResponseError`.
+#[derive(Debug, thiserror::Error)]
+pub enum CustomError {
+    #[error("access to this resource is denied")]
+    AccessDenied,
+    #[error("authentication is required")]
+    NotAuthenticated,
+    #[error("storage backend is not reachable")]
+    ServiceFailure,
+    #[error("request could not be processed")]
+    InvalidInput,
+}
+
+/// Lets `rand` pick a random `CustomError` variant.
+impl Distribution<CustomError> for StandardUniform {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> CustomError {
+        match rng.random_range(0..4) {
+            0 => CustomError::AccessDenied,
+            1 => CustomError::NotAuthenticated,
+            2 => CustomError::ServiceFailure,
+            _ => CustomError::InvalidInput,
+        }
+    }
+}
+
+/// Converts `CustomError` into an HTTP response.
+///
+/// Without an `error_response()` override, every error would be rendered as
+/// `500 Internal Server Error`.
+impl WebResponseError<AppState, AppErrors> for CustomError {
+    fn error_response(&self, st: &AppState) -> HttpResponse {
+        // Rendering is also a convenient place for side effects such as
+        // logging or metrics.
+        log::warn!("request failed: {self}");
+
+        match self {
+            CustomError::AccessDenied => render_error(st, StatusCode::FORBIDDEN, self),
+            CustomError::NotAuthenticated => render_error(st, StatusCode::UNAUTHORIZED, self),
+            CustomError::InvalidInput => render_error(st, StatusCode::BAD_REQUEST, self),
+            // Internal failures are not meant for users: the details stay in
+            // the log and the client only gets a generic message.
+            CustomError::ServiceFailure => render_error(
+                st,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal server error",
+            ),
+        }
+    }
+}
+
+/// Renders errors of the `Json<T>` extractor.
+///
+/// ntex implements `WebResponseError` for its errors in the default domain
+/// only. With a custom domain the application must provide the renderer, and
+/// forgetting it is a compile error at the `.to(do_something)` registration.
+impl WebResponseError<AppState, AppErrors> for JsonPayloadError {
+    fn error_response(&self, st: &AppState) -> HttpResponse {
+        let status = match self {
+            JsonPayloadError::Overflow => StatusCode::PAYLOAD_TOO_LARGE,
+            _ => StatusCode::BAD_REQUEST,
+        };
+        render_error(st, status, self)
+    }
+}
+
+/// A container for any error of the application's domain.
+///
+/// A handler has a single error type, but its body may fail with several
+/// different errors. Boxing them as `dyn WebResponseError` keeps the renderer
+/// of the original error, and the `From` impls below let the `?` operator do
+/// the conversion. (ntex's [`web::WebError`] is a similar container that is
+/// built explicitly with `WebError::from_err()`.)
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+struct AppError(Box<dyn WebResponseError<AppState, AppErrors>>);
+
+/// Renders the container by delegating to the boxed error.
+impl WebResponseError<AppState, AppErrors> for AppError {
+    fn error_response(&self, st: &AppState) -> HttpResponse {
         self.0.error_response(st)
     }
 }
 
-#[derive(Debug, thiserror::Error)]
-pub enum CustomError {
-    #[error("Custom Error 1")]
-    CustomOne,
-    #[error("Custom Error 2")]
-    CustomTwo,
-    #[error("Custom Error 3")]
-    CustomThree,
-    #[error("Custom Error 4")]
-    CustomFour,
-}
-
-impl Distribution<CustomError> for StandardUniform {
-    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> CustomError {
-        match rng.random_range(0..4) {
-            0 => CustomError::CustomOne,
-            1 => CustomError::CustomTwo,
-            2 => CustomError::CustomThree,
-            _ => CustomError::CustomFour,
-        }
-    }
-}
-
-/// Converts this error into an HTTP response using application state.
-impl WebResponseError<MyState, MyErr> for CustomError {
-    fn error_response(&self, _: &MyState) -> HttpResponse {
-        match self {
-            CustomError::CustomOne => {
-                println!("do some stuff related to CustomOne error");
-                HttpResponse::Forbidden().build()
-            }
-
-            CustomError::CustomTwo => {
-                println!("do some stuff related to CustomTwo error");
-                HttpResponse::Unauthorized().build()
-            }
-
-            CustomError::CustomThree => {
-                println!("do some stuff related to CustomThree error");
-                HttpResponse::InternalServerError().build()
-            }
-
-            _ => {
-                println!("do some stuff related to CustomFour error");
-                HttpResponse::BadRequest().build()
-            }
-        }
-    }
-}
-
-impl From<CustomError> for MyErrContainer {
+impl From<CustomError> for AppError {
     fn from(err: CustomError) -> Self {
-        MyErrContainer(Box::new(err))
+        AppError(Box::new(err))
     }
 }
 
-/// randomly returns either () or one of the 4 CustomError variants
+/// Simulates business logic that fails four times out of five with a random
+/// `CustomError`.
 async fn do_something_random() -> Result<(), CustomError> {
     let mut rng = rand::rng();
 
-    // 20% chance that () will be returned by this function
-    if rng.random_bool(2.0 / 10.0) {
+    if rng.random_bool(0.2) {
         Ok(())
     } else {
         Err(rand::random::<CustomError>())
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Deserialize)]
 struct TestPayload {
+    #[allow(dead_code)]
     dummy: u32,
 }
 
-impl From<web::error::JsonPayloadError> for MyErrContainer {
-    fn from(err: web::error::JsonPayloadError) -> Self {
-        MyErrContainer(Box::new(err))
-    }
-}
-
-/// Implement WebResponseError for JsonPayloadError
-impl WebResponseError<MyState, MyErr> for web::error::JsonPayloadError {
-    fn error_response(&self, _: &MyState) -> HttpResponse {
-        println!("do some stuff related to json error");
-        HttpResponse::BadRequest().build()
-    }
-}
-
-async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, MyErrContainer> {
+/// `POST /something` handler.
+///
+/// The request body is extracted with `Json<TestPayload>` before the handler
+/// runs; an invalid body is rendered by the `JsonPayloadError` impl above and
+/// the handler is not called. Errors from the handler body are converted to
+/// `AppError` by `?`.
+async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, AppError> {
     do_something_random().await?;
 
     Ok(HttpResponse::Ok().body("Nothing interesting happened. Try again."))
@@ -133,14 +184,22 @@ async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, MyErrContain
 
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
+    env_logger::init_from_env(
+        env_logger::Env::new().default_filter_or("ntex=info,error_handling=info"),
+    );
 
     web::server(async move |_| {
         App::new()
-            .service(web::resource("/something").route(web::get().to(do_something)))
-            .build_with(MyState)
+            // Log every request together with the response status.
+            .middleware(web::middleware::Logger::default())
+            .service(web::resource("/something").route(web::post().to(do_something)))
+            // `build_with()` sets the application state and, through
+            // `AppState::Error`, the error domain.
+            .build_with(AppState {
+                service: "error-example",
+            })
     })
-    .bind("127.0.0.1:8088", ntex::SharedCfg::new("S"))?
+    .bind("127.0.0.1:8088", ntex::SharedCfg::new("ERROR"))?
     .run()
     .await
 }
