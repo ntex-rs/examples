@@ -26,6 +26,7 @@ members = [
    "middleware",
    "state1",
    "state5",
+   "state/web-state",
    "server/docker",
    "server/run-in-thread",
    "server/tokio",

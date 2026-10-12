@@ -49,6 +49,7 @@ PostgreSQL client library (`libpq`).
 | [middleware](middleware) | Writing and using custom middleware |
 | [state1](state1) | Process-wide and per-worker application state |
 | [state5](state5) | Per-connection state, including TLS connection info |
+| [state/web-state](state/web-state) | `web::App` state in middleware, filters, handlers and errors |
 
 ### Server
 
