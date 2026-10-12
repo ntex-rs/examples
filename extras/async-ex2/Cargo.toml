@@ -1,0 +1,13 @@
+[package]
+name = "async-ex2"
+version = "4.0.0"
+authors = ["dowwie <dkcdkg@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+time = { workspace = true }

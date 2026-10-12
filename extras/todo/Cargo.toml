@@ -1,0 +1,18 @@
+[package]
+authors = ["Dan Munckton <dangit@munckfish.net>"]
+name = "todo"
+version = "4.0.0"
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-files = { workspace = true }
+ntex-session = { workspace = true }
+dotenv = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tera = { workspace = true, features = ["glob_fs"] }
+diesel = { workspace = true, features = ["postgres", "r2d2"] }

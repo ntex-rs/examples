@@ -1,0 +1,21 @@
+[package]
+name = "ntex-graphql-demo"
+version = "4.0.0"
+authors = ["Dwi Sulfahnur <hello@dwisulfahnur.com>"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ntex = { workspace = true }
+futures = { workspace = true }
+juniper = { workspace = true }
+mysql = "28"
+r2d2 = { workspace = true }
+r2d2_mysql = { workspace = true }
+dotenv = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }

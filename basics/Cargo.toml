@@ -8,5 +8,4 @@ edition = "2024"
 ntex = { workspace = true }
 ntex-files = { workspace = true }
 ntex-session = { workspace = true }
-futures = { workspace = true }
 env_logger = { workspace = true }

@@ -1,0 +1,16 @@
+[package]
+name = "async_pg"
+version = "4.0.0"
+authors = ["dowwie <dkcdkg@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+config = { workspace = true }
+deadpool-postgres = { workspace = true, features = ["serde"] }
+derive_more = { workspace = true }
+dotenv = { workspace = true }
+serde = { workspace = true }
+tokio-pg-mapper = { workspace = true }
+tokio-pg-mapper-derive = { workspace = true }
+tokio-postgres = { workspace = true }
