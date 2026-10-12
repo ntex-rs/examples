@@ -47,8 +47,8 @@ PostgreSQL client library (`libpq`).
 | [basics](basics) | Routing, path parameters, sessions, static files and error pages |
 | [error](error) | Custom error types and error propagation |
 | [middleware](middleware) | Writing and using custom middleware |
-| [state1](state1) | Process-wide and per-worker application state |
-| [state5](state5) | Per-connection state, including TLS connection info |
+| [state/process](state/process) | Process-wide and per-worker application state |
+| [state/state-accumulation](state/state-accumulation) | Per-connection state, including TLS connection info |
 | [state/web-state](state/web-state) | `web::App` state in middleware, filters, handlers and errors |
 
 ### Server
