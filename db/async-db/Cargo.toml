@@ -1,0 +1,18 @@
+[package]
+name = "async_db"
+version = "4.0.0"
+authors = ["Darin Gordon <dkcdkg@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }
+env_logger = { workspace = true }
+futures = { workspace = true }
+derive_more = { workspace = true }
+num_cpus = { workspace = true }
+r2d2 = { workspace = true }
+r2d2_sqlite = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

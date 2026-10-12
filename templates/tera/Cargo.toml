@@ -1,0 +1,10 @@
+[package]
+name = "template-tera"
+version = "4.0.0"
+authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+env_logger = { workspace = true }
+tera = { workspace = true, features = ["glob_fs"] }
+ntex = { workspace = true }

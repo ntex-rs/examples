@@ -1,50 +1,48 @@
 [workspace]
 resolver = "3"
 members = [
-   "async_db",
-   "async_ex1",
-   "async_ex2",
-   "async_pg",
-   "awc_https",
    "basics",
-   "cookie-auth",
-   "cookie-session",
-#   "diesel",
-   "docker_sample",
-   "error_handling",
-   "form",
-   "graphql-demo",
-   "hello-world",
-   "http-proxy",
-   "json",
-   "json_error",
-   "jsonrpc",
-   "juniper",
+   "error",
+   "db/async-db",
+   "db/async-pg",
+   "db/graphql",
+   "db/diesel",
+   "db/r2d2",
+   "db/juniper",
+   "extractors/form",
+   "extractors/json",
+   "extractors/multipart",
+   "extras/async-ex1",
+   "extras/async-ex2",
+   "extras/cookie-auth",
+   "extras/cookie-session",
+   "extras/http-client",
+   "extras/http-proxy",
+   "extras/json-error",
+   "extras/jsonrpc",
+   "extras/server-sent-events",
+   "extras/simple-auth-server",
+   "extras/todo",
    "middleware",
-   "multipart",
-   "openssl",
-   "r2d2",
-   "run-in-thread",
-   "rustls",
-   "server-sent-events",
-   "shutdown-server",
-#   "simple-auth-server",
    "state1",
    "state5",
-   "static_index",
-   "template_askama",
-   "template_handlebars",
-   "template_tera",
-   "template_yarte",
-   "test-mockall",
-   "test-shimforge",
-   "todo",
-   "tokio",
-   "unix-socket",
-   "websocket",
-   "websocket-chat",
-   "websocket-lowlevel",
-   "websocket-tcp-chat",
+   "server/docker",
+   "server/run-in-thread",
+   "server/tokio",
+   "server/shutdown",
+   "server/unix-socket",
+   "templates/askama",
+   "templates/handlebars",
+   "templates/tera",
+   "templates/yarte",
+   "tests/mockall",
+   "tests/shimforge",
+   "tls/openssl",
+   "tls/rustls",
+   "websockets/basic",
+   "websockets/chat",
+   "websockets/lowlevel",
+   "websockets/tcp-chat",
 ]
 
 [workspace.package]
@@ -68,25 +66,25 @@ ntex-session = "4.1.0"
 ntex-multipart = "4.1.0"
 ntex-multipart-derive = "4.1.0"
 
-askama = "0.9"
+askama = "0.16"
 bitflags = "2"
 byteorder = "1.4"
 cookie = "0.18"
-config = "0.10"
-clap = "2.32"
-deadpool-postgres = { version = "0.10", features = ["serde"] }
-diesel = { version = "1.1", features = ["sqlite", "r2d2"] }
+config = "0.15"
+clap = "4.6"
+deadpool-postgres = { version = "0.14", features = ["serde"] }
+diesel = { version = "2.3", features = ["sqlite", "r2d2"] }
 dotenv = "0.15"
 derive_more = { version = "2.0.1", features = ["from", "display"] }
 env_logger = "0.11"
 futures = "0.3.34"
 futures-test = "0.3.34"
-handlebars = "3.0.0"
+handlebars = "6.4"
 http = "1"
 httpdate = "1.0"
 httparse = "1.10"
 json = "0.12"
-juniper = "0.14"
+juniper = "0.17"
 language-tags = "0.3"
 log = "0.4"
 mime = "0.3"
@@ -98,10 +96,10 @@ percent-encoding = "2.1"
 pin-project = "1.0"
 regex = "1.12.3"
 r2d2 = "0.8"
-r2d2_sqlite = "0.14"
-r2d2_mysql = "17.0"
-rand = "0.8"
-rusqlite = "0.21"
+r2d2_sqlite = "0.35"
+r2d2_mysql = "28.0"
+rand = "0.10"
+rusqlite = "0.40"
 serde = "1"
 serde_json = "1"
 serde_derive = "1"
@@ -112,13 +110,12 @@ tokio-pg-mapper-derive = "0.2"
 tokio-postgres = "0.7"
 twoway = "0.2"
 tempfile = "3.4"
-tera = "1.0"
+tera = "2.4"
 thiserror = "2"
 time = { version = "0.3.54", default-features = false, features = ["std"] }
 tokio = "1"
-validator = "0.10"
-validator_derive = "0.10"
-v_htmlescape = "0.15"
+validator = { version = "0.21", features = ["derive"] }
+v_htmlescape = "0.17"
 yarte = { version = "0.15", features = ["html-min"]  }
 url = "2.1"
 unicase = "2.6"

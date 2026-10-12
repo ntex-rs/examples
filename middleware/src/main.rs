@@ -1,3 +1,6 @@
+// Deeply nested service types (HttpService + App + middlewares)
+// exceed the default query depth limit.
+#![recursion_limit = "256"]
 #![allow(dead_code, clippy::type_complexity)]
 use std::convert::Infallible;
 
