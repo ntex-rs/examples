@@ -23,9 +23,9 @@ async fn run() -> Result<(), io::Error> {
     let mut builder = ssl::SslConnector::builder(ssl::SslMethod::tls()).unwrap();
     builder.set_verify(ssl::SslVerifyMode::NONE);
 
-    // open websockets connection over http transport
+    // Open a WebSocket connection over TLS.
     let con = ws::WsClient::new(
-        "http://127.0.0.1:8080/ws/",
+        "wss://127.0.0.1:8080/ws/",
         SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
     )
     .openssl(builder.build())

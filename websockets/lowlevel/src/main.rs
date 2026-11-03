@@ -1,11 +1,11 @@
 //! Simple WebSocket echo server.
-//! Open `http://localhost:8080/ws/index.html` in browser
+//! Open `https://localhost:8080/index.html` in browser
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::future::{Either, select};
 use ntex::http::{HttpService, Request, ResponseError, body, h1};
-use ntex::io::{Io, IoRef};
+use ntex::io::{Io, IoConfig, IoRef};
 use ntex::service::{Pipeline, Service, fn_service, service};
 use ntex::web::{App, middleware};
 use ntex::{SharedCfg, channel::oneshot, rt, server, time, util::Bytes, ws};
@@ -19,13 +19,14 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct WsState {
-    /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
+    /// Client must send ping or pong at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
 }
 
 /// Creates the WebSocket service for one client.
 async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<(), io::Error> {
+    io.stop_timer();
     let state = Rc::new(RefCell::new(WsState { hb: Instant::now() }));
 
     match ws::handshake(req.head()) {
@@ -51,6 +52,12 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
         }
     }
 
+    // SAFETY: this service owns the upgraded I/O and retains no references to its configuration.
+    unsafe {
+        io.set_config(
+            SharedCfg::new("WS").add(IoConfig::new().set_keepalive_timeout(time::Seconds::ZERO)),
+        );
+    }
     let codec = ws::Codec::new();
 
     // disconnect notification
@@ -70,15 +77,25 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
                         state.borrow_mut().hb = Instant::now();
                         ws::Message::Pong(msg)
                     }
+                    ws::Frame::Pong(_) => {
+                        state.borrow_mut().hb = Instant::now();
+                        continue;
+                    }
                     ws::Frame::Text(text) => ws::Message::Text(
                         String::from_utf8(Vec::from(text.as_ref())).unwrap().into(),
                     ),
                     ws::Frame::Binary(bin) => ws::Message::Binary(bin),
                     ws::Frame::Close(reason) => ws::Message::Close(reason),
-                    _ => ws::Message::Close(None),
+                    ws::Frame::Continuation(_) => {
+                        ws::Message::Close(Some(ws::CloseCode::Unsupported.into()))
+                    }
                 };
+                let closing = matches!(item, ws::Message::Close(_));
                 if let Err(e) = io.send(item, &codec).await {
                     println!("Error during sending response: {:?}", e);
+                    break;
+                }
+                if closing {
                     break;
                 }
                 continue;
@@ -89,6 +106,7 @@ async fn ws_service<F>((req, io, codec): (Request, Io<F>, h1::Codec)) -> Result<
         break;
     }
     let _ = tx.send(());
+    io.shutdown().await?;
 
     Ok(())
 }
@@ -133,10 +151,10 @@ async fn main() -> std::io::Result<()> {
 
     let mut builder = ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
     builder
-        .set_private_key_file("../openssl/key.pem", SslFiletype::PEM)
+        .set_private_key_file("../../tls/openssl/key.pem", SslFiletype::PEM)
         .unwrap();
     builder
-        .set_certificate_chain_file("../openssl/cert.pem")
+        .set_certificate_chain_file("../../tls/openssl/cert.pem")
         .unwrap();
     builder.set_options(ssl::SslOptions::NO_COMPRESSION);
     builder.set_mode(ssl::SslMode::RELEASE_BUFFERS);

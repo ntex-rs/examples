@@ -43,6 +43,7 @@ members = [
    "websockets/basic",
    "websockets/chat",
    "websockets/lowlevel",
+   "websockets/mqtt",
    "websockets/tcp-chat",
 ]
 
@@ -51,17 +52,17 @@ edition = "2024"
 rust-version = "1.97"
 
 [workspace.dependencies]
-ntex = "4.2.0"
-ntex-server = "4.2"
-ntex-service = "5.2"
-ntex-tls = "4.3"
-ntex-util = "4.3"
+ntex = "4.5.0"
+ntex-server = "4.3"
+ntex-service = "5.6"
+ntex-tls = "4.7"
+ntex-util = "4.6"
 
-ntex-mqtt = "9.2"
-ntex-amqp = "6.2"
+ntex-mqtt = "9.4"
+ntex-amqp = "6.3"
 
-ntex-cors = "4.1.0"
-ntex-files = "4.1.0"
+ntex-cors = "4.1.1"
+ntex-files = "4.2.0"
 ntex-identity = "4.1.0"
 ntex-session = "4.1.0"
 ntex-multipart = "4.1.0"

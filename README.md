@@ -102,6 +102,7 @@ PostgreSQL client library (`libpq`).
 | --- | --- |
 | [websockets/basic](websockets/basic) | WebSocket echo server and client |
 | [websockets/lowlevel](websockets/lowlevel) | WebSocket server and client using the low-level API |
+| [websockets/mqtt](websockets/mqtt) | MQTT server and client over a binary WebSocket transport |
 | [websockets/chat](websockets/chat) | WebSocket chat server |
 | [websockets/tcp-chat](websockets/tcp-chat) | Chat server with WebSocket and TCP clients |
 

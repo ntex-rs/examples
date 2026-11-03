@@ -1,5 +1,5 @@
 //! Simple WebSocket echo server.
-//! Open `http://localhost:8080/ws/index.html` in browser
+//! Open `http://localhost:8080/index.html` in browser
 
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
@@ -16,7 +16,7 @@ const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 struct WsState {
-    /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
+    /// Client must send ping or pong at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
 }
@@ -80,6 +80,7 @@ async fn heartbeat(state: Rc<RefCell<WsState>>, sink: ws::WsSink, mut rx: onesho
                 if Instant::now().duration_since(state.borrow().hb) > CLIENT_TIMEOUT {
                     // heartbeat timed out
                     println!("Websocket Client heartbeat failed, disconnecting!");
+                    sink.io().close();
                     return;
                 }
 
