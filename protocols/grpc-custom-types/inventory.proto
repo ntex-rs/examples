@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package inventory;
+
+// Stock reservations.
+service Inventory {
+  // Reserves `quantity` items of `sku` if there is enough stock.
+  rpc Reserve (ReserveRequest) returns (ReserveReply);
+}
+
+message ReserveRequest {
+  // Client-chosen request id, a 16-byte UUID.
+  bytes request_id = 1;
+  // Stock keeping unit, e.g. "BOOK-42".
+  string sku = 2;
+  uint32 quantity = 3;
+}
+
+message ReserveReply {
+  // The request id of the reservation.
+  bytes request_id = 1;
+  string sku = 2;
+  bool reserved = 3;
+  // Items left after the reservation.
+  uint32 remaining = 4;
+}

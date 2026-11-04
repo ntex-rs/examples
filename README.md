@@ -34,6 +34,7 @@ below to pair each chapter with examples.
 | [Worker and Request State](https://docs.ntex.rs/6-server-app.html) | [state/process](state/process), [state/state-accumulation](state/state-accumulation) |
 | [Service State](https://docs.ntex.rs/3-state.html#testing-state-aware-function-services) | [tests/mockall](tests/mockall), [tests/shimforge](tests/shimforge) |
 | [Securing Connections with TLS](https://docs.ntex.rs/10-tls.html) | [tls/x509](tls/x509), [tls/openssl](tls/openssl), [tls/rustls](tls/rustls), [tls/schannel](tls/schannel) |
+| [Building gRPC Services and Clients](https://docs.ntex.rs/11-grpc.html) | [protocols/grpc-helloworld](protocols/grpc-helloworld), [protocols/grpc-custom-types](protocols/grpc-custom-types), [protocols/grpc-routing-client](protocols/grpc-routing-client), [protocols/grpc-server](protocols/grpc-server), [protocols/grpc-tls](protocols/grpc-tls) |
 
 The examples' tests follow the guide's testing advice; see
 [testing routes](https://docs.ntex.rs/8.1-web-app.html#testing-routes),
@@ -158,6 +159,18 @@ Guide: [WebSocket Support](https://docs.ntex.rs/8.6-web-app.html).
 | [websockets/mqtt](websockets/mqtt) | MQTT server and client over a binary WebSocket transport |
 | [websockets/chat](websockets/chat) | Multi-room WebSocket chat server with a browser client |
 | [websockets/tcp-chat](websockets/tcp-chat) | Chat server with WebSocket and TCP clients |
+
+### gRPC
+
+Guide: [Building gRPC Services and Clients](https://docs.ntex.rs/11-grpc.html).
+
+| Example | Description |
+| --- | --- |
+| [protocols/grpc-helloworld](protocols/grpc-helloworld) | A unary service and its generated client |
+| [protocols/grpc-custom-types](protocols/grpc-custom-types) | Replacing generated field types with your own Rust types |
+| [protocols/grpc-routing-client](protocols/grpc-routing-client) | A custom client transport that routes calls across backends |
+| [protocols/grpc-server](protocols/grpc-server) | Streaming methods, errors, several services, limits and HTTP/2 configuration |
+| [protocols/grpc-tls](protocols/grpc-tls) | gRPC server and client over TLS with rustls |
 
 ### Testing
 

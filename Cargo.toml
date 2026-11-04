@@ -24,6 +24,11 @@ members = [
    "extras/simple-auth-server",
    "extras/todo",
    "middleware",
+   "protocols/grpc-custom-types",
+   "protocols/grpc-helloworld",
+   "protocols/grpc-routing-client",
+   "protocols/grpc-server",
+   "protocols/grpc-tls",
    "state/process",
    "state/state-accumulation",
    "state/web-state",
@@ -62,6 +67,9 @@ ntex-util = "4.7"
 
 ntex-mqtt = "9.5"
 ntex-amqp = "6.3"
+ntex-grpc = "4.1"
+ntex-grpc-derive = "4.1"
+ntex-h2 = "4.4"
 
 ntex-cors = "4.2.0"
 ntex-files = "4.3.0"

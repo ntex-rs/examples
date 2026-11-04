@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package echo;
+
+// Echoes messages back, with one method of each kind.
+service Echo {
+  // Unary: one request, one reply. Waits `delay_ms` before answering.
+  rpc UnaryEcho(EchoRequest) returns (EchoReply);
+  // Server streaming: sends the message back `repeat` times.
+  rpc ServerStreamingEcho(EchoRequest) returns (stream EchoReply);
+  // Client streaming: joins all received messages into one reply.
+  rpc ClientStreamingEcho(stream EchoRequest) returns (EchoReply);
+  // Bidirectional streaming: answers every message as it arrives.
+  rpc BidiStreamingEcho(stream EchoRequest) returns (stream EchoReply);
+}
+
+// Reports how many `Echo` calls the server handled.
+service Stats {
+  rpc GetStats(StatsRequest) returns (StatsReply);
+}
+
+message EchoRequest {
+  string message = 1;
+  uint32 repeat = 2;
+  uint32 delay_ms = 3;
+}
+
+message EchoReply {
+  string message = 1;
+}
+
+message StatsRequest {}
+
+message StatsReply {
+  uint64 calls = 1;
+}

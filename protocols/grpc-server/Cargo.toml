@@ -1,0 +1,21 @@
+[package]
+name = "grpc-server"
+version = "0.1.0"
+description = "An ntex-grpc server with streaming methods, several services and configuration"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "grpc-server"
+
+[[bin]]
+name = "grpc-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "grpc-server-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-grpc = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }
