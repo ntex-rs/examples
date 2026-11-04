@@ -1,0 +1,28 @@
+[package]
+name = "grpc-tls"
+version = "0.1.0"
+description = "gRPC over TLS with ntex-grpc and rustls"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "grpc-tls-server"
+
+[[bin]]
+name = "grpc-tls-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "grpc-tls-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true, features = ["rustls"] }
+ntex-grpc = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }
+grpc-helloworld = { path = "../grpc-helloworld" }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pemfile = "2"
+tls-x509-example = { path = "../../tls/x509", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+ntex-tls = { workspace = true, features = ["testgen", "testgen-rcgen"] }

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package shop;
+
+// Item lookups. The example runs it on its own backend.
+service Catalog {
+  // Returns one item by its SKU.
+  rpc GetItem (ItemRequest) returns (Item);
+  // Streams the items of the catalog, at most `limit` of them.
+  rpc ListItems (ListRequest) returns (stream Item);
+}
+
+// Order taking. The example runs it on another backend.
+service Orders {
+  // Places an order for an item.
+  rpc PlaceOrder (OrderRequest) returns (OrderReply);
+}
+
+message ItemRequest {
+  string sku = 1;
+}
+
+message ListRequest {
+  uint32 limit = 1;
+}
+
+message Item {
+  string sku = 1;
+  string name = 2;
+  // Name of the backend that answered.
+  string served_by = 3;
+}
+
+message OrderRequest {
+  string sku = 1;
+  uint32 quantity = 2;
+}
+
+message OrderReply {
+  uint64 order_id = 1;
+  // Name of the backend that answered.
+  string served_by = 2;
+}

@@ -1,0 +1,21 @@
+[package]
+name = "grpc-helloworld"
+version = "0.1.0"
+description = "A unary gRPC service and client with ntex-grpc"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "grpc-helloworld-server"
+
+[[bin]]
+name = "grpc-helloworld-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "grpc-helloworld-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-grpc = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }

@@ -1,0 +1,22 @@
+[package]
+name = "grpc-custom-types"
+version = "0.1.0"
+description = "Custom Rust types for gRPC message fields with ntex-grpc"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "grpc-custom-types-server"
+
+[[bin]]
+name = "grpc-custom-types-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "grpc-custom-types-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-grpc = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }
+uuid = { workspace = true }

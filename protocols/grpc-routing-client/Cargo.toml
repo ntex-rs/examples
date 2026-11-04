@@ -1,0 +1,21 @@
+[package]
+name = "grpc-routing-client"
+version = "0.1.0"
+description = "A custom ntex-grpc client transport that routes calls across backends"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "grpc-routing-client-server"
+
+[[bin]]
+name = "grpc-routing-client-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "grpc-routing-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-grpc = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }
