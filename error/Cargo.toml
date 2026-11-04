@@ -1,6 +1,7 @@
 [package]
 name = "error_handling"
 version = "4.0.0"
+description = "Custom error types and error responses in an ntex web app"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2024"
 
@@ -11,3 +12,6 @@ serde = { workspace = true }
 rand = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

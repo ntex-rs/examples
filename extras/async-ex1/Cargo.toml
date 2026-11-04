@@ -1,6 +1,7 @@
 [package]
 name = "async-ex1"
 version = "4.0.0"
+description = "Chain validated JSON through asynchronous HTTP requests"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2024"
 

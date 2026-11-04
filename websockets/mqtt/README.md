@@ -47,3 +47,18 @@ MQTT service's responsibility.
 This loopback demonstration uses unencrypted `ws://` and accepts every MQTT
 client. A deployed service needs authentication, an appropriate HTTP Origin
 policy for browser clients, payload limits, and TLS (`wss://`).
+
+## Tests
+
+```sh
+cargo test -p websocket-mqtt
+```
+
+The tests cover an MQTT connection and heartbeat over binary WebSocket frames, required subprotocol negotiation, and unknown paths.
+
+## Learn more
+
+- [WebSocket as a byte transport](https://docs.ntex.rs/8.6-web-app.html#websocket-as-a-byte-transport)
+- [MQTT over WebSocket](https://docs.ntex.rs/8.6-web-app.html#mqtt-over-websocket)
+- [Choosing a subprotocol](https://docs.ntex.rs/8.6-web-app.html#choosing-a-subprotocol)
+- [Low-level servers with an HTTP control service](https://docs.ntex.rs/8.6-web-app.html#low-level-servers-with-an-http-control-service)

@@ -1,13 +1,47 @@
 # State Accumulation
 
-The state we have discussed so far is long-lived. Worker state lives for as long
-as the worker, and pipeline state lives for as long as the pipeline. In both
-cases, the state is created once and reused across many calls.
+Worker state and pipeline state are long-lived: they are created once and reused
+across many calls. Sometimes you need state with a shorter lifetime, collected
+while one connection moves through a service chain. Each service can inspect
+what has been collected so far, add to it, and pass it on.
 
-Sometimes we need state with a shorter lifetime. In particular, we may want to
-collect information while a request or connection moves through a service
-chain. Each service can inspect what has already been collected, add more
-information, and pass the updated state to the next service.
+This example accepts a TCP connection, records an id, start time and peer
+address, performs an OpenSSL handshake, and hands the connection to an
+`ntex::web` app. The handler reads the accumulated connection state as its
+application state and logs it on every request.
+
+## Prerequisites
+
+- OpenSSL development headers (the example uses the `openssl` backend).
+- The test certificate in [`tls/openssl`](../../tls/openssl). The example loads
+  it by absolute path, so you can run it from any directory.
+
+## Run the example
+
+```sh
+cargo run -p state5
+```
+
+The server listens on `https://127.0.0.1:8080`.
+
+## Try it
+
+```sh
+curl -k https://127.0.0.1:8080/
+```
+
+The server prints a line like this for each request:
+
+```text
+id: 2b9e0c4a-... created: Instant { .. }, peer-addr: 127.0.0.1:53412, HttpRequest ...
+```
+
+## How it works
+
+The rest of this README walks through the idea. The snippets are simplified:
+helpers such as `load_peer_addr`, `load_server_name` and `accept_tls` stand in
+for real code. See [`src/main.rs`](src/main.rs) for the runnable version, which
+uses `PeerAddr` and `SslAcceptor`.
 
 Imagine a pipeline that accepts an incoming connection. The first service might
 record basic details such as the connection ID and peer address. The next
@@ -40,7 +74,7 @@ its own state.
 The ntex protocol servers support `RequestState`, including `ntex::http`,
 ntex-h2, ntex-mqtt, and ntex-amqp.
 
-## Collecting Connection Information
+### Collecting connection information
 
 Let's start with a service that receives a raw I/O connection and collects some
 basic information about it:
@@ -109,7 +143,7 @@ The connection ID, creation time, and peer address are carried forward. By the
 time the connection reaches the HTTP server, its state contains everything
 collected by the earlier services.
 
-## Passing Connection State to the HTTP Service
+### Passing connection state to the HTTP service
 
 We can now connect these services into a single chain:
 
@@ -152,3 +186,18 @@ async fn main() -> io::Result<()> {
 The worker's `AppState` is still available to `connect` and `tls`. It contains
 worker-level resources that can be reused across many connections. At the same
 time, each connection carries its own state.
+
+## Learn more
+
+- [State accumulation](https://docs.ntex.rs/6-server-app.html#state-accumulation)
+  in the ntex guide
+- [Carrying state with a request](https://docs.ntex.rs/3-state.html#carrying-state-with-a-request)
+- [Securing connections with TLS](https://docs.ntex.rs/10-tls.html)
+
+## Tests
+
+```sh
+cargo test -p state5
+```
+
+Covers HTTP handlers with accumulated connection state and unknown routes, without a TLS listener.

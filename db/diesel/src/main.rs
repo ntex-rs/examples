@@ -1,7 +1,8 @@
-//! ntex Diesel integration example.
+//! Create and look up SQLite users with Diesel and ntex.
 //!
-//! Diesel operations are synchronous, so this example runs them through
-//! `web::block` instead of blocking a server worker.
+//! The handlers share an `r2d2` pool through `AppState` and run the synchronous
+//! queries in `src/actions.rs` through `web::block` rather than blocking workers.
+//! Apply the migrations and run from this directory as described in the README.
 
 #[macro_use]
 extern crate diesel;
@@ -44,7 +45,7 @@ async fn get_user(
     }
 }
 
-/// Inserts new user with name defined in form.
+/// Inserts a user with the name supplied in the JSON body.
 async fn add_user(
     pool: &AppState,
     _: (),
@@ -62,6 +63,11 @@ async fn add_user(
     .map_err(WebError::from_err)?;
 
     Ok(HttpResponse::Ok().json(&user))
+}
+
+fn config(cfg: &mut web::ServiceConfig<AppState>) {
+    cfg.route("/user/{user_id}", web::get().to_with_state(get_user))
+        .route("/user", web::post().to_with_state(add_user));
 }
 
 #[ntex::main]
@@ -84,11 +90,118 @@ async fn main() -> std::io::Result<()> {
     web::server(async move |_| {
         App::new()
             .middleware(middleware::Logger::default())
-            .route("/user/{user_id}", web::get().to_with_state(get_user))
-            .route("/user", web::post().to_with_state(add_user))
+            .configure(config)
             .build_with(AppState::new(pool.clone()))
     })
     .bind(bind, ntex::SharedCfg::new("DIESEL"))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use diesel::connection::SimpleConnection;
+    use ntex::http::{StatusCode, header};
+    use ntex::web::test::{self, TestRequest};
+    use serde_json::json;
+
+    fn memory_pool() -> DbPool {
+        let pool = DbPool::builder()
+            .max_size(1)
+            .build(ConnectionManager::<SqliteConnection>::new(":memory:"))
+            .unwrap();
+        pool.get()
+            .unwrap()
+            .batch_execute(include_str!(
+                "../migrations/20170124012402_create_users/up.sql"
+            ))
+            .unwrap();
+        pool
+    }
+
+    /// STATEMENT: A user created through the API can be retrieved by the returned UUID.
+    ///
+    /// HOW:
+    /// - Initialize the real routes with a single-connection in-memory SQLite pool and migration.
+    /// - Post a name, check the successful JSON response and UUID, then retrieve the same user.
+    #[ntex::test]
+    async fn created_user_can_be_retrieved() {
+        let app =
+            test::init_service_st(AppState::new(memory_pool()), App::new().configure(config)).await;
+        let response = test::call_service(
+            &app,
+            TestRequest::post()
+                .uri("/user")
+                .json(&json!({"name": "Ferris"}))
+                .to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/json"
+        );
+        let created: serde_json::Value =
+            serde_json::from_slice(&test::read_body(response).await).unwrap();
+        assert_eq!(created["name"], "Ferris");
+        let id = created["id"].as_str().unwrap();
+        assert!(Uuid::parse_str(id).is_ok());
+        let response = test::call_service(
+            &app,
+            TestRequest::get().uri(&format!("/user/{id}")).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/json"
+        );
+        let retrieved: serde_json::Value =
+            serde_json::from_slice(&test::read_body(response).await).unwrap();
+        assert_eq!(retrieved, created);
+    }
+
+    /// STATEMENT: A valid UUID with no matching user returns the example's not-found message.
+    ///
+    /// HOW:
+    /// - Initialize the real routes with an empty migrated in-memory database.
+    /// - Request a nil UUID and check `404` and the message containing that UUID.
+    #[ntex::test]
+    async fn missing_user_returns_404() {
+        let app =
+            test::init_service_st(AppState::new(memory_pool()), App::new().configure(config)).await;
+        let id = Uuid::nil();
+        let response = test::call_service(
+            &app,
+            TestRequest::get().uri(&format!("/user/{id}")).to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(
+            test::read_body(response).await,
+            format!("No user found with uid: {id}")
+        );
+    }
+
+    /// STATEMENT: Invalid UUID paths are rejected rather than queried as user IDs.
+    ///
+    /// HOW:
+    /// - Initialize the real routes with an empty migrated in-memory database.
+    /// - Request `GET /user/not-a-uuid` and check for a `404` path-extraction response.
+    #[ntex::test]
+    async fn invalid_user_uuid_is_rejected() {
+        let app =
+            test::init_service_st(AppState::new(memory_pool()), App::new().configure(config)).await;
+        let response = test::call_service(
+            &app,
+            TestRequest::get().uri("/user/not-a-uuid").to_request(),
+        )
+        .await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }

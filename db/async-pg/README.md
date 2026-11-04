@@ -1,72 +1,78 @@
-# async_pg example
+# Asynchronous PostgreSQL
 
-## This example illustrates
+Insert users with `tokio_postgres`, map rows with `tokio_pg_mapper`, and share
+a `deadpool_postgres` connection pool through ntex application state.
+`types::Json<User>` extracts the request body; `dotenv` and `config` load the
+server and database settings in `src/main.rs`.
 
-- `tokio_postgres`
-- use of `tokio_pg_mapper` for postgres data mapping
-- `deadpool_postgres` for connection pooling
-- `dotenv` + `config` for configuration
+## Prerequisites
 
-## Instructions
+You need a running PostgreSQL instance and its `createuser`, `createdb`, and
+`psql` tools. Create a role and database, or substitute your existing ones:
 
-1. Create database user
+```sh
+createuser -P test_user
+createdb -O test_user testing_db
+```
 
-    ```shell
-    createuser -P test_user
-    ```
+Enter `testing` as the password for this local example. From the repository
+root, initialize the schema as that role:
 
-    Enter a password of your choice. The following instructions assume you
-    used `testing` as password.
+```sh
+psql -h 127.0.0.1 -U test_user -d testing_db -f db/async-pg/sql/schema.sql
+```
 
-    This step is **optional** and you can also use an existing database user
-    for that. Just make sure to replace `test_user` by the database user
-    of your choice in the following steps and change the `.env` file
-    containing the configuration accordingly.
+This script drops and recreates the `testing` schema, deleting its existing
+data. Create `db/async-pg/.env` with these settings, adjusting credentials and
+addresses for your installation:
 
-2. Create database
+```text
+SERVER_ADDR=127.0.0.1:8080
+PG.USER=test_user
+PG.PASSWORD=testing
+PG.HOST=127.0.0.1
+PG.PORT=5432
+PG.DBNAME=testing_db
+PG.POOL.MAX_SIZE=16
+```
 
-    ```shell
-    createdb -O test_user testing_db
-    ```
+The dependency is named `dotenv`; it reads this file when the application
+starts from the crate directory. Database connections use `NoTls`, so this
+configuration is intended for a local PostgreSQL instance.
 
-3. Initialize database
+## Run the example
 
-    ```shell
-    psql -f sql/schema.sql testing_db
-    ```
+From the repository root:
 
-    This step can be repeated and clears the database as it drops and
-    recreates the schema `testing` which is used within the database.
+```sh
+cd db/async-pg
+cargo run
+```
 
-4. Create `.env` file:
+With the configuration above, the server listens on `127.0.0.1:8080`.
+Change `SERVER_ADDR` to use another address.
 
-    ```ini
-    SERVER_ADDR=127.0.0.1:8080
-    PG.USER=test_user
-    PG.PASSWORD=testing
-    PG.HOST=127.0.0.1
-    PG.PORT=5432
-    PG.DBNAME=testing_db
-    PG.POOL.MAX_SIZE=16
-    ```
+## Try it
 
-5. Run the server:
+```sh
+curl -i http://127.0.0.1:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ferris@thecrab.com","first_name":"ferris","last_name":"crab","username":"ferreal"}'
+```
 
-    ```shell
-    cargo run
-    ```
+`POST /users` requires all four string fields and returns the inserted user
+as JSON. The `username` column is unique: repeating this request returns
+HTTP 500. There is no route for listing users.
 
-6. Using a different terminal send an HTTP POST request to the running server:
+## Tests
 
-    ```shell
-    echo '{"email": "ferris@thecrab.com", "first_name": "ferris", "last_name": "crab", "username": "ferreal"}' | http -f --json --print h POST http://127.0.0.1:8080/users
-    ```
+```sh
+cargo test -p async_pg
+```
 
-    **...or using curl...**
+Checks rendered not-found and connection-pool error responses without connecting to PostgreSQL.
 
-    ```shell
-    curl -d '{"email": "ferris@thecrab.com", "first_name": "ferris", "last_name": "crab", "username": "ferreal"}' -H 'Content-Type: application/json' http://127.0.0.1:8080/users
-    ```
+## Learn more
 
-    A unique constraint exists for username, so sending this request twice
-    will return an internal server error (HTTP 500).
+- [Application state](https://docs.ntex.rs/8.2-web-app.html)
+- [Extractors](https://docs.ntex.rs/8.4-web-app.html#extractors)

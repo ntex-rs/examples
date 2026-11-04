@@ -1,6 +1,7 @@
 [package]
 name = "json-example"
 version = "4.0.0"
+description = "Typed JSON extraction and manual request-body parsing with ntex"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

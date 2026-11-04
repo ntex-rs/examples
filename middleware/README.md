@@ -1,9 +1,10 @@
-# middleware examples
+# Middleware
 
-This example showcases a bunch of different uses of middlewares. See also the
-[Middleware guide](https://ntex.rs/docs/middleware/).
+Four small middlewares that show the common patterns: inspecting the request
+body, inspecting the response body, redirecting, and running code before and
+after the handler.
 
-## What is a middleware
+## What is middleware?
 
 A middleware is a service that wraps another service. It sits between the
 server and the application handlers, so it sees every request before the
@@ -39,16 +40,14 @@ response <- A <- B <- router <- handler
 
 `src/simple.rs` is a walkthrough of these steps.
 
-## Usage
+## Run the example
 
 ```bash
-cd middleware
-cargo run
-# Started http server: 127.0.0.1:8080
+cargo run -p middleware-example
 ```
 
-Look in `src/main.rs` and comment the different middlewares in/out to see how
-they function.
+The server listens on `http://127.0.0.1:8080`. To see what each middleware
+does, comment its `.middleware(...)` line in `src/main.rs` in or out.
 
 ## Middlewares
 
@@ -75,6 +74,20 @@ passes to the client.
 
 ### simple::SayHi
 
-A minimal, middleware demonstrating the sequence of operations
+A minimal middleware demonstrating the sequence of operations
 in an ntex middleware: how it is created, how it wraps the next service, and how
 it modifies the request and the response.
+
+## Tests
+
+```sh
+cargo test -p middleware-example
+```
+
+Covers middleware headers, redirects, payload preservation and rejection, and unchanged response bodies without capturing logs.
+
+## Learn more
+
+- [Middleware](https://docs.ntex.rs/8.3-web-app.html#middleware)
+- [Where filters and middleware run](https://docs.ntex.rs/8.3-web-app.html#where-filters-and-middleware-run)
+- [Choosing between filters and middleware](https://docs.ntex.rs/8.3-web-app.html#choosing-between-them)

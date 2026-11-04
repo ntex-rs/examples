@@ -1,3 +1,9 @@
+//! Render a name form and greeting with minified Yarte templates.
+//!
+//! `#[derive(TemplateMin)]` compiles templates and partials into a renderer.
+//! The handler calls `TemplateMin::call` and builds an HTML `HttpResponse`;
+//! rendering errors become HTTP 500 responses.
+
 use std::collections::HashMap;
 
 use ntex::web::{self, App, HttpResponse, WebError, error, middleware, types};
@@ -44,6 +50,13 @@ mod test {
     use ntex::util::Bytes;
     use ntex::{http, web::test as atest};
 
+    /// STATEMENT: The template renders forms and greetings and rejects a missing last name.
+    ///
+    /// HOW:
+    /// - Initialize `index` with `web::test::init_service`, without a listener.
+    /// - Request no query, both names, only `name`, and only `lastname`.
+    /// - Check successful HTML responses and their content types, plus the error
+    ///   status and body when `name` is present without `lastname`.
     #[ntex::test]
     async fn test() {
         let app = atest::init_service(App::new().service(index)).await;

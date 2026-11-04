@@ -1,9 +1,45 @@
-The goal of this example is to show you how to use the ntex client (awc)
-for https related communication.  As of ntex 2.0.0, one must be very
-careful about setting up https communication.  **You could use the default 
-awc api without configuring ssl but performance will be severely diminished**.
+# Downloading an image over HTTPS
 
-This example downloads a 10MB image from wikipedia.
+This example builds an `ntex::client::Client` with an OpenSSL
+`SslConnector` and shares it with the download URL through `web::AppState`. See `src/main.rs` for
+`Client::builder().secure_connector(...)` and the outgoing HTTPS request.
 
-To run:
-> curl http://localhost:3000 -o image.jpg
+Each request to `/` downloads an approximately 10 MB Wikipedia image, buffers
+it in memory with a 20,000,000-byte limit, and returns it as `image/jpeg`.
+It does not stream the upstream body to the caller.
+
+## Prerequisites
+
+OpenSSL development libraries and internet access to
+`upload.wikimedia.org` are required. `Cargo.toml` enables ntex's `openssl`
+feature.
+
+## Run the example
+
+```sh
+cd extras/http-client
+cargo run
+```
+
+The server listens on `0.0.0.0:3000`, accepting connections on all interfaces.
+
+## Try it
+
+```sh
+curl http://127.0.0.1:3000/ -o image.jpg
+```
+
+The handler prints the time spent downloading the image into memory.
+
+## Tests
+
+```sh
+cargo test -p http-client
+```
+
+Covers downloading a binary image from a local test server and unknown routes without contacting Wikipedia.
+
+## Learn more
+
+- [HTTPS clients](https://docs.ntex.rs/10-tls.html#http-client)
+- [Application State](https://docs.ntex.rs/8.2-web-app.html#accessing-application-state-in-handlers)

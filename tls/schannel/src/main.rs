@@ -1,3 +1,10 @@
+//! HTTPS server using Windows Schannel, composed by hand because there is no
+//! `bind_schannel` helper.
+//!
+//! Pass `--mtls` to request client certificates. Schannel neither requires nor
+//! verifies them, so the application gate below does both before HTTP starts.
+//! Set `TLS_IDENTITY` to a PFX path or store selector to replace the generated identity.
+
 #![recursion_limit = "256"]
 
 #[cfg(windows)]

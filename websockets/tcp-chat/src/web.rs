@@ -1,3 +1,5 @@
+//! WebSocket chat endpoint and browser client on `127.0.0.1:8080`.
+
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::channel::mpsc::{self, UnboundedSender};
@@ -47,7 +49,9 @@ struct WsChatSession {
 impl Drop for WsChatSession {
     fn drop(&mut self) {
         // Notify the chat server when this session closes.
-        let _ = self.server.send(ServerMessage::Disconnect(self.id));
+        let _ = self
+            .server
+            .unbounded_send(ServerMessage::Disconnect(self.id));
     }
 }
 
@@ -211,7 +215,7 @@ async fn messages(sink: ws::WsSink, mut server: mpsc::UnboundedReceiver<ClientMe
 async fn heartbeat(
     state: Rc<RefCell<WsChatSession>>,
     sink: ws::WsSink,
-    mut server: mpsc::UnboundedSender<ServerMessage>,
+    server: mpsc::UnboundedSender<ServerMessage>,
     mut rx: oneshot::Receiver<()>,
 ) {
     loop {
@@ -223,7 +227,7 @@ async fn heartbeat(
                     println!("Websocket Client heartbeat failed, disconnecting!");
 
                     // Notify the chat server.
-                    let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
+                    let _ = server.unbounded_send(ServerMessage::Disconnect(state.borrow().id));
 
                     // Disconnect the client.
                     return;
@@ -264,4 +268,40 @@ pub fn server(
             .service(fs::Files::new("/static/", "static/"))
             .build_with(ChatState(server)),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::http::test;
+    use ntex::time::{Seconds, timeout};
+
+    /// STATEMENT: Chat messages are broadcast to another client in the default room.
+    ///
+    /// HOW:
+    /// - Start the real chat server and connect two WebSocket clients to `/ws/`.
+    /// - Check the join notification, send text from the first client, and check the second receives it.
+    #[ntex::test]
+    async fn chat_broadcasts_between_clients() {
+        let chat = crate::server::start();
+        let srv = test::server(async move |_| server(chat.clone()));
+        timeout(Seconds(3), async {
+            let (first, first_codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            let (second, second_codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            assert_eq!(
+                first.recv(&first_codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"Someone joined"))
+            );
+            first
+                .send(ws::Message::Text("hello room".into()), &first_codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                second.recv(&second_codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"hello room"))
+            );
+        })
+        .await
+        .unwrap();
+    }
 }

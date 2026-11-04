@@ -1,10 +1,10 @@
 [package]
 name = "multipart-example"
 version = "4.0.0"
+description = "Streaming multipart uploads and blocking file writes with ntex"
 authors = ["Bevan Hunt <bevan@bevanhunt.com>"]
 edition = "2024"
 license = "MIT"
-description = "Simple file uploader in Ntex with Async/Await"
 keywords = ["ntex", "multipart"]
 repository = "https://github.com/ntex/examples"
 readme = "README.md"
@@ -13,3 +13,4 @@ readme = "README.md"
 ntex = { workspace = true }
 ntex-multipart = { workspace = true }
 futures = { workspace = true }
+uuid = { workspace = true }

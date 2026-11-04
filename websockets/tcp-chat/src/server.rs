@@ -68,14 +68,14 @@ impl ChatServer {
     fn send_message(&mut self, room: &str, message: &str, skip_id: usize) {
         if let Some(sessions) = self.rooms.get(room) {
             for id in sessions {
-                if *id != skip_id {
-                    if let Some(addr) = self.sessions.get(id) {
-                        let msg = message.to_owned();
-                        let mut addr = addr.clone();
-                        rt::spawn(async move {
-                            let _ = addr.send(ClientMessage::Message(msg)).await;
-                        });
-                    }
+                if *id != skip_id
+                    && let Some(addr) = self.sessions.get(id)
+                {
+                    let msg = message.to_owned();
+                    let mut addr = addr.clone();
+                    rt::spawn(async move {
+                        let _ = addr.send(ClientMessage::Message(msg)).await;
+                    });
                 }
             }
         }

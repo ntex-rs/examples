@@ -1,19 +1,11 @@
-Basics
-------
+# Basics
 
 A tour of the basic building blocks of an ntex web application: route macros
 and resources, path parameters, cookie sessions, streaming responses, static
 files, redirects, errors and a custom 404 page. See `src/main.rs` for detailed
 comments.
 
-See also the [Request handlers](https://ntex.rs/docs/handlers/),
-[URL dispatch](https://ntex.rs/docs/url-dispatch/),
-[Static files](https://ntex.rs/docs/static-files/),
-[Errors](https://ntex.rs/docs/errors/) and
-[User sessions](https://ntex.rs/docs/middleware/#user-sessions) sections of
-the ntex guide.
-
-## Running the example
+## Run the example
 
 ```bash
 cargo run -p basics
@@ -49,3 +41,18 @@ curl -i -X POST http://localhost:8080/test       # 405 Method Not Allowed
 curl -i -X DELETE http://localhost:8080/test     # 404 Not Found
 curl -i -X POST http://localhost:8080/not-found  # 405 from the default service
 ```
+
+## Tests
+
+```sh
+cargo test -p basics
+```
+
+Covers parameter routes, redirects, session cookies, static files, custom 404 pages, and error responses.
+
+## Learn more
+
+- [Handlers](https://docs.ntex.rs/8.1-web-app.html#handlers) and [how routing works](https://docs.ntex.rs/8.1-web-app.html#how-routing-works)
+- [Accessing path variables](https://docs.ntex.rs/8.1-web-app.html#accessing-path-variables)
+- [Responders](https://docs.ntex.rs/8.4-web-app.html#responders)
+- [Errors](https://docs.ntex.rs/8.5-web-app.html)

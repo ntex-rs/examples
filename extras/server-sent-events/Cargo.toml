@@ -1,6 +1,7 @@
 [package]
 name = "server-sent-events"
 version = "4.0.0"
+description = "Broadcast server-sent events to browser EventSource clients"
 authors = ["Arve Seljebu"]
 edition = "2024"
 

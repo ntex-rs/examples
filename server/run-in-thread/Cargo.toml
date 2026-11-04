@@ -1,9 +1,9 @@
 [package]
 name = "run-in-thread"
 version = "4.0.0"
+description = "Run an ntex server in a separate thread and stop it from main"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
-description = "Run ntex in separate thread"
 
 [dependencies]
 ntex = { workspace = true }

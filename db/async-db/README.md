@@ -1,47 +1,73 @@
-Getting started using databases with Ntex, asynchronously.
+# Asynchronous SQLite queries
 
-## Usage
+Compare sequential and concurrent database queries without blocking ntex workers.
+`src/main.rs` uses `AppState` to share an `r2d2` connection pool, while
+`src/db.rs` runs synchronous SQLite queries through `web::block`.
 
-### init database sqlite
+Each request runs four weather queries. An artificial two-second delay per
+query makes the difference between sequential execution and `join_all` easier
+to see; this is a demonstration, not a database benchmark.
 
-From the root directory of this project:
-```bash
+## Prerequisites
+
+Install the SQLite development library and the `sqlite3` command-line tool.
+On Ubuntu, for example:
+
+```sh
+sudo apt install libsqlite3-dev sqlite3
+```
+
+The included data comes from NOAA; see [the database notes](db/README.md).
+
+## Run the example
+
+From the repository root, initialize the database once, then start the server:
+
+```sh
+cd db/async-db
 bash db/setup_db.sh
+cargo run
 ```
 
-This creates a sqlite database, weather.db, in the root.
+The server listens on `127.0.0.1:8080`. The setup script creates
+`db/async-db/weather.db`, and the application opens `weather.db` relative to the
+current working directory. Keep that directory at `db/async-db` when running.
+Do not rerun the import on an existing database: it appends the CSV rows again.
 
+## Try it
 
-### server
+| Request | Result |
+| --- | --- |
+| `GET /asyncio_weather` | Run the four queries sequentially and return their results as JSON |
+| `GET /parallel_weather` | Run the same queries concurrently and return their results as JSON |
 
-```bash
-# if ubuntu : sudo apt-get install libsqlite3-dev
-# if fedora : sudo dnf install libsqlite3x-devel
-cargo run (or ``cargo watch -x run``)
-# Started http server: 127.0.0.1:8080
+```sh
+curl http://127.0.0.1:8080/asyncio_weather
+curl http://127.0.0.1:8080/parallel_weather
 ```
 
-### web client
+Both responses contain four arrays: hottest years, coldest years, hottest
+months, and coldest months, in that order. The rankings use sums of `tmax`.
 
-[http://127.0.0.1:8080/asyncio_weather](http://127.0.0.1:8080/asyncio_weather)
+To inspect the database from `db/async-db`:
 
-[http://127.0.0.1:8080/parallel_weather](http://127.0.0.1:8080/parallel_weather)
-
-
-### sqlite client
-
-```bash
-# if ubuntu : sudo apt-get install sqlite3
-# if fedora : sudo dnf install sqlite3x
+```sh
 sqlite3 weather.db
-sqlite> .tables
-sqlite> select * from nyc_weather;
 ```
 
-## Dependencies
-
-On Ubuntu 19.10:
-
+```text
+.tables
+SELECT * FROM nyc_weather LIMIT 10;
 ```
-sudo apt install libsqlite3-dev
+
+## Tests
+
+```sh
+cargo test -p async_db
 ```
+
+Exercises sequential and concurrent weather routes and database errors using in-memory SQLite, without the simulated query delay.
+
+## Learn more
+
+- [Application state](https://docs.ntex.rs/8.2-web-app.html)

@@ -7,6 +7,13 @@ use std::{thread::sleep, time::Duration};
 
 pub type Pool = r2d2::Pool<r2d2_sqlite::SqliteConnectionManager>;
 pub type Connection = r2d2::PooledConnection<r2d2_sqlite::SqliteConnectionManager>;
+// Keep the demonstration delay out of the in-process tests.
+const QUERY_DELAY: Duration = if cfg!(test) {
+    Duration::ZERO
+} else {
+    Duration::from_secs(2)
+};
+
 type WeatherAggResult = Result<Vec<WeatherAgg>, rusqlite::Error>;
 
 #[derive(Debug, Display, From, thiserror::Error)]
@@ -34,28 +41,27 @@ pub enum WeatherAgg {
 }
 
 pub enum Queries {
-    GetTopTenHottestYears,
-    GetTopTenColdestYears,
-    GetTopTenHottestMonths,
-    GetTopTenColdestMonths,
+    HottestYears,
+    ColdestYears,
+    HottestMonths,
+    ColdestMonths,
 }
 
 pub async fn execute(pool: &Pool, query: Queries) -> Result<Vec<WeatherAgg>, BlockingError<Error>> {
     let pool = pool.clone();
     web::block(move || {
         // simulate an expensive query, see comments at top of main.rs
-        sleep(Duration::from_secs(2));
+        sleep(QUERY_DELAY);
 
         let result = match query {
-            Queries::GetTopTenHottestYears => get_hottest_years(pool.get()?),
-            Queries::GetTopTenColdestYears => get_coldest_years(pool.get()?),
-            Queries::GetTopTenHottestMonths => get_hottest_months(pool.get()?),
-            Queries::GetTopTenColdestMonths => get_coldest_months(pool.get()?),
+            Queries::HottestYears => get_hottest_years(pool.get()?),
+            Queries::ColdestYears => get_coldest_years(pool.get()?),
+            Queries::HottestMonths => get_hottest_months(pool.get()?),
+            Queries::ColdestMonths => get_coldest_months(pool.get()?),
         };
         result.map_err(Error::from)
     })
     .await
-    .map_err(From::from)
 }
 
 fn get_hottest_years(conn: Connection) -> WeatherAggResult {

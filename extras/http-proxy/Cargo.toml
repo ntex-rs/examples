@@ -1,6 +1,7 @@
 [package]
 name = "http-proxy"
 version = "4.0.0"
+description = "Forward HTTP requests and responses to a configurable upstream"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>", "Rotem Yaari <vmalloc@gmail.com>"]
 edition = "2024"
 

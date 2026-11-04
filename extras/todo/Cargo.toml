@@ -2,6 +2,7 @@
 authors = ["Dan Munckton <dangit@munckfish.net>"]
 name = "todo"
 version = "4.0.0"
+description = "Render a PostgreSQL todo list with templates and cookie flash messages"
 edition = "2024"
 
 [dependencies]

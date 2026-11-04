@@ -1,6 +1,7 @@
 [package]
 name = "web-state"
 version = "4.0.0"
+description = "Application state shared by ntex web filters, middleware and handlers"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

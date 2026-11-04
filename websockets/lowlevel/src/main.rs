@@ -142,6 +142,36 @@ async fn heartbeat(
     }
 }
 
+/// Builds the HTTP upgrade service independently of the transport security.
+fn http_service<F: ntex::io::Filter + 'static>()
+-> impl Service<(), Io<F>, Res = (), Error = io::Error> {
+    let ws_service = Rc::new(Pipeline::new((), fn_service(ws_service)));
+
+    HttpService::new(
+        App::new()
+            // enable logger
+            .middleware(middleware::Logger::default())
+            // static files
+            .service(fs::Files::new("/", "static/").index_file("index.html")),
+    )
+    // Verify the WebSocket handshake before starting the service.
+    // and then switch to websokets streaming
+    .h1_control(move |req: h1::Control<_, _>| {
+        let ws_service = ws_service.clone();
+        async move {
+            let ack = if let h1::Control::Upgrade(upg) = req {
+                let (ack, io, req, codec) = upg.handle();
+                ws_service.call((req, io, codec)).await?;
+                ack
+            } else {
+                req.ack()
+            };
+            Ok::<_, io::Error>(ack)
+        }
+    })
+    .map_err(|_| io::Error::other("http error"))
+}
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     unsafe {
@@ -170,35 +200,65 @@ async fn main() -> std::io::Result<()> {
             async move |_| {
                 service(SslAcceptor::new(acceptor.clone()))
                     .map_err(|_| io::Error::other("ssl error"))
-                    .and_then({
-                        let ws_service = Rc::new(Pipeline::new((), fn_service(ws_service)));
-
-                        HttpService::new(
-                            App::new()
-                                // enable logger
-                                .middleware(middleware::Logger::default())
-                                // static files
-                                .service(fs::Files::new("/", "static/").index_file("index.html")),
-                        )
-                        // Verify the WebSocket handshake before starting the service.
-                        // and then switch to websokets streaming
-                        .h1_control(move |req: h1::Control<_, _>| {
-                            let ws_service = ws_service.clone();
-                            async move {
-                                let ack = if let h1::Control::Upgrade(upg) = req {
-                                    let (ack, io, req, codec) = upg.handle();
-                                    ws_service.call((req, io, codec)).await?;
-                                    ack
-                                } else {
-                                    req.ack()
-                                };
-                                Ok::<_, io::Error>(ack)
-                            }
-                        })
-                        .map_err(|_| io::Error::other("http error"))
-                    })
+                    .and_then(http_service())
             },
         )?
         .run()
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::{
+        http::{StatusCode, test},
+        time::{Seconds, timeout},
+    };
+
+    /// STATEMENT: The WebSocket endpoint echoes text and answers pings.
+    ///
+    /// HOW:
+    /// - Start the real HTTP upgrade service on an ephemeral test server and connect to `/`.
+    /// - Send text and a ping, checking the echoed text and pong within a timeout.
+    #[ntex::test]
+    async fn websocket_echoes_text_and_answers_ping() {
+        let srv = test::server(async |_| http_service());
+        timeout(Seconds(3), async {
+            let (io, codec, _) = srv.ws_at("/").await.unwrap().into_inner();
+            io.send(ws::Message::Text("hello".into()), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"hello"))
+            );
+            io.send(ws::Message::Ping(Bytes::from_static(b"ping")), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Pong(Bytes::from_static(b"ping"))
+            );
+        })
+        .await
+        .unwrap();
+    }
+
+    /// STATEMENT: An unknown HTTP path returns `404 Not Found`.
+    ///
+    /// HOW:
+    /// - Start the real HTTP service and request a missing asset.
+    /// - Check that the response is `404 Not Found`.
+    #[ntex::test]
+    async fn unknown_path_returns_not_found() {
+        let srv = test::server(async |_| http_service());
+        let response = timeout(
+            Seconds(3),
+            srv.request(ntex::http::Method::GET, "/missing").send(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }

@@ -1,3 +1,6 @@
+//! Chat framing for the TCP listener: a 2-byte big-endian length followed by
+//! a JSON-encoded request or response.
+
 #![allow(dead_code)]
 use std::io;
 

@@ -1,6 +1,7 @@
 [package]
 name = "websocket"
 version = "4.0.0"
+description = "WebSocket echo server and clients, over ws:// and wss://"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

@@ -1,9 +1,9 @@
 [package]
 name = "shutdown-server"
 version = "4.0.0"
+description = "Shut down an ntex server gracefully through an HTTP request"
 authors = ["Rob Ede <robjtede@icloud.com>"]
 edition = "2024"
-description = "Send a request to the server to shut it down"
 
 [dependencies]
 ntex = { workspace = true }

@@ -1,0 +1,53 @@
+name: CI (Windows)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VCPKGRS_DYNAMIC: 1
+
+jobs:
+  build_and_test:
+    name: stable - x86_64-pc-windows-msvc
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache vcpkg
+        uses: actions/cache@v5
+        with:
+          path: C:\vcpkg\installed\
+          key: x86_64-pc-windows-msvc-vcpkg-openssl-sqlite3
+
+      - name: Install OpenSSL and SQLite
+        run: |
+          $env:VCPKG_MANIFEST_MODE = 'OFF'
+          vcpkg integrate install
+          vcpkg install --clean-after-build openssl:x64-windows sqlite3:x64-windows
+          "C:\vcpkg\installed\x64-windows\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      # The runner image ships PostgreSQL; diesel's postgres backend links libpq from it.
+      - name: Configure libpq
+        run: |
+          "PQ_LIB_DIR=$env:PGROOT\lib" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$env:PGBIN" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Install stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+
+      - name: Build
+        run: cargo build --workspace --all-targets
+
+      - name: Run tests
+        timeout-minutes: 15
+        run: cargo test --workspace

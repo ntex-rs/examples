@@ -1,32 +1,66 @@
-# Websocket chat example
+# WebSocket chat
 
-This is extension of the
-[ntex chat example](https://github.com/ntex-rs/examples/tree/master/websockets/chat)
+A multi-room chat server. Browsers and command-line clients connect over
+WebSocket at `/ws/`; a single chat server task routes messages between them.
 
-Added features:
+Things to look at:
 
-* Browser WebSocket client
-* Chat server runs in separate thread
-* Tcp listener runs in separate thread
+- `src/main.rs` upgrades `GET /ws/` with `ws::start()` and runs one session per
+  connection. A heartbeat task pings every 5 seconds and drops clients that
+  stay silent for 10 seconds.
+- `src/server.rs` is the chat server: a task that owns the room list and talks
+  to the sessions over `futures` channels.
+- The chat server handle reaches the handlers through application state
+  (`ChatState`, `build_with()`, `to_with_state()`).
 
-## Server
+For a version that also accepts raw TCP clients, see
+[`tcp-chat`](../tcp-chat/README.md).
 
-Chat server listens for incoming tcp connections. Server can access several types of message:
+## Run the server
 
-* `/list` - list all available rooms
-* `/join name` - join room, if room does not exist, create new one
-* `/name name` - set session name
-* `some message` - just string, send message to all peers in same room
-* client has to send heartbeat `Ping` messages, if server does not receive a heartbeat message for 10 seconds connection gets dropped
+```sh
+cd websockets/chat
+cargo run --bin websocket-chat-server
+```
 
-To start server use command: `cargo run --bin websocket-chat-server`
+The server listens on `127.0.0.1:8080`. Run it from `websockets/chat` so the
+static files in `static/` are found.
 
-## Client
+## Connect clients
 
-Client connects to server. Reads input from stdin and sends to server.
+**Browser:** open <http://localhost:8080/>, which redirects to
+`/static/websocket.html`. Open it in several tabs to chat with yourself.
 
-To run client use command: `cargo run --bin websocket-chat-client`
+**Python:** requires [aiohttp](https://docs.aiohttp.org/):
 
-## WebSocket Browser Client
+```sh
+pip install aiohttp
+python client.py            # --host and --port default to 127.0.0.1:8080
+```
 
-Open url: [http://localhost:8080/](http://localhost:8080/)
+## Chat commands
+
+Every new session joins the `Main` room. Lines that start with `/` are
+commands; anything else is sent to everyone else in your current room.
+
+| Command | Effect |
+|---------|--------|
+| `/list` | List the available rooms |
+| `/join <room>` | Join a room, creating it if needed |
+| `/name <name>` | Set the name shown before your messages |
+| any other text | Send a message to the current room |
+
+## Learn more
+
+- [Servers with `web::ws`](https://docs.ntex.rs/8.6-web-app.html#servers-with-webws)
+  and [heartbeats and closing](https://docs.ntex.rs/8.6-web-app.html#heartbeats-and-closing-the-connection)
+  in the WebSocket chapter of the ntex guide.
+- [Application state](https://docs.ntex.rs/8.2-web-app.html#accessing-application-state-in-handlers).
+
+## Tests
+
+```sh
+cargo test -p websocket-chat
+```
+
+The tests connect two clients to the real chat server and cover room broadcasts, ping/pong, and a missing room argument.

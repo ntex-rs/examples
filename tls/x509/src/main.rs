@@ -1,3 +1,6 @@
+//! Prints certificate metadata from PEM, DER, PKCS#12, a PEM identity, or an
+//! `IdentitySource` string. Loading a certificate is not a trust check.
+
 use std::{env, fs};
 
 use ntex_tls::x509::{Certificate, Identity, IdentitySource, digest::Algorithm};

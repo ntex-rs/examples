@@ -1,4 +1,6 @@
-//! Simple websocket client.
+//! Command-line chat client for the TCP listener on `127.0.0.1:12345`.
+//!
+//! Reads lines from stdin and sends them using the framing in `codec.rs`.
 use std::{thread, time::Duration};
 
 use futures::{SinkExt, StreamExt, channel::mpsc};
@@ -104,15 +106,12 @@ async fn main() -> Result<(), std::io::Error> {
     });
 
     // input dispatcher
-    loop {
-        match io.recv(&ClientChatCodec).await {
-            Ok(Some(msg)) => match msg {
-                ChatResponse::Ping => {}
-                ChatResponse::Rooms(rooms) => println!("Available rooms: {:?}", rooms),
-                ChatResponse::Joined(name) => println!("You joined {} room", name),
-                ChatResponse::Message(msg) => println!("{}", msg),
-            },
-            Err(_) | Ok(None) => break,
+    while let Ok(Some(msg)) = io.recv(&ClientChatCodec).await {
+        match msg {
+            ChatResponse::Ping => {}
+            ChatResponse::Rooms(rooms) => println!("Available rooms: {:?}", rooms),
+            ChatResponse::Joined(name) => println!("You joined {} room", name),
+            ChatResponse::Message(msg) => println!("{}", msg),
         }
     }
     // stop heartbeat

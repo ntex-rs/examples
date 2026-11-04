@@ -1,6 +1,7 @@
 [package]
 name = "schannel-example"
 version = "4.0.0"
+description = "HTTPS and mutual TLS with the Windows SChannel backend"
 edition.workspace = true
 publish = false
 default-run = "schannel-server"

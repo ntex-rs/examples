@@ -1,6 +1,7 @@
 [package]
 name = "websocket-lowlevel"
 version = "4.0.0"
+description = "Low-level WebSocket server built on the HTTP/1 control service"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""websocket cmd client for ntex/websocket-tcp-chat example."""
+"""Command-line WebSocket client for the ntex chat examples."""
 import argparse
 import asyncio
 import signal
@@ -58,7 +58,7 @@ async def main(url, loop):
 
 
 ARGS = argparse.ArgumentParser(
-    description="websocket console client for wssrv.py example.")
+    description="Command-line WebSocket client for the ntex chat examples.")
 ARGS.add_argument(
     '--host', action="store", dest='host',
     default='127.0.0.1', help='Host name')
