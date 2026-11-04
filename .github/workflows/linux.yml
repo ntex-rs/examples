@@ -28,7 +28,10 @@ jobs:
       - name: Install system libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpq-dev libsqlite3-dev libssl-dev pkg-config
+          sudo apt-get install -y libclang-dev libpq-dev libsqlite3-dev libssl-dev pkg-config
+          # argonautica (simple-auth-server) runs bindgen, which loads libclang
+          libclang="$(find /usr/lib/llvm-*/lib -name 'libclang.so' | sort -V | tail -n 1)"
+          echo "LIBCLANG_PATH=$(dirname "$libclang")" >> "$GITHUB_ENV"
 
       - name: Install ${{ matrix.version }}
         uses: actions-rust-lang/setup-rust-toolchain@v1

@@ -17,6 +17,9 @@ This example shows how to:
 - Install the OpenSSL development libraries and headers.
 - Create the [local certificates](../README.md#step-1-create-local-certificates).
 - Run every command below from this directory, `tls/openssl`.
+- This example does not run on Windows. There, `x509::Identity` keeps its
+  private key as a non-exportable CNG key, which OpenSSL cannot load. Use the
+  [rustls](../rustls) or [schannel](../schannel) example on Windows.
 
 ## 1. HTTPS server and client
 
@@ -115,3 +118,5 @@ cargo test -p openssl-example
 ```
 
 The tests generate identities in memory and exercise HTTPS routes and the real mutual-TLS service with anonymous and authorized clients.
+
+The tests are skipped on Windows for the reason given in [Before you start](#before-you-start).
