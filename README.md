@@ -93,14 +93,18 @@ PostgreSQL client library (`libpq`).
 
 | Example | Description |
 | --- | --- |
-| [tls/openssl](tls/openssl) | HTTPS server with OpenSSL |
-| [tls/rustls](tls/rustls) | HTTPS server with rustls |
+| [tls/openssl](tls/openssl) | OpenSSL HTTPS client/server and mutual authentication |
+| [tls/rustls](tls/rustls) | rustls HTTPS client/server, providers and mutual authentication |
+| [tls/schannel](tls/schannel) | Windows TLS, store identities and explicit client authentication |
+| [tls/x509](tls/x509) | Portable identity loading, certificate inspection and peer authorization |
+
+Start with the [local certificate setup](tls/README.md).
 
 ### WebSockets
 
 | Example | Description |
 | --- | --- |
-| [websockets/basic](websockets/basic) | WebSocket echo server and client |
+| [websockets/basic](websockets/basic) | WebSocket echo server and client, over plain TCP or TLS |
 | [websockets/lowlevel](websockets/lowlevel) | WebSocket server and client using the low-level API |
 | [websockets/mqtt](websockets/mqtt) | MQTT server and client over a binary WebSocket transport |
 | [websockets/chat](websockets/chat) | WebSocket chat server |

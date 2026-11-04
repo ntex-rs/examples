@@ -54,7 +54,7 @@
 use std::{cell::Cell, collections::HashMap, convert::Infallible, io, rc::Rc, sync::Arc};
 
 use ntex::http::header::{self, HeaderName, HeaderValue};
-use ntex::service::{Middleware, Service, fn_service_st};
+use ntex::service::{BindCtx, Middleware, Service, fn_service_st};
 use ntex::web::{self, App, DefaultError, HttpResponse, WebRequest, WebResponse};
 use ntex::{Ctx, SharedCfg};
 
@@ -139,8 +139,17 @@ where
     type Res = WebResponse;
     type Error = S::Error;
 
-    ntex::forward_ready!(AppState, service);
-    ntex::forward_shutdown!(AppState, service);
+    fn bind(&self, ctx: BindCtx<'_>) {
+        ctx.bind(&self.service);
+    }
+
+    async fn ready(&self, ctx: Ctx<'_, Self, AppState>) -> Result<(), Self::Error> {
+        ctx.ready(&self.service).await
+    }
+
+    async fn shutdown(&self, ctx: Ctx<'_, Self, AppState>) {
+        ctx.shutdown(&self.service).await;
+    }
 
     async fn call(
         &self,

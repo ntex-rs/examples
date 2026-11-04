@@ -2,13 +2,12 @@
 // exceed the default query depth limit.
 #![recursion_limit = "256"]
 
-use std::fs::File;
-use std::io::BufReader;
+use std::sync::Arc;
 
 use ntex::web::{self, App, HttpRequest, HttpResponse, middleware};
 use ntex_files::Files;
-use rustls::ServerConfig;
-use rustls_pemfile::certs;
+use rustls::{ServerConfig, sign::SingleCertAndKey};
+use tls_x509_example::{Error, load_identity};
 
 /// Returns request information as a response.
 async fn index(req: HttpRequest) -> HttpResponse {
@@ -19,7 +18,7 @@ async fn index(req: HttpRequest) -> HttpResponse {
 }
 
 #[ntex::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> Result<(), Error> {
     if std::env::var("RUST_LOG").is_err() {
         unsafe {
             std::env::set_var("RUST_LOG", "info");
@@ -27,15 +26,13 @@ async fn main() -> std::io::Result<()> {
     }
     env_logger::init();
 
-    // load ssl keys
-    let key_file = &mut BufReader::new(File::open("key.pem").unwrap());
-    let key = rustls_pemfile::private_key(key_file).unwrap().unwrap();
-    let cert_file = &mut BufReader::new(File::open("cert.pem").unwrap());
-    let cert_chain = certs(cert_file).map(|r| r.unwrap()).collect();
-    let config = ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(cert_chain, key)
-        .unwrap();
+    let identity = load_identity("../certs/server")?;
+    let key = ntex::tls::rustls::certified_key(&identity)?;
+    let config =
+        ServerConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
+            .with_safe_default_protocol_versions()?
+            .with_no_client_auth()
+            .with_cert_resolver(Arc::new(SingleCertAndKey::from(key)));
 
     web::server(async |_| {
         App::new()
@@ -53,5 +50,6 @@ async fn main() -> std::io::Result<()> {
     })
     .bind_rustls("127.0.0.1:8443", &config, ntex::SharedCfg::new("RUSTLS"))?
     .run()
-    .await
+    .await?;
+    Ok(())
 }

@@ -8,17 +8,37 @@ use ntex::{SharedCfg, rt, time, util::Bytes, ws};
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 #[ntex::main]
-async fn main() -> Result<(), io::Error> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     unsafe {
         std::env::set_var("RUST_LOG", "ntex=trace");
     }
     env_logger::init();
 
-    // open websockets connection over http transport
-    let con = ws::WsClient::new("http://127.0.0.1:8080/ws/", SharedCfg::default())
-        .connect()
-        .await
-        .unwrap();
+    let con = if std::env::args().any(|arg| arg == "--tls") {
+        #[cfg(feature = "tls")]
+        {
+            use openssl::ssl::{SslConnector, SslMethod, SslVerifyMode};
+
+            let mut config = SslConnector::builder(SslMethod::tls())?;
+            config.set_verify(SslVerifyMode::PEER);
+            config.set_ca_file("../../tls/certs/ca.pem")?;
+            config.set_alpn_protos(b"\x08http/1.1")?;
+            ws::WsClient::new("wss://localhost:8443/ws/", SharedCfg::default())
+                .openssl(config.build())
+                .connect()
+                .await?
+                .seal()
+        }
+        #[cfg(not(feature = "tls"))]
+        {
+            return Err("--tls requires --features tls".into());
+        }
+    } else {
+        ws::WsClient::new("ws://127.0.0.1:8080/ws/", SharedCfg::default())
+            .connect()
+            .await?
+            .seal()
+    };
 
     println!("Got response: {:?}", con.response());
 

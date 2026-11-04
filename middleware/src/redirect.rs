@@ -13,7 +13,7 @@
 //! See `simple.rs` for a step by step description of how a middleware is
 //! created and how it wraps the next service in the chain.
 use ntex::http;
-use ntex::service::{Ctx, Middleware, Service};
+use ntex::service::{BindCtx, Ctx, Middleware, Service};
 use ntex::web::{HttpResponse, WebRequest, WebResponse};
 
 /// Middleware factory, passed to `App::middleware()`.
@@ -64,8 +64,17 @@ where
 
     // Readiness and shutdown are delegated to the wrapped service, the
     // middleware itself is always ready and holds no resources to release.
-    ntex::forward_ready!(St, service);
-    ntex::forward_shutdown!(St, service);
+    fn bind(&self, ctx: BindCtx<'_>) {
+        ctx.bind(&self.service);
+    }
+
+    async fn ready(&self, ctx: Ctx<'_, Self, St>) -> Result<(), Self::Error> {
+        ctx.ready(&self.service).await
+    }
+
+    async fn shutdown(&self, ctx: Ctx<'_, Self, St>) {
+        ctx.shutdown(&self.service).await;
+    }
 
     /// Called for every request that reaches this middleware.
     async fn call(

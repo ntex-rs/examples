@@ -1,0 +1,18 @@
+[package]
+name = "schannel-example"
+version = "4.0.0"
+edition.workspace = true
+publish = false
+default-run = "schannel-server"
+
+[[bin]]
+name = "schannel-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "schannel-client"
+path = "src/client.rs"
+
+[target.'cfg(windows)'.dependencies]
+ntex = { workspace = true, features = ["tokio"] }
+tls-x509-example = { path = "../x509", default-features = false }

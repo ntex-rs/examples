@@ -12,8 +12,12 @@ path = "src/main.rs"
 name = "websocket-client"
 path = "src/client.rs"
 
+[features]
+tls = ["ntex/openssl", "dep:openssl"]
+
 [dependencies]
-ntex = { workspace = true }
+ntex = { workspace = true, features = ["tokio"] }
 ntex-files = { workspace = true }
 env_logger = { workspace = true }
 futures = { workspace = true }
+openssl = { workspace = true, optional = true }

@@ -3,14 +3,24 @@ name = "rustls-example"
 version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
+default-run = "rustls-server"
 
 [[bin]]
 name = "rustls-server"
 path = "src/main.rs"
 
+[[bin]]
+name = "rustls-client"
+path = "src/client.rs"
+
+[[bin]]
+name = "rustls-mtls-server"
+path = "src/mtls.rs"
+
 [dependencies]
 env_logger = { workspace = true }
-rustls = "0.23"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pemfile = "2"
 ntex = { workspace = true, features = ["rustls", "tokio"] }
 ntex-files = { workspace = true }
+tls-x509-example = { path = "../x509", default-features = false, features = ["rustls"] }

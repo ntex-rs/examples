@@ -16,7 +16,7 @@
 use std::{rc::Rc, task::Context, task::Poll};
 
 use ntex::http::body::{Body, BodySize, MessageBody, ResponseBody};
-use ntex::service::{Ctx, Middleware, Service};
+use ntex::service::{BindCtx, Ctx, Middleware, Service};
 use ntex::util::{Bytes, BytesMut};
 use ntex::web::{WebRequest, WebResponse};
 
@@ -54,8 +54,17 @@ where
     type Error = S::Error;
 
     // Readiness and shutdown are delegated to the wrapped service.
-    ntex::forward_ready!(St, service);
-    ntex::forward_shutdown!(St, service);
+    fn bind(&self, ctx: BindCtx<'_>) {
+        ctx.bind(&self.service);
+    }
+
+    async fn ready(&self, ctx: Ctx<'_, Self, St>) -> Result<(), Self::Error> {
+        ctx.ready(&self.service).await
+    }
+
+    async fn shutdown(&self, ctx: Ctx<'_, Self, St>) {
+        ctx.shutdown(&self.service).await;
+    }
 
     /// Called for every request that reaches this middleware.
     async fn call(&self, req: WebRequest, ctx: Ctx<'_, Self, St>) -> Result<WebResponse, S::Error> {

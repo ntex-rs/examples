@@ -108,7 +108,7 @@ async fn main() -> std::io::Result<()> {
     }
     env_logger::init();
 
-    web::server(async |_| {
+    let server = web::server(async |_| {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
@@ -116,10 +116,27 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/ws/").route(web::get().to(ws_index)))
             // static files
             .service(fs::Files::new("/", "static/").index_file("index.html"))
-    })
-    // Start the HTTP server on 127.0.0.1:8080.
-    .bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET"))?
-    .workers(1)
-    .run()
-    .await
+    });
+    let server = if std::env::args().any(|arg| arg == "--tls") {
+        #[cfg(feature = "tls")]
+        {
+            use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+
+            let mut config = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls())?;
+            config.set_certificate_chain_file("../../tls/certs/server.pem")?;
+            config.set_private_key_file("../../tls/certs/server.key", SslFiletype::PEM)?;
+            server.bind_openssl(
+                "127.0.0.1:8443",
+                config,
+                ntex::SharedCfg::new("WEBSOCKET-TLS"),
+            )?
+        }
+        #[cfg(not(feature = "tls"))]
+        {
+            return Err(io::Error::other("--tls requires --features tls"));
+        }
+    } else {
+        server.bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET"))?
+    };
+    server.workers(1).run().await
 }
