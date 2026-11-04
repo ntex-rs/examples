@@ -3,8 +3,18 @@ name = "openssl-example"
 version = "4.0.0"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
+default-run = "openssl-example"
 
 [dependencies]
-ntex = { workspace = true, features = ["openssl"] }
+ntex = { workspace = true, features = ["openssl", "tokio"] }
 env_logger = { workspace = true }
 openssl = { workspace = true }
+tls-x509-example = { path = "../x509", default-features = false, features = ["openssl"] }
+
+[[bin]]
+name = "openssl-client"
+path = "src/client.rs"
+
+[[bin]]
+name = "openssl-mtls-server"
+path = "src/mtls.rs"

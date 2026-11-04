@@ -13,7 +13,7 @@
 //! created and how it wraps the next service in the chain.
 use futures::stream::{self, StreamExt};
 use ntex::http::{Payload, PayloadStream, error};
-use ntex::service::{Ctx, Middleware, Service};
+use ntex::service::{BindCtx, Ctx, Middleware, Service};
 use ntex::util::BytesMut;
 use ntex::web::{State, WebError, WebRequest, WebResponse, WebResponseError};
 
@@ -57,10 +57,20 @@ where
     /// The error type differs from the wrapped service's, see above.
     type Error = WebError<St, St::Error>;
 
-    // Readiness is delegated to the wrapped service. Its error type is
-    // `S::Error`, so it has to be converted with `WebError::from_err`.
-    ntex::forward_ready!(St, service, WebError::from_err);
-    ntex::forward_shutdown!(St, service);
+    // Binding, readiness and shutdown are delegated to the wrapped service.
+    // Its error type is `S::Error`, so readiness errors have to be converted
+    // with `WebError::from_err`.
+    fn bind(&self, ctx: BindCtx<'_>) {
+        ctx.bind(&self.service);
+    }
+
+    async fn ready(&self, ctx: Ctx<'_, Self, St>) -> Result<(), Self::Error> {
+        ctx.ready(&self.service).await.map_err(WebError::from_err)
+    }
+
+    async fn shutdown(&self, ctx: Ctx<'_, Self, St>) {
+        ctx.shutdown(&self.service).await;
+    }
 
     /// Called for every request that reaches this middleware.
     async fn call(

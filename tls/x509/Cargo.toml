@@ -1,0 +1,19 @@
+[package]
+name = "tls-x509-example"
+version = "4.0.0"
+edition.workspace = true
+publish = false
+
+[features]
+default = ["rustls"]
+rustls = ["ntex-tls/rustls-ring"]
+openssl = ["ntex-tls/openssl"]
+
+[dependencies]
+ntex = { workspace = true }
+ntex-tls = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+ntex = { workspace = true, features = ["tokio"] }
+ntex-tls = { workspace = true, features = ["testgen", "testgen-rcgen"] }

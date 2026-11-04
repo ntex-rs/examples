@@ -34,7 +34,7 @@
 //! response before returning it. It can also skip the wrapped service and
 //! return a response of its own, see `redirect.rs`.
 use ntex::http::header::{HeaderName, HeaderValue};
-use ntex::service::{Ctx, Middleware, Service};
+use ntex::service::{BindCtx, Ctx, Middleware, Service};
 use ntex::web::{State, WebRequest, WebResponse};
 
 /// Middleware factory.
@@ -93,14 +93,25 @@ where
     /// the wrapped service and passes its errors through unchanged.
     type Error = S::Error;
 
+    // `bind()` registers the wrapped service with the pipeline, so readiness
+    // changes of the wrapped service reach this middleware.
+    fn bind(&self, ctx: BindCtx<'_>) {
+        ctx.bind(&self.service);
+    }
+
     // `ready()` is called before `call()` to check that the service can accept
     // a request; it lets a service apply backpressure. This middleware is
     // always ready itself, so readiness is the readiness of the wrapped
     // service.
-    ntex::forward_ready!(St, service);
+    async fn ready(&self, ctx: Ctx<'_, Self, St>) -> Result<(), Self::Error> {
+        ctx.ready(&self.service).await
+    }
+
     // `shutdown()` is called when the server stops. The middleware owns the
     // wrapped service, so it has to forward the shutdown signal to it.
-    ntex::forward_shutdown!(St, service);
+    async fn shutdown(&self, ctx: Ctx<'_, Self, St>) {
+        ctx.shutdown(&self.service).await;
+    }
 
     /// Called for every request that reaches this middleware.
     ///

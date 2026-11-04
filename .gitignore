@@ -21,3 +21,6 @@ Cargo.lock
 
 # For multipart example
 upload.png
+
+# Local TLS example identities (never commit private keys)
+/tls/certs/
