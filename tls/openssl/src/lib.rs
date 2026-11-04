@@ -68,10 +68,11 @@ pub fn mtls_service(
         )
 }
 
-#[cfg(test)]
+// On Windows, `Identity` keys are non-exportable CNG keys, which OpenSSL cannot use.
+#[cfg(all(test, not(windows)))]
 mod test_support;
 
-#[cfg(test)]
+#[cfg(all(test, not(windows)))]
 mod tests {
     use super::*;
     use ntex::{
