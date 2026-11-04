@@ -1,3 +1,12 @@
+//! Multi-room WebSocket chat server.
+//!
+//! Each WebSocket connection on `/ws/` gets its own session and heartbeat task.
+//! Sessions talk to the chat server task in `server.rs` through channels; the
+//! server handle is shared with the handlers as application state.
+//!
+//! Run from `websockets/chat` with `cargo run --bin websocket-chat-server` and
+//! open <http://localhost:8080/>.
+
 use std::{cell::RefCell, io, rc::Rc, time::Duration, time::Instant};
 
 use futures::{SinkExt, StreamExt, channel::mpsc, future::ready};
@@ -46,7 +55,9 @@ struct WsChatSession {
 impl Drop for WsChatSession {
     fn drop(&mut self) {
         // Notify the chat server when this session closes.
-        let _ = self.server.send(ServerMessage::Disconnect(self.id));
+        let _ = self
+            .server
+            .unbounded_send(ServerMessage::Disconnect(self.id));
     }
 }
 
@@ -210,7 +221,7 @@ async fn messages(sink: ws::WsSink, mut server: mpsc::UnboundedReceiver<ClientMe
 async fn heartbeat(
     state: Rc<RefCell<WsChatSession>>,
     sink: ws::WsSink,
-    mut server: mpsc::UnboundedSender<ServerMessage>,
+    server: mpsc::UnboundedSender<ServerMessage>,
     mut rx: oneshot::Receiver<()>,
 ) {
     loop {
@@ -222,7 +233,7 @@ async fn heartbeat(
                     println!("Websocket Client heartbeat failed, disconnecting!");
 
                     // Notify the chat server.
-                    let _ = server.send(ServerMessage::Disconnect(state.borrow().id));
+                    let _ = server.unbounded_send(ServerMessage::Disconnect(state.borrow().id));
 
                     // Disconnect the client.
                     sink.io().close();
@@ -242,6 +253,27 @@ async fn heartbeat(
     }
 }
 
+/// Registers the chat endpoint and browser assets.
+fn config(cfg: &mut web::ServiceConfig<ChatState>) {
+    cfg // Redirect browsers to the chat page.
+        .service(
+            web::resource::<ChatState, (), _>("/").route(web::get::<ChatState, ()>().to(
+                || async {
+                    HttpResponse::Found()
+                        .header("LOCATION", "/static/websocket.html")
+                        .build()
+                },
+            )),
+        )
+        // Accept WebSocket connections.
+        .service(web::resource::<ChatState, (), _>("/ws/").to_with_state(chat_route))
+        // Serve the browser client assets.
+        .service(fs::Files::new(
+            "/static/",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/static"),
+        ));
+}
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
@@ -252,23 +284,84 @@ async fn main() -> std::io::Result<()> {
     // Start the HTTP server with WebSocket support.
     web::server(async move |_| {
         App::<ChatState, ()>::new()
-            // Redirect browsers to the chat page.
-            .service(
-                web::resource::<ChatState, (), _>("/").route(web::get::<ChatState, ()>().to(
-                    || async {
-                        HttpResponse::Found()
-                            .header("LOCATION", "/static/websocket.html")
-                            .build()
-                    },
-                )),
-            )
-            // Accept WebSocket connections.
-            .service(web::resource::<ChatState, (), _>("/ws/").to_with_state(chat_route))
-            // Serve the browser client assets.
-            .service(fs::Files::new("/static/", "static/"))
+            .configure(config)
             .build_with(ChatState(server.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET-CHAT"))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::time::{Seconds, timeout};
+    use ntex::web::test;
+
+    /// STATEMENT: Chat messages are broadcast to another client in the default room.
+    ///
+    /// HOW:
+    /// - Start the real chat server and connect two WebSocket clients to `/ws/`.
+    /// - Check the join notification, send text from the first client, and check the second receives it.
+    #[ntex::test]
+    async fn chat_broadcasts_between_clients() {
+        let chat = server::start();
+        let srv = test::server(async move |_| {
+            App::<ChatState, ()>::new()
+                .configure(config)
+                .build_with(ChatState(chat.clone()))
+        });
+        timeout(Seconds(3), async {
+            let (first, first_codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            let (second, second_codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            assert_eq!(
+                first.recv(&first_codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"Someone joined"))
+            );
+            first
+                .send(ws::Message::Text("hello room".into()), &first_codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                second.recv(&second_codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"hello room"))
+            );
+        })
+        .await
+        .unwrap();
+    }
+
+    /// STATEMENT: Chat sessions answer pings and report missing command arguments.
+    ///
+    /// HOW:
+    /// - Connect to the real chat endpoint and send a ping followed by `/join` without a room.
+    /// - Check the pong and the room-name error within a timeout.
+    #[ntex::test]
+    async fn chat_answers_ping_and_rejects_missing_room() {
+        let chat = server::start();
+        let srv = test::server(async move |_| {
+            App::<ChatState, ()>::new()
+                .configure(config)
+                .build_with(ChatState(chat.clone()))
+        });
+        timeout(Seconds(3), async {
+            let (io, codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            io.send(ws::Message::Ping(Bytes::from_static(b"ping")), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Pong(Bytes::from_static(b"ping"))
+            );
+            io.send(ws::Message::Text("/join".into()), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"!!! room name is required"))
+            );
+        })
+        .await
+        .unwrap();
+    }
 }

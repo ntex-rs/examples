@@ -1,6 +1,7 @@
 [package]
 name = "diesel-example"
 version = "4.0.0"
+description = "SQLite queries with Diesel, r2d2 and the ntex blocking pool"
 authors = [
   "Nikolay Kim <fafhrd91@gmail.com>",
   "Rob Ede <robjtede@icloud.com>",

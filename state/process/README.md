@@ -1,10 +1,4 @@
-Process and Worker State
-------------------------
-
-See also the [Application state](https://ntex.rs/docs/application/#state),
-[Shared mutable state](https://ntex.rs/docs/application/#shared-mutable-state) and
-[Multi-threading](https://ntex.rs/docs/server/#multi-threading) sections of the
-ntex guide.
+# Process and Worker State
 
 Each ntex worker runs a single-threaded runtime. To use multiple CPU cores and
 process connections concurrently, the networking server starts multiple
@@ -34,7 +28,6 @@ instances, initialize caches, or allocate other resources that should be
 owned by an individual worker. If initialization fails, the method can return
 an error and prevent that worker’s application instance from starting
 with an invalid state.
-
 
 ```rust
 struct AppBuilder {
@@ -120,7 +113,7 @@ implements `ServerAppConfig`. For each worker, ntex calls `AppBuilder::create()`
 to produce an `AppState`. It then passes a reference to that state to the
 factory closure, which creates an independent `web::App` instance for the worker.
 
-## Running the example
+## Run the example
 
 ```bash
 cargo run -p state-ch1
@@ -165,3 +158,17 @@ curl http://127.0.0.1:8080/ http://127.0.0.1:8080/ http://127.0.0.1:8080/
 
 Set `RUST_LOG=info` to see the request log produced by the `Logger`
 middleware.
+
+## Learn more
+
+- [Worker-local and process-wide state](https://docs.ntex.rs/6-server-app.html#worker-local-and-process-wide-state)
+- [Workers and service factories](https://docs.ntex.rs/5-server.html#workers-and-service-factories)
+- [Inheriting worker state](https://docs.ntex.rs/8.2-web-app.html#inheriting-worker-state)
+
+## Tests
+
+```sh
+cargo test -p state-ch1
+```
+
+Covers shared process counters, independent worker counters, and unknown routes.

@@ -1,6 +1,7 @@
 [package]
 name = "simple-auth-server"
 version = "4.0.0"
+description = "Combine email invitations, PostgreSQL, and cookie authentication"
 authors = ["mygnu <tech@hgill.io>"]
 edition = "2024"
 

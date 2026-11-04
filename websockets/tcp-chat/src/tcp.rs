@@ -32,7 +32,9 @@ struct ChatSession {
 impl Drop for ChatSession {
     fn drop(&mut self) {
         // Notify the chat server when this session closes.
-        let _ = self.server.send(ServerMessage::Disconnect(self.id));
+        let _ = self
+            .server
+            .unbounded_send(ServerMessage::Disconnect(self.id));
     }
 }
 
@@ -169,4 +171,40 @@ pub fn server(
             Ok(())
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::codec::ClientChatCodec;
+    use ntex::{
+        server::test_server,
+        time::{Seconds, timeout},
+    };
+
+    /// STATEMENT: The TCP chat protocol answers heartbeats and lists the default room.
+    ///
+    /// HOW:
+    /// - Start the real TCP service on an ephemeral test server and connect using `ClientChatCodec`.
+    /// - Send `Ping` and `List`, then check the heartbeat reply and `Main` room within a timeout.
+    #[ntex::test]
+    async fn tcp_answers_ping_and_lists_rooms() {
+        let chat = crate::server::start();
+        let srv = test_server(async move |_| server(chat.clone()));
+        timeout(Seconds(3), async {
+            let io = srv.connect().await.unwrap();
+            io.send(ChatRequest::Ping, &ClientChatCodec).await.unwrap();
+            assert!(matches!(
+                io.recv(&ClientChatCodec).await.unwrap().unwrap(),
+                ChatResponse::Ping
+            ));
+            io.send(ChatRequest::List, &ClientChatCodec).await.unwrap();
+            match io.recv(&ClientChatCodec).await.unwrap().unwrap() {
+                ChatResponse::Rooms(rooms) => assert_eq!(rooms, ["Main"]),
+                other => panic!("expected rooms, got {other:?}"),
+            }
+        })
+        .await
+        .unwrap();
+    }
 }

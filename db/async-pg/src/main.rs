@@ -1,3 +1,10 @@
+//! Insert users asynchronously into PostgreSQL with ntex.
+//!
+//! `types::Json` extracts user data, `deadpool_postgres` pools connections,
+//! and `tokio_pg_mapper` maps returned rows. The inline modules show
+//! configuration, database access, handlers, and error responses.
+//! Set up PostgreSQL and the local `.env` as described in the README.
+
 mod config {
     pub use ::config::ConfigError;
 
@@ -151,4 +158,39 @@ async fn main() -> std::io::Result<()> {
     println!("Server running at http://{}/", config.server_addr);
 
     server.await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::errors::MyError;
+    use deadpool_postgres::PoolError;
+    use ntex::http::StatusCode;
+    use ntex::web::{WebResponseError, test};
+
+    /// STATEMENT: A missing database result is rendered as an empty HTTP not-found response.
+    ///
+    /// HOW:
+    /// - Render `MyError::NotFound` using its real `WebResponseError` implementation.
+    /// - Check for `404` and an empty response body without connecting to PostgreSQL.
+    #[ntex::test]
+    async fn not_found_error_returns_404() {
+        let response = MyError::NotFound.error_response(&());
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert!(test::read_body(response).await.is_empty());
+    }
+
+    /// STATEMENT: A closed connection pool is rendered as a server error with its diagnostic.
+    ///
+    /// HOW:
+    /// - Wrap `PoolError::Closed` in `MyError` and render its actual HTTP response.
+    /// - Check for `500` and the pool diagnostic without creating a PostgreSQL connection.
+    #[ntex::test]
+    async fn closed_pool_error_returns_diagnostic() {
+        let expected = PoolError::Closed.to_string();
+        let response = MyError::PoolError(PoolError::Closed).error_response(&());
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(test::read_body(response).await, expected);
+    }
 }

@@ -1,3 +1,12 @@
+//! Accumulating per-connection state through a service chain.
+//!
+//! `connect` records a connection id, start time and peer address, `tls`
+//! performs the OpenSSL handshake and extends that state, and the web handler
+//! reads the result as its application state (`ConnectionWithTls`). Worker
+//! resources (`AppState`) are created by `ServerAppConfig::create()`.
+//!
+//! Run with `cargo run -p state5`, then `curl -k https://127.0.0.1:8080/`.
+
 use std::sync::{Arc, atomic::AtomicUsize, atomic::Ordering};
 use std::{io, net::SocketAddr, rc::Rc, time::Instant};
 
@@ -8,6 +17,11 @@ use ntex::web::{self, App, HttpRequest, HttpResponse, middleware};
 use ntex::{SharedCfg, http, server::ServerAppConfig};
 use openssl::ssl::{self, SslFiletype, SslMethod};
 use uuid::Uuid;
+
+// The self-signed test certificate shared with `tls/openssl`, resolved at
+// compile time so the example can be started from any directory.
+const CERT_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tls/openssl/cert.pem");
+const KEY_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tls/openssl/key.pem");
 
 // ========== AppState ===========
 
@@ -28,12 +42,12 @@ struct AppBuilder {
 
 impl AppBuilder {
     fn new() -> Self {
-        // load ssl keys
+        // Load the test certificate and key.
         let mut builder = ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
         builder
-            .set_private_key_file("key.pem", SslFiletype::PEM)
+            .set_private_key_file(KEY_FILE, SslFiletype::PEM)
             .unwrap();
-        builder.set_certificate_chain_file("cert.pem").unwrap();
+        builder.set_certificate_chain_file(CERT_FILE).unwrap();
 
         Self {
             ssl: builder.build(),
@@ -125,6 +139,10 @@ async fn index(st: &ConnectionWithTls, _: (), req: HttpRequest) -> HttpResponse 
     HttpResponse::Ok().build()
 }
 
+fn config(cfg: &mut web::ServiceConfig<ConnectionWithTls>) {
+    cfg.service(web::resource("/").to_with_state(index));
+}
+
 #[ntex::main]
 async fn main() -> io::Result<()> {
     env_logger::init();
@@ -153,7 +171,7 @@ async fn main() -> io::Result<()> {
                                 // Enable request logging.
                                 .middleware(middleware::Logger::default())
                                 // Register the request handler.
-                                .service(web::resource("/").to_with_state(index)),
+                                .configure(config),
                         )
                         .map_err(|e| io::Error::other(format!("{e}"))),
                     )
@@ -161,4 +179,56 @@ async fn main() -> io::Result<()> {
         )?
         .run()
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use ntex::http::StatusCode;
+    use ntex::web::test::{self, TestRequest};
+
+    use super::*;
+
+    fn connection_state() -> ConnectionWithTls {
+        ConnectionWithTls {
+            id: Uuid::new_v4(),
+            created: Instant::now(),
+            peer_addr: "127.0.0.1:12345".parse().unwrap(),
+            counter: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// STATEMENT: The index handler updates the counter in accumulated connection state.
+    ///
+    /// HOW:
+    /// - Initialize the real routes with `ConnectionWithTls`, without a TLS listener.
+    /// - Request `/` twice and check successful empty responses and the shared counter.
+    #[ntex::test]
+    async fn index_updates_connection_counter() {
+        let state = connection_state();
+        let app = test::init_service_st(state.clone(), App::new().configure(config)).await;
+
+        for expected in 1..=2 {
+            let response = test::call_service(&app, TestRequest::get().uri("/").to_request()).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert!(test::read_body(response).await.is_empty());
+            assert_eq!(state.counter.load(Ordering::SeqCst), expected);
+        }
+    }
+
+    /// STATEMENT: Unknown routes leave the connection counter unchanged.
+    ///
+    /// HOW:
+    /// - Initialize the app with explicit connection state and request `/missing`.
+    /// - Check the empty `404 Not Found` response and the untouched counter.
+    #[ntex::test]
+    async fn unknown_route_leaves_connection_counter_unchanged() {
+        let state = connection_state();
+        let app = test::init_service_st(state.clone(), App::new().configure(config)).await;
+        let response =
+            test::call_service(&app, TestRequest::get().uri("/missing").to_request()).await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert!(test::read_body(response).await.is_empty());
+        assert_eq!(state.counter.load(Ordering::SeqCst), 0);
+    }
 }

@@ -1,6 +1,7 @@
 [package]
 name = "tokio"
 version = "4.0.0"
+description = "Run ntex web basics on the Tokio runtime"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

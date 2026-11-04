@@ -1,6 +1,7 @@
 [package]
 name = "cookie-session"
 version = "4.0.0"
+description = "Store a visit counter in a signed cookie session"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

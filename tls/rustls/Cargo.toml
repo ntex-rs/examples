@@ -1,6 +1,7 @@
 [package]
 name = "rustls-example"
 version = "4.0.0"
+description = "HTTPS and mutual TLS with the rustls backend"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 default-run = "rustls-server"
@@ -22,5 +23,7 @@ env_logger = { workspace = true }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 rustls-pemfile = "2"
 ntex = { workspace = true, features = ["rustls", "tokio"] }
-ntex-files = { workspace = true }
 tls-x509-example = { path = "../x509", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+ntex-tls = { workspace = true, features = ["testgen", "testgen-rcgen"] }

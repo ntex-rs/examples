@@ -114,6 +114,10 @@ async fn index(st: &AppState, _: (), _req: HttpRequest) -> HttpResponse {
     ))
 }
 
+fn config(cfg: &mut web::ServiceConfig<AppState>) {
+    cfg.service(web::resource("/").to_with_state(index));
+}
+
 #[ntex::main]
 async fn main() -> io::Result<()> {
     env_logger::init();
@@ -130,9 +134,74 @@ async fn main() -> io::Result<()> {
             // Enable request logging (set RUST_LOG=info to see it).
             .middleware(middleware::Logger::default())
             // Register the request handler.
-            .service(web::resource("/").to_with_state(index))
+            .configure(config)
     })
     .bind("127.0.0.1:8080", SharedCfg::new("STATE"))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use ntex::http::StatusCode;
+    use ntex::web::test::{self, TestRequest};
+
+    use super::*;
+
+    /// STATEMENT: Workers share process counters but keep separate local counters.
+    ///
+    /// HOW:
+    /// - Create two worker states from one `AppBuilder` and initialize both apps.
+    /// - Send two requests to the first worker and one to the second.
+    /// - Check response counters and inspect the shared and worker-local state.
+    #[ntex::test]
+    async fn workers_share_global_but_not_local_counters() {
+        let builder = AppBuilder::new();
+        let first = builder.create().await.unwrap();
+        let second = builder.create().await.unwrap();
+        let first_app = test::init_service_st(first.clone(), App::new().configure(config)).await;
+        let second_app = test::init_service_st(second.clone(), App::new().configure(config)).await;
+
+        for (app, expected) in [
+            (
+                &first_app,
+                "worker: 0, global mutex counter: 1, global atomic counter: 1, local counter: 1\n",
+            ),
+            (
+                &first_app,
+                "worker: 0, global mutex counter: 2, global atomic counter: 2, local counter: 2\n",
+            ),
+            (
+                &second_app,
+                "worker: 1, global mutex counter: 3, global atomic counter: 3, local counter: 1\n",
+            ),
+        ] {
+            let response = test::call_service(app, TestRequest::get().uri("/").to_request()).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(test::read_body(response).await, expected);
+        }
+        assert_eq!(*first.counter1.lock().unwrap(), 3);
+        assert_eq!(second.counter2.load(Ordering::Relaxed), 3);
+        assert_eq!(first.counter3.get(), 2);
+        assert_eq!(second.counter3.get(), 1);
+    }
+
+    /// STATEMENT: An unknown route does not increment any counter.
+    ///
+    /// HOW:
+    /// - Initialize an app with a fresh worker state and request `/missing`.
+    /// - Check `404 Not Found` and confirm all counters remain zero.
+    #[ntex::test]
+    async fn unknown_route_leaves_counters_unchanged() {
+        let state = AppBuilder::new().create().await.unwrap();
+        let app = test::init_service_st(state.clone(), App::new().configure(config)).await;
+        let response =
+            test::call_service(&app, TestRequest::get().uri("/missing").to_request()).await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert!(test::read_body(response).await.is_empty());
+        assert_eq!(*state.counter1.lock().unwrap(), 0);
+        assert_eq!(state.counter2.load(Ordering::Relaxed), 0);
+        assert_eq!(state.counter3.get(), 0);
+    }
 }

@@ -1,3 +1,10 @@
+//! Broadcast server-sent events to connected browser clients.
+//!
+//! Look at `Broadcaster` for client channels and keepalive events, and
+//! `HttpResponse::streaming` for sending the event stream.
+//! Run with `cargo run` and open <http://127.0.0.1:8080>; send messages
+//! through `GET /broadcast/{msg}`.
+
 use std::sync::Arc;
 use std::{pin::Pin, sync::Mutex, task::Context, task::Poll, time::Duration};
 
@@ -13,14 +20,19 @@ async fn main() -> std::io::Result<()> {
 
     web::server(async move |_| {
         App::new()
-            .route("/", web::get().to(index))
-            .route("/events", web::get().to_with_state(new_client))
-            .route("/broadcast/{msg}", web::get().to_with_state(broadcast))
+            .configure(app_config)
             .build_with(AppState::new(data.clone()))
     })
     .bind("127.0.0.1:8080", ntex::SharedCfg::new("SSE"))?
     .run()
     .await
+}
+
+fn app_config(config: &mut web::ServiceConfig<AppState>) {
+    config
+        .route("/", web::get().to(index))
+        .route("/events", web::get().to_with_state(new_client))
+        .route("/broadcast/{msg}", web::get().to_with_state(broadcast));
 }
 
 async fn index() -> HttpResponse {
@@ -121,5 +133,95 @@ impl Stream for Client {
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::http::{StatusCode, header};
+    use ntex::time::{Millis, timeout};
+    use ntex::util::stream_recv;
+    use ntex::web::test;
+
+    /// STATEMENT: The event stream sends its connection event and subsequent broadcast messages.
+    ///
+    /// HOW:
+    /// - Initialize the real app and request `/events` without collecting the endless body.
+    /// - Check HTTP 200, `text/event-stream`, and the first connected event within a bounded wait.
+    /// - Request `/broadcast/hello`, check its acknowledgement, and read the hello event.
+    #[ntex::test]
+    async fn event_stream_delivers_connection_and_broadcast() {
+        let app = test::init_service_st(
+            AppState::new(Broadcaster::create()),
+            App::new().configure(app_config),
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/events").to_request();
+        let mut resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(header::CONTENT_TYPE).unwrap(),
+            "text/event-stream"
+        );
+        let mut body = resp.take_body();
+        let event = timeout(Millis(1_000), stream_recv(&mut body))
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(event, "data: connected\n\n");
+
+        let req = test::TestRequest::get()
+            .uri("/broadcast/hello")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(test::read_body(resp).await, "msg sent");
+        let event = timeout(Millis(1_000), stream_recv(&mut body))
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(event, "data: hello\n\n");
+    }
+
+    /// STATEMENT: The index route serves the embedded browser client.
+    ///
+    /// HOW:
+    /// - Initialize the real app and GET `/`.
+    /// - Check HTTP 200, the HTML content type, and the complete embedded page.
+    #[ntex::test]
+    async fn index_serves_browser_client() {
+        let app = test::init_service_st(
+            AppState::new(Broadcaster::create()),
+            App::new().configure(app_config),
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(
+            resp.headers().get(header::CONTENT_TYPE).unwrap(),
+            "text/html"
+        );
+        assert_eq!(test::read_body(resp).await, include_str!("index.html"));
+    }
+
+    /// STATEMENT: Unregistered routes return HTTP 404.
+    ///
+    /// HOW:
+    /// - Initialize the real app and GET `/missing`.
+    /// - Check HTTP 404 without opening an event stream.
+    #[ntex::test]
+    async fn unknown_route_is_not_found() {
+        let app = test::init_service_st(
+            AppState::new(Broadcaster::create()),
+            App::new().configure(app_config),
+        )
+        .await;
+        let req = test::TestRequest::get().uri("/missing").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 }

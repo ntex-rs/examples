@@ -1,6 +1,7 @@
 [package]
 name = "state5"
 version = "4.0.0"
+description = "Accumulating per-connection state through an ntex service chain"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2024"
 

@@ -101,6 +101,17 @@ async fn heartbeat(state: Rc<RefCell<WsState>>, sink: ws::WsSink, mut rx: onesho
     }
 }
 
+/// Registers the WebSocket endpoint and browser assets.
+fn config(cfg: &mut web::ServiceConfig) {
+    cfg // Accept WebSocket connections.
+        .service(web::resource("/ws/").route(web::get().to(ws_index)))
+        // static files
+        .service(
+            fs::Files::new("/", concat!(env!("CARGO_MANIFEST_DIR"), "/static"))
+                .index_file("index.html"),
+        );
+}
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     unsafe {
@@ -112,10 +123,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // enable logger
             .middleware(middleware::Logger::default())
-            // Accept WebSocket connections.
-            .service(web::resource("/ws/").route(web::get().to(ws_index)))
-            // static files
-            .service(fs::Files::new("/", "static/").index_file("index.html"))
+            .configure(config)
     });
     let server = if std::env::args().any(|arg| arg == "--tls") {
         #[cfg(feature = "tls")]
@@ -139,4 +147,58 @@ async fn main() -> std::io::Result<()> {
         server.bind("127.0.0.1:8080", ntex::SharedCfg::new("WEBSOCKET"))?
     };
     server.workers(1).run().await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::{
+        http::StatusCode,
+        time::{Seconds, timeout},
+        web::test,
+    };
+
+    /// STATEMENT: The WebSocket endpoint echoes text and answers pings.
+    ///
+    /// HOW:
+    /// - Start the real routes on an ephemeral test server and connect to `/ws/`.
+    /// - Send text and a ping, checking the echoed text and pong within a timeout.
+    #[ntex::test]
+    async fn websocket_echoes_text_and_answers_ping() {
+        let srv = test::server(async |_| App::new().configure(config));
+        timeout(Seconds(3), async {
+            let (io, codec, _) = srv.ws_at("/ws/").await.unwrap().into_inner();
+            io.send(ws::Message::Text("hello".into()), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Text(Bytes::from_static(b"hello"))
+            );
+            io.send(ws::Message::Ping(Bytes::from_static(b"ping")), &codec)
+                .await
+                .unwrap();
+            assert_eq!(
+                io.recv(&codec).await.unwrap().unwrap(),
+                ws::Frame::Pong(Bytes::from_static(b"ping"))
+            );
+        })
+        .await
+        .unwrap();
+    }
+
+    /// STATEMENT: The WebSocket endpoint accepts only `GET` requests.
+    ///
+    /// HOW:
+    /// - Start the real routes and send `POST /ws/`.
+    /// - Check that routing responds with `405 Method Not Allowed`.
+    #[ntex::test]
+    async fn websocket_rejects_non_get_method() {
+        let srv = test::server(async |_| App::new().configure(config));
+        let response = timeout(Seconds(3), srv.post("/ws/").send())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    }
 }

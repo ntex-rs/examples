@@ -1,32 +1,73 @@
-# Websocket chat example
+# WebSocket and TCP chat
 
-This is extension of the
-[ntex chat example](https://github.com/ntex-rs/examples/tree/master/websockets/chat)
+The [WebSocket chat](../chat/README.md) extended with a second protocol. One
+ntex server has two listeners that share a single chat server, so WebSocket
+and raw TCP users can chat in the same rooms:
 
-Added features:
+| Listener | Address | Protocol |
+|----------|---------|----------|
+| `websockets` | `127.0.0.1:8080` | HTTP and WebSocket (`/ws/`), plus the browser client |
+| `tcp` | `127.0.0.1:12345` | Custom framing: a 2-byte big-endian length, then a JSON message |
 
-* Browser WebSocket client
-* Chat server runs in separate thread
-* Tcp listener runs in separate thread
+Things to look at:
 
-## Server
+- `src/main.rs` uses `ntex::server::build()` with two `bind()` calls, one per
+  protocol.
+- `src/web.rs` is the WebSocket endpoint and `src/tcp.rs` the TCP endpoint.
+  Both send heartbeats every 5 seconds and drop silent clients after 10
+  seconds.
+- `src/codec.rs` implements the TCP framing with ntex's `Decoder` and
+  `Encoder` traits.
+- `src/server.rs` is the shared chat server that owns the rooms.
 
-Chat server listens for incoming tcp connections. Server can access several types of message:
+## Run the server
 
-* `/list` - list all available rooms
-* `/join name` - join room, if room does not exist, create new one
-* `/name name` - set session name
-* `some message` - just string, send message to all peers in same room
-* client has to send heartbeat `Ping` messages, if server does not receive a heartbeat message for 10 seconds connection gets dropped
+```sh
+cd websockets/tcp-chat
+cargo run --bin websocket-tcp-chat-server
+```
 
-To start server use command: `cargo run --bin websocket-tcp-server`
+Run it from `websockets/tcp-chat` so the static files in `static/` are found.
 
-## Client
+## Connect clients
 
-Client connects to server. Reads input from stdin and sends to server.
+Start each client in its own terminal, from `websockets/tcp-chat`:
 
-To run client use command: `cargo run --bin websocket-tcp-client`
+```sh
+cargo run --bin websocket-tcp-chat-client      # WebSocket, ws://127.0.0.1:8080/ws/
+cargo run --bin websocket-tcp-chat-tcp-client  # TCP, 127.0.0.1:12345
+```
 
-## WebSocket Browser Client
+Both read lines from stdin and print what the server sends back.
 
-Open url: [http://localhost:8080/](http://localhost:8080/)
+**Browser:** open <http://localhost:8080/>, which redirects to
+`/static/websocket.html`.
+
+**Python:** `pip install aiohttp`, then `python client.py` (WebSocket).
+
+## Chat commands
+
+Every new session joins the `Main` room. Lines that start with `/` are
+commands; anything else is sent to everyone else in your current room.
+
+| Command | Effect |
+|---------|--------|
+| `/list` | List the available rooms |
+| `/join <room>` | Join a room, creating it if needed |
+| `/name <name>` | Set the name shown before your messages |
+| any other text | Send a message to the current room |
+
+## Learn more
+
+- [Binding and existing listeners](https://docs.ntex.rs/5-server.html#binding-and-existing-listeners)
+  in the Server chapter of the ntex guide.
+- [Servers with `web::ws`](https://docs.ntex.rs/8.6-web-app.html#servers-with-webws)
+  in the WebSocket chapter.
+
+## Tests
+
+```sh
+cargo test -p chat-example
+```
+
+The tests cover broadcasts between two WebSocket clients and heartbeat and room-list replies over the real TCP protocol.

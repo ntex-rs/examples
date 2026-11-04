@@ -1,3 +1,6 @@
+//! Portable identity loading and client-certificate authentication shared by the
+//! OpenSSL, rustls and Schannel examples.
+
 use std::{fs, path::Path, time::SystemTime};
 
 use ntex::io::IoRef;

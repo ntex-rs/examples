@@ -1,65 +1,133 @@
-# Portable X.509 identities and client authentication
+# Portable X.509: inspecting certificates and authenticating clients
 
-Generate the [local certificates](../README.md), then run from this directory:
+This crate has two parts:
+
+- a small **certificate inspector** you can run against your own files;
+- a **library of authentication helpers**, [`src/lib.rs`](src/lib.rs), used by
+  the OpenSSL, rustls, and Schannel examples.
+
+Both use `ntex::tls::x509`, which provides the same API on every platform and
+backend.
+
+## Before you start
+
+Create the [local certificates](../README.md#step-1-create-local-certificates),
+then run the commands below from this directory, `tls/x509`.
+
+## Inspecting certificates
+
+Choose a format and a file:
 
 ```sh
 cargo run -- pem ../certs/client.pem
 cargo run -- der ../certs/client.der
-cargo run -- identity ../certs/client
+cargo run -- identity ../certs/client     # loads client.pem and client.key
 ```
 
-The output includes subject, issuer, SANs, validity and a SHA-256 thumbprint.
-`identity` also loads the matching unencrypted PKCS#8 key, without printing it.
-Parsing or loading an identity is not a trust check.
+Each command prints the subject, issuer, subject alternative names (SANs),
+validity period, and SHA-256 thumbprint. The `identity` mode also loads the
+matching private key and checks that it matches the certificate; it never
+prints the key. Keys must be unencrypted PKCS#8.
 
-The default `rustls` feature enables the ring fallback for X.509. On Unix,
-PKCS#12 additionally needs OpenSSL:
+Loading a certificate tells you what it *says*, not whether to *believe* it.
+Trust is a separate check, covered below.
+
+### PKCS#12 archives
+
+On Linux and macOS, reading PKCS#12 (`.p12` or `.pfx`) requires the `openssl`
+feature:
 
 ```sh
 cargo run --features openssl -- pkcs12 ../certs/client.p12
 ```
 
-The generated archive has an empty password, for local demonstration only.
-For another archive, supply its password through `PFX_PASSWORD`, not a command
-line argument. On Windows PKCS#12 is native; `--no-default-features` avoids
-unnecessary rustls dependencies.
+The generated archive has an empty password. For a real archive, pass the
+password through the `PFX_PASSWORD` environment variable, never as a
+command-line argument. On Windows, PKCS#12 support is built in, so you can
+build with `--no-default-features`.
 
-`source` uses `IdentitySource` syntax. A plain path means an empty-password
-PKCS#12 archive, not a PEM file:
+### Identity sources
+
+`source` accepts the same strings as `IdentitySource`. A plain path is treated
+as an **empty-password PKCS#12 archive**, not as a PEM file:
 
 ```sh
 cargo run --features openssl -- source ../certs/client.p12
 ```
 
-On Windows, an existing certificate and accessible private key can be selected
-without exporting them:
+On Windows, `source` can also select a certificate and its private key from a
+store, without exporting the key:
 
 ```powershell
 cargo run --no-default-features -- source 'cert:CurrentUser\MY\subject=client'
 ```
 
-Store selection is not trust verification. A subject selector chooses a
-currently valid match with the latest expiry; a thumbprint selector does not
-filter by validity.
+A `subject=` selector picks the currently valid match with the latest expiry. A
+thumbprint selector picks exactly one certificate, even if it has expired.
+Neither one checks trust.
 
-## Shared authentication helpers
+### Which backend does the work?
 
-`src/lib.rs` is also used by the backend examples. It demonstrates:
+| Platform | X.509 implementation |
+| --- | --- |
+| Windows | Always the native Crypt32/CNG APIs |
+| Elsewhere, `rustls` feature (default) | rustls/WebPKI with ring |
+| Elsewhere, `openssl` feature only | OpenSSL |
 
-- DER peer metadata from `IoRef`, with missing certificates handled explicitly.
-- `PeerCerts` parsing and separation of the leaf from peer-provided intermediates.
-- A configured `CaCerts` store that rejects incomplete imports.
-- Chain verification followed by URI-based application authorization.
-- Termination at the verified path's expiry, with timer cancellation on disconnect.
-
-The application policy accepts only `spiffe://ntex.example/client`. It is an
-exact, case-insensitive match through `auth::name_matches`, not a general SPIFFE
-implementation. No revocation service is consulted.
-
-Windows always uses Crypt32/CNG for X.509. Elsewhere rustls takes precedence if
-both backends are enabled; verification failure does not trigger a retry using
-OpenSSL. To exercise only the OpenSSL implementation:
+If both features are enabled outside Windows, rustls is used. A failed
+verification is not retried with OpenSSL. To try the OpenSSL path on its own:
 
 ```sh
 cargo run --no-default-features --features openssl -- pem ../certs/client.pem
 ```
+
+## The authentication helpers
+
+[`src/lib.rs`](src/lib.rs) shows a complete client-certificate policy that you
+can adapt:
+
+| Helper | What it does |
+| --- | --- |
+| `load_identity(stem)` | Loads `<stem>.pem` and `<stem>.key` into an `Identity` |
+| `load_trust(path)` | Builds a `CaCerts` trust store and fails if any certificate is rejected, instead of continuing with fewer |
+| `peer_certs(io)` | Reads the peer's certificate and chain from any TLS backend; returns `None` when there is no certificate |
+| `authorize(peer, trust)` | Verifies the chain, then requires the URI `spiffe://ntex.example/client`; returns when the verified path expires |
+| `authenticate(io, trust)` | Combines the two above and rejects connections without a certificate |
+| `close_at_expiry(io, time)` | Closes the connection at the expiry time, and stops waiting if the connection closes first |
+
+`AuthError` keeps the possible failures apart:
+
+- `MissingCertificate`: the client sent no certificate;
+- `Trust`: the chain is not trusted;
+- `Name`: the identity is not allowed;
+- `Certificate`: the certificate could not be parsed.
+
+That makes it easy to log or count each kind separately.
+
+A few limits to keep in mind:
+
+- The URI check is an exact, case-insensitive match using
+  `auth::name_matches`. It is not a full SPIFFE implementation.
+- Revocation is not checked.
+- The certificates in the client's chain are treated only as possible
+  intermediates. Trust comes solely from `ca.pem`.
+
+Run the helpers' tests with `cargo test`.
+
+## Learn more
+
+From the guide chapter [Securing Connections with TLS](https://docs.ntex.rs/10-tls.html):
+
+- [X.509 certificates and identity loading](https://docs.ntex.rs/10-tls.html#x509-certificates-and-identity-loading)
+- [TLS and X.509 backend selection are different](https://docs.ntex.rs/10-tls.html#tls-and-x509-backend-selection-are-different)
+- [Reading peer certificates](https://docs.ntex.rs/10-tls.html#reading-peer-certificates)
+- [Trust and application authorization](https://docs.ntex.rs/10-tls.html#trust-and-application-authorization),
+  including [expiry and long-lived connections](https://docs.ntex.rs/10-tls.html#expiry-and-long-lived-connections)
+
+## Tests
+
+```sh
+cargo test -p tls-x509-example
+```
+
+The tests cover trusted client identities, URI authorization failures, missing certificates, and connection expiry using generated certificates and in-memory I/O.

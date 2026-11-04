@@ -1,40 +1,75 @@
-# ntex-sse
-Example of server-sent events, aka `EventSource`, with ntex.
+# Server-sent events
+
+This example broadcasts server-sent events to browser `EventSource` clients.
+In `src/main.rs`, `HttpResponse::streaming` wraps a Tokio channel receiver,
+and a shared `Broadcaster` tracks clients and sends periodic keepalive events.
+The browser page in `src/index.html` timestamps each received message.
+
+## Run the example
 
 ```sh
+cd extras/server-sent-events
 cargo run
 ```
 
-Open http://localhost:8080/ with a browser, then send events with another HTTP client:
+The server listens on `127.0.0.1:8080`.
+
+## Try it
+
+Open <http://127.0.0.1:8080/> in a browser, then broadcast a message:
 
 ```sh
-curl localhost:8080/broadcast/my_message
+curl http://127.0.0.1:8080/broadcast/my_message
 ```
 
-*my_message* should appear in the browser with a timestamp.
-
-## Performance
-This implementation serve thousand of clients on a 2013 macbook air without problems.
-
-Run [benchmark.js](benchmark.js) to benchmark your own system:
+The response is `msg sent`, and `my_message` appears in the browser with a
+timestamp. To watch the event stream directly, use another terminal:
 
 ```sh
-$ node benchmark.js
-Connected: 1000, connection time: 867 ms, total broadcast time: 23 ms^C⏎
+curl -N http://127.0.0.1:8080/events
 ```
 
-### Error *Too many open files*
-You may be limited to a maximal number of connections (open file descriptors). Setting maximum number of open file descriptors to 2048:
+| Request | Result |
+| --- | --- |
+| `GET /` | Browser client page |
+| `GET /events` | `text/event-stream` connection, starting with `data: connected` |
+| `GET /broadcast/{msg}` | Broadcasts `msg` to connected clients |
+
+## Benchmark tools
+
+With Node.js installed, run these scripts from `extras/server-sent-events`
+against the running server:
+
+```sh
+node benchmark.js
+node drain.js
+```
+
+[`benchmark.js`](benchmark.js) opens 1,000 clients and reports connection and
+broadcast timings. [`drain.js`](drain.js) repeatedly opens and drops connections
+while probing whether the server is accepting requests. Results depend on
+your machine; interrupt each script when finished.
+
+If you encounter “Too many open files”, your shell's file-descriptor limit
+may be too low. Where permitted, raise it before starting the server and
+clients, for example:
 
 ```sh
 ulimit -n 2048
 ```
 
-Test maximum number of open connections with [drain.js](drain.js):
+The drain script's `accepting connections` value indicates whether its latest
+probe received a response before the timeout; it is not a diagnosis of
+resource exhaustion.
+
+## Tests
 
 ```sh
-$ node drain.js
-Connections dropped: 5957, accepting connections: false^C⏎
+cargo test -p server-sent-events
 ```
 
-_Accepting connections_ indicates wheter resources for the server have been exhausted.
+Covers the browser page, the first SSE event, broadcast delivery, and unknown routes without waiting for keepalives.
+
+## Learn more
+
+- [Responders](https://docs.ntex.rs/8.4-web-app.html#responders)

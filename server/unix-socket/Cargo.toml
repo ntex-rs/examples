@@ -1,6 +1,7 @@
 [package]
 name = "unix-socket"
 version = "4.0.0"
+description = "Serve an ntex web application over a Unix domain socket"
 authors = ["Messense Lv <messense@icloud.com>"]
 edition = "2024"
 

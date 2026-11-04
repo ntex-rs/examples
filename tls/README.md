@@ -1,60 +1,121 @@
 # TLS and X.509 examples
 
-These examples accompany the [TLS guide](https://docs.ntex.rs/10-tls.html).
-They use verified local TLS connections, not certificate-verification bypasses.
+These programs accompany the guide chapter
+[Securing Connections with TLS](https://docs.ntex.rs/10-tls.html). Each one is
+small enough to read in a few minutes, and every connection verifies certificates
+properly. Nothing here works by switching verification off.
 
-| Directory | Demonstrates |
+## Pick an example
+
+| Directory | What you will learn |
 | --- | --- |
-| [openssl](openssl) | HTTPS server/client, portable identities, mandatory client certificates |
-| [rustls](rustls) | Explicit ring provider, trust roots, identities and mutual authentication |
-| [schannel](schannel) | Windows TLS, certificate stores and application-side client authentication |
-| [x509](x509) | Certificate inspection, identity loading and shared peer authentication helpers |
-| [../websockets/basic](../websockets/basic) | The same WebSocket handlers over plain TCP or TLS |
-| [../state/state-accumulation](../state/state-accumulation) | Explicit TLS handshake and connection-state composition |
-| [../extras/http-client](../extras/http-client) | Custom HTTPS connector integration |
+| [openssl](openssl) | An HTTPS server and client with OpenSSL, plus a server that requires client certificates |
+| [rustls](rustls) | The same programs with rustls, including how to choose a crypto provider |
+| [schannel](schannel) | Native Windows TLS, certificate stores, and enforcing client authentication in the application |
+| [x509](x509) | Inspecting certificates, loading identities, and the authentication helpers shared by the other examples |
+| [../websockets/basic](../websockets/basic) | One set of WebSocket handlers serving both `ws://` and `wss://` |
+| [../state/state-accumulation](../state/state-accumulation) | Running the TLS handshake yourself before building per-connection state |
+| [../extras/http-client](../extras/http-client) | Plugging a custom HTTPS connector into the HTTP client |
 
-## Local certificates
+New to TLS in ntex? Start with [rustls](rustls) or [openssl](openssl): run the
+server and client, then try the mutual-authentication server.
 
-From the examples repository root, with OpenSSL 3 available:
+## Step 1: create local certificates
+
+The examples need a certificate authority (CA) and a few certificates signed by
+it. A script creates them for you. From the repository root, with OpenSSL 3
+installed, run:
 
 ```sh
 sh tls/generate-certs.sh
 ```
 
-The script creates `tls/certs/` with unencrypted PKCS#8 keys and certificates
-valid for seven days. It refuses to overwrite an existing directory. Move that
-directory aside before regenerating expired certificates. The directory is
-gitignored; never commit or deploy its private keys.
+This creates `tls/certs/`:
 
-`ca.pem` signs the server certificate (SANs: `localhost`, `127.0.0.1`, `::1`)
-and two client certificates. `client.pem` has the authorized URI
-`spiffe://ntex.example/client`; `other-client.pem` is trusted but has a different
-URI. `untrusted-client.pem` has the authorized URI but a different issuer.
-These distinguish certificate trust from application authorization.
+| File | Purpose |
+| --- | --- |
+| `ca.pem` | The local CA. Clients trust it to verify the server, and mTLS servers trust it to verify clients. |
+| `server.pem`, `server.key` | Server identity for `localhost`, `127.0.0.1`, and `::1` |
+| `client.pem`, `client.key` | The authorized client, `spiffe://ntex.example/client` |
+| `other-client.pem`, `other-client.key` | Signed by the trusted CA, but with the wrong identity, `spiffe://ntex.example/other` |
+| `untrusted-client.pem`, `untrusted-client.key` | The right identity, signed by a CA the server does not trust |
+| `untrusted-ca.pem` | The CA that signed `untrusted-client`. No example trusts it. |
+| `client.der`, `client.p12` | The authorized client in DER and PKCS#12 form, used by the [x509](x509) inspector |
 
-Clients load `ca.pem` explicitly. Schannel instead uses Windows server-trust
-policy; see its README before running the local client. Do not disable server
-verification or install this development CA in a production trust store.
+A few things to know about these files:
 
-## Authentication behavior
+- The certificates are valid for **seven days**. When they expire, move
+  `tls/certs` aside and run the script again. It never overwrites an existing
+  directory.
+- Private keys are unencrypted PKCS#8 files. `tls/certs/` is gitignored; never
+  commit or deploy these keys.
+- Clients trust `ca.pem` explicitly, so you do not need `curl -k` or similar
+  shortcuts. Do not add this CA to a production trust store. Schannel is the
+  exception, because it uses Windows trust; its README explains a safe way to
+  run it.
 
-Start one server at a time: they use `127.0.0.1:8443`. Run each binary from its
-own example directory so relative certificate paths resolve correctly.
+## Step 2: run an example
 
-The mutual-authentication servers compose:
+- All servers listen on `127.0.0.1:8443`, so run one at a time.
+- Run each program from its own directory, for example `cd tls/rustls`, so the
+  relative paths to `../certs` resolve.
+
+## How the mutual-authentication servers work
+
+The `*-mtls-server` programs, and Schannel with `--mtls`, put an
+authentication step between TLS and HTTP:
 
 ```text
-TLS acceptor -> required certificate + trust + URI policy -> HTTP service
+TLS acceptor -> client certificate required? trusted? allowed? -> HTTP service
 ```
 
-Only the authorized client reaches HTTP. OpenSSL and rustls also require a
-trusted client certificate during the handshake. Schannel's certificate request
-is optional and does not check trust, so its application gate is essential.
+These are three separate checks, and the three test clients show the difference:
 
-The shared helpers in `x509/src/lib.rs` read backend-independent peer metadata,
-verify the path, authorize the URI and terminate the connection when the verified
-path expires. The expiry task stops when the connection disconnects. Revocation
-checking and dynamic policy updates are outside these examples.
+| Client | Has a certificate | Trusted issuer | Allowed identity | Result |
+| --- | --- | --- | --- | --- |
+| *(none)* | no | — | — | rejected |
+| `untrusted-client` | yes | no | yes | rejected |
+| `other-client` | yes | yes | no | rejected |
+| `client` | yes | yes | yes | `authorized` |
 
-The example libraries use `Box<dyn std::error::Error>` to preserve errors,
-including worker-local errors; they do not stringify errors into `io::Error`.
+Rejected clients never reach an HTTP handler. The server closes the connection
+instead of sending an error response.
+
+The backends differ in where a rejection happens:
+
+- **OpenSSL and rustls** require a trusted client certificate during the TLS
+  handshake, so the first two clients fail there.
+- **Schannel** only *asks* for a certificate and does not check its trust. The
+  handshake can succeed, so the application step must do the rejecting.
+
+The shared helpers in [`x509/src/lib.rs`](x509/src/lib.rs) implement that step
+the same way for every backend:
+
+1. Read the peer certificate from the connection.
+2. Verify its chain against the configured CA.
+3. Check its URI.
+4. Close the connection when the verified certificate path expires.
+
+These examples do not cover revocation checking or reloading the policy while
+the server runs.
+
+## Error handling
+
+The examples return `Box<dyn std::error::Error>`. That keeps the original
+handshake, certificate, and HTTP errors intact. Avoid flattening them into an
+`io::Error` that contains only a string.
+
+## Learn more
+
+The guide chapter [Securing Connections with TLS](https://docs.ntex.rs/10-tls.html) explains the ideas behind
+these examples:
+
+- [Quick start: an HTTPS server](https://docs.ntex.rs/10-tls.html#quick-start-an-https-server)
+- [Choosing a backend](https://docs.ntex.rs/10-tls.html#choosing-a-backend)
+- [TLS as an I/O filter](https://docs.ntex.rs/10-tls.html#tls-as-an-io-filter): how TLS fits under any
+  ntex service
+- [Certificates in a nutshell](https://docs.ntex.rs/10-tls.html#certificates-in-a-nutshell)
+- [Client-certificate authentication](https://docs.ntex.rs/10-tls.html#client-certificate-authentication)
+  and [trust and application authorization](https://docs.ntex.rs/10-tls.html#trust-and-application-authorization)
+- [Troubleshooting](https://docs.ntex.rs/10-tls.html#troubleshooting) and the
+  [production checklist](https://docs.ntex.rs/10-tls.html#production-checklist)

@@ -1,6 +1,7 @@
 [package]
 name = "async-ex2"
 version = "4.0.0"
+description = "Register nested product and part routes with application configuration"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2024"
 

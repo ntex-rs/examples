@@ -1,3 +1,10 @@
+//! Serve a MySQL-backed GraphQL API with Juniper and ntex.
+//!
+//! `src/handlers.rs` extracts JSON GraphQL requests and uses `web::block`
+//! to execute the schema in `src/schemas/`. Application state shares the schema
+//! and an `r2d2` MySQL pool; `/graphiql` provides an interactive interface.
+//! Import the SQL schema and configure `.env` as described in the README.
+
 use std::sync::Arc;
 
 use ntex::web::{self, App, middleware};

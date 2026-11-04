@@ -1,0 +1,46 @@
+name: CI (Linux)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - 1.97.0 # MSRV
+          - stable
+
+    name: ${{ matrix.version }} - x86_64-unknown-linux-gnu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev libsqlite3-dev libssl-dev pkg-config
+
+      - name: Install ${{ matrix.version }}
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: ${{ matrix.version }}
+
+      - name: Build
+        run: cargo build --workspace --all-targets
+
+      - name: Build (websocket with tls feature)
+        run: cargo build -p websocket --features tls
+
+      - name: Run tests
+        timeout-minutes: 15
+        run: cargo test --workspace

@@ -1,14 +1,48 @@
-## Unix domain socket example
+# HTTP over a Unix domain socket
 
-```bash
-$ curl --unix-socket /tmp/ntex-uds.socket http://localhost/
-Hello world!
+Serve an ntex web application through `web::HttpServer::bind_uds` instead
+of a TCP listener. `src/main.rs` registers two greeting routes and uses the
+normal server worker pool; the default worker count follows the available
+logical CPUs, not a single worker.
+
+## Prerequisites
+
+A Unix platform and a curl build with Unix domain socket support. On other
+platforms, this example only prints `not supported` and exits.
+
+## Run the example
+
+```sh
+cd server/unix-socket
+cargo run
 ```
 
-Although this will only one thread for handling incoming connections 
-according to the 
-[documentation](https://docs.rs/ntex/latest/ntex/web/struct.HttpServer.html#method.bind_uds).
+The server listens on the Unix socket `/tmp/ntex-uds.socket`, not a TCP
+address. ntex removes an existing file at that path before binding and
+attempts to remove the socket file when the server stops normally. A forced
+process termination may leave it behind; manual deletion is not normally
+needed before restarting. Do not use this path for an unrelated file or
+another running server.
 
-And it does not delete the socket file (`/tmp/ntex-uds.socket`) when stopping
-the server so it will fail to start next time you run it unless you delete
-the socket file manually.
+## Try it
+
+```sh
+curl --unix-socket /tmp/ntex-uds.socket http://localhost/
+curl --unix-socket /tmp/ntex-uds.socket http://localhost/index.html
+```
+
+Both requests return `Hello world!`. Here `localhost` supplies the HTTP
+host; curl connects through the socket rather than a TCP port.
+
+## Learn more
+
+- [Binding and existing listeners](https://docs.ntex.rs/5-server.html#binding-and-existing-listeners)
+- [Workers and service factories](https://docs.ntex.rs/5-server.html#workers-and-service-factories)
+
+## Tests
+
+```sh
+cargo test -p unix-socket
+```
+
+Covers greeting routes, unknown routes, and HTTP over a unique Unix socket that is cleaned up; tests run only on Unix.

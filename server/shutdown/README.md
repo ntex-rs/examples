@@ -1,27 +1,44 @@
-# shutdown-server
+# Shut down a server with a request
 
-Demonstrates how to shutdown the web server in a couple of ways:
+Use application state and a channel to stop an ntex HTTP server from a
+handler. In `src/main.rs`, `web::AppState` holds the shutdown sender; a
+control thread receives the message and awaits `Server::stop(true)`.
 
-1. remotely, via http request
+## Run the example
 
-2. sending a SIGINT signal to the server (control-c)
-	- ntex server natively supports SIGINT
-
-
-## Usage
-
-### Running The Server
-
-```bash
+```sh
+cd server/shutdown
 cargo run --bin shutdown-server
-
-# Starting 8 workers
-# Starting "ntex-service-127.0.0.1:8080" service on 127.0.0.1:8080
 ```
 
-### Available Routes
+Both the package and its binary are named `shutdown-server`. The server
+listens on `127.0.0.1:8080` and sets `RUST_LOG=debug`. The worker count uses
+the ntex default; it is not fixed at eight.
 
-- [GET /hello](http://localhost:8080/hello)
-  - Regular hello world route
-- [POST /stop](http://localhost:8080/stop)
-  - Calling this will shutdown the server and exit
+## Try it
+
+| Request | Result |
+| --- | --- |
+| `GET /hello` | `Hello world!` |
+| `POST /stop` | `204 No Content` and a request to stop the server gracefully |
+
+```sh
+curl http://localhost:8080/hello
+curl -i -X POST http://localhost:8080/stop
+```
+
+You can also stop the process with Ctrl-C (`SIGINT`). Unlike the `/stop`
+handler, the default `SIGINT` handling stops the server immediately.
+
+## Learn more
+
+- [Controlling a running server](https://docs.ntex.rs/5-server.html#controlling-a-running-server)
+- [Signals and shutdown](https://docs.ntex.rs/5-server.html#signals-and-shutdown)
+
+## Tests
+
+```sh
+cargo test -p shutdown-server
+```
+
+Covers greetings, shutdown notifications, rejected methods, and graceful server shutdown.

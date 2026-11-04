@@ -1,68 +1,47 @@
-# yarte
+# Yarte templates
 
-Minimal example of using template [yarte](https://github.com/botika/yarte) that displays a form.
+Render a form or greeting with a compile-time, minified Yarte template.
+In `src/main.rs`, `#[derive(TemplateMin)]` generates the renderer;
+`TemplateMin::call` produces the HTML that the handler puts in an
+`HttpResponse`. `yarte.toml` configures partial aliases, and `build.rs`
+tracks template changes.
 
-[Template benchmarks in stable](https://github.com/botika/template-bench-rs)
+## Run the example
 
-```bash
-cargo test
-
+```sh
+cd templates/yarte
 cargo run
 ```
-> open `localhost:8080`
 
-## Generated code
-```rust
-impl ::std::fmt::Display for IndexTemplate {
-    fn fmt(&self, _fmt: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        _fmt.write_str(
-            "<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><title>Ntex \
-             </title></head><body>",
-        )?;
-        if let Some(name__0) = self.query.get("name") {
-            let lastname__1 = self.query.get("lastname").ok_or(yarte::Error)?;
-            _fmt.write_str("<h1>Hi, ")?;
-            ::yarte::Render::render(&(name__0), _fmt)?;
-            _fmt.write_str(" ")?;
-            ::yarte::Render::render(&(lastname__1), _fmt)?;
-            _fmt.write_str("!</h1><p id=\"hi\" class=\"welcome\">Welcome</p>")?;
-        } else {
-            _fmt.write_str(
-                "<h1 id=\"welcome\" class=\"welcome\">Welcome!</h1><div><h3>What is your \
-                 name?</h3><form>Name: <input type=\"text\" name=\"name\" /><br/>Last name: \
-                 <input type=\"text\" name=\"lastname\" /><br/><p><input \
-                 type=\"submit\"></p></form></div>",
-            )?;
-        }
-        _fmt.write_str("</body></html>")?;
-        Ok(())
-    }
-}
+The server listens on `127.0.0.1:8080`.
 
-impl ::yarte::Template for IndexTemplate {
-    fn mime() -> &'static str {
-        "text/html; charset=utf-8"
-    }
-    
-    fn size_hint() -> usize {
-        838usize
-    }
-}
+## Try it
 
-impl ::yarte::aw::Responder for IndexTemplate {
-    type Error = ::yarte::aw::Error;
-    type Future = ::yarte::aw::Ready<::std::result::Result<::yarte::aw::HttpResponse, Self::Error>>;
-    
-    #[inline]
-    fn respond_to(self, _req: &::yarte::aw::HttpRequest) -> Self::Future {
-        match self.call() {
-            Ok(body) => ::yarte::aw::ok(
-                ::yarte::aw::HttpResponse::Ok()
-                    .content_type(Self::mime())
-                    .body(body),
-            ),
-            Err(_) => ::yarte::aw::err(::yarte::aw::ErrorInternalServerError("Some error message")),
-        }
-    }
-}
+| Request | Result |
+| --- | --- |
+| [`GET /`](http://localhost:8080/) | Form asking for `name` and `lastname` |
+| [`GET /?name=Alice&lastname=Smith`](http://localhost:8080/?name=Alice&lastname=Smith) | Greeting `Hi, Alice Smith!` and `Welcome` |
+| [`GET /?name=Alice`](http://localhost:8080/?name=Alice) | `500 Internal Server Error` with body `Some error message`, because `lastname` is required when `name` is present |
+| [`GET /?lastname=Smith`](http://localhost:8080/?lastname=Smith) | The form again, because `name` is absent |
+
+The template and its partials live in `templates/`. They generate rendering
+code, not an ntex responder implementation; the handler constructs the
+response explicitly.
+
+## Tests
+
+From the repository root:
+
+```sh
+cargo test -p template_yarte
 ```
+
+The test uses `web::test::init_service` without a network listener and checks
+response status, content type, and rendered HTML for the cases above.
+
+For broader context, see the [template benchmarks](https://github.com/botika/template-bench-rs).
+
+## Learn more
+
+- [Testing routes](https://docs.ntex.rs/8.1-web-app.html#testing-routes)
+- [Returning errors from handlers](https://docs.ntex.rs/8.5-web-app.html#returning-errors-from-handlers)

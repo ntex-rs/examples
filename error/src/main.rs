@@ -182,6 +182,11 @@ async fn do_something(_: Json<TestPayload>) -> Result<HttpResponse, AppError> {
     Ok(HttpResponse::Ok().body("Nothing interesting happened. Try again."))
 }
 
+/// Registers the route using the application's error domain.
+fn config(cfg: &mut web::ServiceConfig<AppState>) {
+    cfg.service(web::resource("/something").route(web::post().to(do_something)));
+}
+
 #[ntex::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(
@@ -192,7 +197,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             // Log every request together with the response status.
             .middleware(web::middleware::Logger::default())
-            .service(web::resource("/something").route(web::post().to(do_something)))
+            .configure(config)
             // `build_with()` sets the application state and, through
             // `AppState::Error`, the error domain.
             .build_with(AppState {
@@ -202,4 +207,97 @@ async fn main() -> std::io::Result<()> {
     .bind("127.0.0.1:8088", ntex::SharedCfg::new("ERROR"))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ntex::http::{StatusCode, header};
+    use ntex::web::test::{self, TestRequest};
+
+    /// STATEMENT: Malformed JSON is rendered in the application's state-aware error format.
+    ///
+    /// HOW:
+    /// - Initialize the real routes with `AppState` and send malformed JSON to `/something`.
+    /// - Check `400`, the JSON content type, service name, status, and extractor message.
+    #[ntex::test]
+    async fn malformed_json_uses_application_error_domain() {
+        let app = test::init_service_st(
+            AppState {
+                service: "error-example",
+            },
+            App::new().configure(config),
+        )
+        .await;
+        let response = test::call_service(
+            &app,
+            TestRequest::post()
+                .uri("/something")
+                .header(header::CONTENT_TYPE, "application/json")
+                .payload("{bad")
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/json"
+        );
+        let body: serde_json::Value =
+            serde_json::from_slice(&test::read_body(response).await).unwrap();
+        assert_eq!(body["service"], "error-example");
+        assert_eq!(body["status"], 400);
+        assert!(
+            body["error"]
+                .as_str()
+                .unwrap()
+                .contains("Json deserialize error")
+        );
+    }
+
+    /// STATEMENT: Business errors map to their documented statuses and hide internal failures.
+    ///
+    /// HOW:
+    /// - Render each `CustomError` through its `AppError` container with application state.
+    /// - Check the HTTP status, JSON content type, service, and public error message.
+    #[ntex::test]
+    async fn custom_errors_preserve_status_and_hide_internals() {
+        let state = AppState {
+            service: "error-example",
+        };
+        for (error, status, message) in [
+            (
+                CustomError::AccessDenied,
+                StatusCode::FORBIDDEN,
+                "access to this resource is denied",
+            ),
+            (
+                CustomError::NotAuthenticated,
+                StatusCode::UNAUTHORIZED,
+                "authentication is required",
+            ),
+            (
+                CustomError::InvalidInput,
+                StatusCode::BAD_REQUEST,
+                "request could not be processed",
+            ),
+            (
+                CustomError::ServiceFailure,
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal server error",
+            ),
+        ] {
+            let response = AppError::from(error).error_response(&state);
+            assert_eq!(response.status(), status);
+            assert_eq!(
+                response.headers().get(header::CONTENT_TYPE).unwrap(),
+                "application/json"
+            );
+            let body: serde_json::Value =
+                serde_json::from_slice(&test::read_body(response).await).unwrap();
+            assert_eq!(body["service"], "error-example");
+            assert_eq!(body["status"], status.as_u16());
+            assert_eq!(body["error"], message);
+        }
+    }
 }

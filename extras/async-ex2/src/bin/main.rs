@@ -1,3 +1,5 @@
+//! Serve the nested product and part routes configured by `async_ex2`.
+
 use ntex::web::{self, App, middleware};
 
 use async_ex2::appconfig::config_app;

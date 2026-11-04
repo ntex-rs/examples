@@ -1,6 +1,7 @@
 [package]
 name = "async_pg"
 version = "4.0.0"
+description = "Asynchronous PostgreSQL queries and connection pooling with ntex"
 authors = ["dowwie <dkcdkg@gmail.com>"]
 edition = "2024"
 

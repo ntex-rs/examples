@@ -1,6 +1,7 @@
 [package]
 name = "ntex-graphql-demo"
 version = "4.0.0"
+description = "A MySQL-backed GraphQL API with Juniper and ntex"
 authors = ["Dwi Sulfahnur <hello@dwisulfahnur.com>"]
 edition = "2024"
 

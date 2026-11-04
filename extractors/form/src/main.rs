@@ -1,3 +1,9 @@
+//! Extract URL-encoded forms with ntex.
+//!
+//! `web::types::Form<MyParams>` deserializes submissions; the three POST
+//! handlers show it alone, with application state, or with `HttpRequest`.
+//! Run with `cargo run` and open <http://127.0.0.1:8080/> for the HTML forms.
+
 use serde::{Deserialize, Serialize};
 
 use ntex::web::{self, App, HttpRequest, HttpResponse, WebError, middleware};
@@ -82,30 +88,14 @@ mod tests {
     use super::*;
 
     use ntex::http::StatusCode;
-    use ntex::http::body::{Body, ResponseBody};
     use ntex::http::header::{CONTENT_TYPE, HeaderValue};
     use ntex::web::test::{self, TestRequest};
     use ntex::web::types::Form;
 
-    trait BodyTest {
-        fn as_str(&self) -> &str;
-    }
-
-    impl BodyTest for ResponseBody<Body> {
-        fn as_str(&self) -> &str {
-            match self {
-                ResponseBody::Body(b) => match b {
-                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
-                    _ => panic!(),
-                },
-                ResponseBody::Other(b) => match b {
-                    Body::Bytes(by) => std::str::from_utf8(by).unwrap(),
-                    _ => panic!(),
-                },
-            }
-        }
-    }
-
+    /// STATEMENT: The index handler returns the HTML form page.
+    ///
+    /// HOW:
+    /// - Call `index` directly and check HTTP 200, the HTML content type, and the embedded form body.
     #[ntex::test]
     async fn index_unit_test() {
         let resp = index().await.unwrap();
@@ -115,9 +105,17 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/html; charset=utf-8")
         );
-        assert_eq!(resp.body().as_str(), include_str!("../static/form.html"));
+        assert_eq!(
+            test::read_body(resp).await,
+            include_str!("../static/form.html")
+        );
     }
 
+    /// STATEMENT: The form handler renders the submitted name as plain text.
+    ///
+    /// HOW:
+    /// - Call `handle_post_1` with a `Form` containing John.
+    /// - Check HTTP 200, the plain-text content type, and the greeting body.
     #[ntex::test]
     async fn handle_post_1_unit_test() {
         let params = Form(MyParams {
@@ -130,9 +128,15 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.body().as_str(), "Your name is John");
+        assert_eq!(test::read_body(resp).await, "Your name is John");
     }
 
+    /// STATEMENT: The first form route echoes a name and rejects submissions without one.
+    ///
+    /// HOW:
+    /// - Initialize the real app with `AppState` and submit John to `/post1`.
+    /// - Check HTTP 200, the plain-text content type, and the greeting body.
+    /// - Submit a form without `name` and check HTTP 400.
     #[ntex::test]
     async fn handle_post_1_integration_test() {
         let app = test::init_service_st(
@@ -155,9 +159,22 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.body().as_str(), "Your name is John");
+        assert_eq!(test::read_body(resp).await, "Your name is John");
+
+        let req = TestRequest::post()
+            .uri("/post1")
+            .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .payload("other=value")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
+    /// STATEMENT: The stateful form route includes the application state in its response.
+    ///
+    /// HOW:
+    /// - Initialize the real app with `foo` set to bar and submit John to `/post2`.
+    /// - Check HTTP 200, the plain-text content type, and the name and state in the body.
     #[ntex::test]
     async fn handle_post_2_integration_test() {
         let app = test::init_service_st(
@@ -174,7 +191,6 @@ mod tests {
             })
             .to_request();
         let resp = app.call(req).await.unwrap();
-        println!("R: {:?}", resp);
 
         assert_eq!(resp.status(), StatusCode::OK);
         assert_eq!(
@@ -182,11 +198,16 @@ mod tests {
             HeaderValue::from_static("text/plain")
         );
         assert_eq!(
-            resp.body().as_str(),
+            test::read_body(resp).await,
             "Your name is John, and in AppState I have foo: bar"
         );
     }
 
+    /// STATEMENT: The request-aware form handler renders the submitted name.
+    ///
+    /// HOW:
+    /// - Call `handle_post_3` with a test request and a `Form` containing John.
+    /// - Check HTTP 200, the plain-text content type, and the greeting body.
     #[ntex::test]
     async fn handle_post_3_unit_test() {
         let req = TestRequest::default().to_http_request();
@@ -201,9 +222,14 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.body().as_str(), "Your name is John");
+        assert_eq!(test::read_body(resp).await, "Your name is John");
     }
 
+    /// STATEMENT: The request-aware form route accepts a URL-encoded name.
+    ///
+    /// HOW:
+    /// - Initialize the real app and submit John to `/post3`.
+    /// - Check HTTP 200, the plain-text content type, and the greeting body.
     #[ntex::test]
     async fn handle_post_3_integration_test() {
         let app = test::init_service_st(
@@ -226,6 +252,6 @@ mod tests {
             resp.headers().get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("text/plain")
         );
-        assert_eq!(resp.body().as_str(), "Your name is John");
+        assert_eq!(test::read_body(resp).await, "Your name is John");
     }
 }

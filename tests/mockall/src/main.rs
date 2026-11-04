@@ -56,6 +56,11 @@ mod tests {
 
     use super::*;
 
+    /// STATEMENT: The greeting service reads state and records its call in order.
+    ///
+    /// HOW:
+    /// - Configure ordered, single-call expectations for `prefix` and `record_call("Alice")`.
+    /// - Call `greet` through `Pipeline` and check `Welcome, Alice!`; drop the mock to verify calls.
     #[ntex::test]
     async fn test_service_state_access() {
         let mut state = MockServiceState::new();

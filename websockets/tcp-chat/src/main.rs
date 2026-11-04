@@ -1,3 +1,11 @@
+//! Chat server with WebSocket and raw TCP listeners.
+//!
+//! One `ntex::server` runs two services that share a chat server: WebSocket
+//! clients on `127.0.0.1:8080` (`web.rs`) and TCP clients on `127.0.0.1:12345`
+//! (`tcp.rs`, framed by the codec in `codec.rs`).
+//!
+//! Run from `websockets/tcp-chat` with `cargo run --bin websocket-tcp-chat-server`.
+
 mod codec;
 mod server;
 mod tcp;

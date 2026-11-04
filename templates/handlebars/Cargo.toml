@@ -1,6 +1,7 @@
 [package]
 name = "template_handlebars"
 version = "4.0.0"
+description = "Share a Handlebars template registry across ntex workers"
 authors = ["Alexandru Tiniuc <tiniuc.alexandru@gmail.com>"]
 edition = "2024"
 

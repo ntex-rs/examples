@@ -1,109 +1,98 @@
-# diesel
+# Diesel with SQLite
 
-Basic integration of [Diesel](https://diesel.rs/) using SQLite for Ntex.
+Use [Diesel](https://diesel.rs/) and an `r2d2` connection pool to create and
+look up users in SQLite. `src/main.rs` shares the pool through `AppState`
+and calls the synchronous queries in `src/actions.rs` through `web::block`
+to keep database work off the server workers.
 
-## Usage
+## Prerequisites
 
-### Install SQLite
+Install SQLite and its development library. For example:
 
 ```sh
-# on OpenSUSE
-sudo zypper install sqlite3-devel libsqlite3-0 sqlite3
-
-# on Ubuntu
+# Ubuntu
 sudo apt-get install libsqlite3-dev sqlite3
 
-# on Fedora
-sudo dnf install libsqlite3x-devel sqlite3x
+# Fedora
+sudo dnf install sqlite-devel sqlite
 
-# on macOS (using homebrew)
+# OpenSUSE
+sudo zypper install sqlite3-devel libsqlite3-0 sqlite3
+
+# macOS with Homebrew
 brew install sqlite3
 ```
 
-### Initialize SQLite Database
+Install the SQLite-enabled Diesel CLI:
+
+```sh
+cargo install diesel_cli --no-default-features --features sqlite
+```
+
+The included `db/diesel/.env` sets `DATABASE_URL=test.db`. From the repository
+root, apply the migrations before starting the application:
 
 ```sh
 cd db/diesel
-cargo install diesel_cli --no-default-features --features sqlite
-
-echo "DATABASE_URL=test.db" > .env
 diesel migration run
 ```
 
-There will now be a database file at `./test.db`.
+This creates `test.db` and its `users` table. Migrations are not run by the
+server. The database path is relative to the current working directory.
 
-### Running Server
+## Run the example
+
+From the repository root:
 
 ```sh
 cd db/diesel
-cargo run (or ``cargo watch -x run``)
-
-# Started http server: 127.0.0.1:8080
+cargo run
 ```
 
-### Available Routes
+The server listens on `127.0.0.1:8080`.
 
-#### `POST /user`
+## Try it
 
-Inserts a new user into the SQLite DB.
+| Request | Result |
+| --- | --- |
+| `POST /user` | Insert a user from a JSON body containing `name`; return JSON with `id` and `name` |
+| `GET /user/{user_id}` | Look up a UUID and return the user as JSON, or HTTP 404 if absent |
 
-Provide a JSON payload with a name. Eg:
-```json
-{ "name": "bill" }
+Create a user:
+
+```sh
+curl -i http://127.0.0.1:8080/user \
+  -H "Content-Type: application/json" \
+  -d '{"name":"bill"}'
 ```
 
-On success, a response like the following is returned:
-```json
-{
-    "id": "9e46baba-a001-4bb3-b4cf-4b3e5bab5e97",
-    "name": "bill"
-}
+Replace `USER_ID` below with the generated UUID from the response:
+
+```sh
+curl -i http://127.0.0.1:8080/user/USER_ID
 ```
 
-<details>
-  <summary>Client Examples</summary>
-
-  Using [HTTPie](https://httpie.org/):
-  ```sh
-  http POST localhost:8080/user name=bill
-  ```
-
-  Using cURL:
-  ```sh
-  curl -S -X POST --header "Content-Type: application/json" --data '{"name":"bill"}' http://localhost:8080/user
-  ```
-</details>
-
-#### `GET /user/{user_uid}`
-
-Gets a user from the DB using its UID (returned from the insert request or taken from the DB directly). Returns a 404 when no user exists with that UID.
-
-<details>
-  <summary>Client Examples</summary>
-
-  Using [HTTPie](https://httpie.org/):
-  ```sh
-  http localhost:8080/user/9e46baba-a001-4bb3-b4cf-4b3e5bab5e97
-  ```
-
-  Using cURL:
-  ```sh
-  curl -S http://localhost:8080/user/9e46baba-a001-4bb3-b4cf-4b3e5bab5e97
-  ```
-</details>
-
-### Explore The SQLite DB
+To inspect the database from `db/diesel`:
 
 ```sh
 sqlite3 test.db
 ```
 
+```text
+.tables
+SELECT * FROM users;
 ```
-sqlite> .tables
-sqlite> SELECT * FROM users;
+
+## Tests
+
+```sh
+cargo test -p diesel-example
 ```
 
+Exercises user creation, lookup, and invalid or missing IDs using migrated in-memory SQLite.
 
-## Using Other Databases
+## Learn more
 
-You can find a complete example of Diesel + PostgreSQL at: [https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/ntex](https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/ntex)
+- [Application state](https://docs.ntex.rs/8.2-web-app.html)
+- [Extractors](https://docs.ntex.rs/8.4-web-app.html#extractors)
+- [Diesel with PostgreSQL in FrameworkBenchmarks](https://github.com/TechEmpower/FrameworkBenchmarks/tree/master/frameworks/Rust/ntex)

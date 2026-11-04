@@ -1,7 +1,10 @@
-use std::{fs::File, io::BufReader, sync::Arc};
+//! HTTPS client that verifies the server against the local CA.
+//!
+//! Usage: `rustls-client [URL] [CLIENT_IDENTITY_STEM]`. The optional stem, such as
+//! `../certs/client`, loads `<stem>.pem` and `<stem>.key` as a client certificate.
 
 use ntex::{SharedCfg, client::Client};
-use rustls::{ClientConfig, RootCertStore, sign::SingleCertAndKey};
+use rustls_example::client_config;
 use tls_x509_example::{Error, load_identity};
 
 #[ntex::main]
@@ -10,21 +13,8 @@ async fn main() -> Result<(), Error> {
     let url = args
         .next()
         .unwrap_or_else(|| "https://localhost:8443/".into());
-    let mut roots = RootCertStore::empty();
-    for cert in rustls_pemfile::certs(&mut BufReader::new(File::open("../certs/ca.pem")?)) {
-        roots.add(cert?)?;
-    }
-    let builder =
-        ClientConfig::builder_with_provider(Arc::new(rustls::crypto::ring::default_provider()))
-            .with_safe_default_protocol_versions()?
-            .with_root_certificates(roots);
-    let mut config = if let Some(stem) = args.next() {
-        let key = ntex::tls::rustls::certified_key(&load_identity(stem)?)?;
-        builder.with_client_cert_resolver(Arc::new(SingleCertAndKey::from(key)))
-    } else {
-        builder.with_no_client_auth()
-    };
-    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+    let identity = args.next().map(load_identity).transpose()?;
+    let config = client_config(&std::fs::read("../certs/ca.pem")?, identity.as_ref())?;
     let client = Client::builder()
         .rustls(config)
         .build(SharedCfg::new("HTTPS"));

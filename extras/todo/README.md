@@ -1,48 +1,79 @@
-# ntex-todo
+# PostgreSQL todo application
 
-A port of the [Rocket Todo example](https://github.com/SergioBenitez/Rocket/tree/master/examples/todo) into [ntex](https://ntex.rs/). Except this uses PostgreSQL instead of SQLite.
+This example renders a todo list with `Tera`, persists tasks with Diesel and
+PostgreSQL, and uses `CookieSession` for flash messages after form submissions.
+Look at `src/api.rs` for the handlers, `src/db.rs` and `src/model.rs` for
+blocking database work through `web::block`, and `src/main.rs` for worker-local
+template initialization with `ServerAppConfig`.
 
-# Usage
+It is based on the [Rocket todo example](https://github.com/SergioBenitez/Rocket/tree/master/examples/todo),
+using PostgreSQL rather than SQLite.
 
 ## Prerequisites
 
-* Rust >= 1.26
-* PostgreSQL >= 9.5
+- Rust 1.97 or newer, matching the workspace's minimum supported version.
+- PostgreSQL and its `libpq` development libraries.
+- The Diesel CLI with PostgreSQL support:
 
-## Change into the project sub-directory
-
-All instructions assume you have changed into this folder:
-
-```bash
-cd extras/todo
-```
-
-## Set up the database
-
-Install the [diesel](http://diesel.rs) command-line tool including the `postgres` feature:
-
-```bash
+```sh
 cargo install diesel_cli --no-default-features --features postgres
 ```
 
-Check the contents of the `.env` file. If your database requires a password, update `DATABASE_URL` to be of the form:
+On macOS with Homebrew's `libpq`, prefix Cargo commands with
+`PQ_LIB_DIR=/opt/homebrew/opt/libpq/lib` if it is not found automatically.
 
-```.env
+## Run the example
+
+```sh
+cd extras/todo
+```
+
+Check the included `.env` file. Its default is
+`DATABASE_URL=postgres://localhost/ntex_todo`. If authentication is required,
+replace it with your own credentials, for example:
+
+```text
 DATABASE_URL=postgres://username:password@localhost/ntex_todo
 ```
 
-Then to create and set-up the database run:
+Keep credentials local. From this directory, create the database and apply the
+checked-in `migrations/`, then run:
 
-```bash
+```sh
 diesel database setup
-```
-
-## Run the application
-
-To run the application execute:
-
-```bash
 cargo run
 ```
 
-Then to view it in your browser navigate to: [http://localhost:8088/](http://localhost:8088/)
+Migrations create the `tasks` table and are not run automatically by the
+application. The database account needs permission to create the database
+and tables.
+
+The server listens on `localhost:8088`. Run from the crate directory so that
+`templates/` and `static/` resolve correctly. The fixed session signing key
+and `secure(false)` cookies are for local demonstration only.
+
+## Try it
+
+Open <http://localhost:8088/> to add tasks, toggle completion, and delete them.
+Flash messages are stored in the signed session cookie and shown after a
+redirect.
+
+| Request | Result |
+| --- | --- |
+| `GET /` | Renders the task list |
+| `POST /todo` | Creates a task from the `description` form field |
+| `POST /todo/{id}` | Toggles completion with `_method=put` or deletes with `_method=delete` |
+| `GET /static/{path}` | Serves files from `static/` |
+
+## Tests
+
+```sh
+cargo test -p todo
+```
+
+Checks empty-description redirects and unsupported update methods without connecting to PostgreSQL.
+
+## Learn more
+
+- [Request bodies](https://docs.ntex.rs/8.4-web-app.html#request-bodies)
+- [Worker and Request State](https://docs.ntex.rs/6-server-app.html#creating-the-worker-application)

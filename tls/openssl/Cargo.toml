@@ -1,6 +1,7 @@
 [package]
 name = "openssl-example"
 version = "4.0.0"
+description = "HTTPS and mutual TLS with the OpenSSL backend"
 authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
 edition = "2018"
 default-run = "openssl-example"
@@ -18,3 +19,6 @@ path = "src/client.rs"
 [[bin]]
 name = "openssl-mtls-server"
 path = "src/mtls.rs"
+
+[dev-dependencies]
+ntex-tls = { workspace = true, features = ["testgen", "testgen-rcgen"] }

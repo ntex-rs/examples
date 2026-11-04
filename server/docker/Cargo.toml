@@ -1,6 +1,7 @@
 [package]
 name = "docker_sample"
 version = "4.0.0"
+description = "Package a small ntex HTTP server in a Docker image"
 authors = ["docker_sample <docker_sample@sample.com>"]
 edition = "2024"
 

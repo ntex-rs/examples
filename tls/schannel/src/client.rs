@@ -1,3 +1,8 @@
+//! HTTPS client using Windows Schannel and Windows server-trust policy.
+//!
+//! Usage: `schannel-client [URL] [CLIENT_IDENTITY_STEM]`. `TLS_IDENTITY`, when set,
+//! takes precedence over the stem and selects the client certificate.
+
 #[cfg(windows)]
 #[ntex::main]
 async fn main() -> Result<(), tls_x509_example::Error> {

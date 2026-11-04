@@ -27,6 +27,11 @@ mod tests {
 
     use crate::appconfig::config_app;
 
+    /// STATEMENT: The configured product-creation route accepts a valid JSON product.
+    ///
+    /// HOW:
+    /// - Initialize the real app with `config_app` and POST a product to `/products`.
+    /// - Check that the request succeeds with HTTP 200.
     #[ntex::test]
     async fn test_add_product() {
         let app = test::init_service(App::new().configure(config_app)).await;
@@ -42,5 +47,36 @@ mod tests {
         let resp = app.call(req).await.unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    /// STATEMENT: Product creation rejects malformed JSON before running the handler.
+    ///
+    /// HOW:
+    /// - POST malformed JSON to `/products` using the real app configuration.
+    /// - Check that extraction renders HTTP 400.
+    #[ntex::test]
+    async fn malformed_product_is_bad_request() {
+        let app = test::init_service(App::new().configure(config_app)).await;
+        let req = test::TestRequest::post()
+            .uri("/products")
+            .header(header::CONTENT_TYPE, "application/json")
+            .payload("{")
+            .to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    }
+
+    /// STATEMENT: Product-detail routing captures the product identifier.
+    ///
+    /// HOW:
+    /// - GET `/products/42` through the real nested scope configuration.
+    /// - Check HTTP 200 and the stub handler's empty response body.
+    #[ntex::test]
+    async fn product_detail_route_succeeds() {
+        let app = test::init_service(App::new().configure(config_app)).await;
+        let req = test::TestRequest::get().uri("/products/42").to_request();
+        let resp = test::call_service(&app, req).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert!(test::read_body(resp).await.is_empty());
     }
 }

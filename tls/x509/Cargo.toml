@@ -1,6 +1,7 @@
 [package]
 name = "tls-x509-example"
 version = "4.0.0"
+description = "Inspect certificates and load identities with ntex-tls x509"
 edition.workspace = true
 publish = false
 

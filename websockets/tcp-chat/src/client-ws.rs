@@ -1,4 +1,6 @@
-//! Simple websocket client.
+//! Command-line chat client for the WebSocket listener on `ws://127.0.0.1:8080/ws/`.
+//!
+//! Reads lines from stdin, sends them as text messages, and pings the server.
 use std::{convert::TryFrom, io, thread, time::Duration};
 
 use futures::{SinkExt, StreamExt, channel::mpsc};

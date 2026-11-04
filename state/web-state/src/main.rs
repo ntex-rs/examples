@@ -329,13 +329,18 @@ async fn admin_users(st: &AppState, admin: User) -> String {
     )
 }
 
-#[ntex::main]
-async fn main() -> io::Result<()> {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("ntex=info,web_state=info"));
+impl AppState {
+    fn new(users: Arc<HashMap<&'static str, User>>) -> Self {
+        Self {
+            name: "web-state",
+            users,
+            requests: Rc::new(Cell::new(0)),
+        }
+    }
+}
 
-    // Shared, read-only data. It is created once, outside of the state
-    // factory, so all workers use the same map.
-    let users = Arc::new(HashMap::from([
+fn users() -> Arc<HashMap<&'static str, User>> {
+    Arc::new(HashMap::from([
         (
             "alice-token",
             User {
@@ -350,50 +355,210 @@ async fn main() -> io::Result<()> {
                 admin: false,
             },
         ),
-    ]));
+    ]))
+}
+
+fn app() -> impl ntex::ServiceFactory<
+    AppState,
+    ntex::http::Request,
+    Res = ntex::http::Response,
+    Error = web::WebError<AppState, DefaultError>,
+    InitError = ntex::error::Failure,
+> {
+    App::new()
+        // Middleware runs first and gets `WebRequest<()>`.
+        // Logger is registered first, so it wraps everything,
+        // including `RequestCounter`.
+        .middleware(web::middleware::Logger::default())
+        .middleware(RequestCounter)
+        // Filters run after the middleware and before routing.
+        // `fn_service_st()` passes the application state to the
+        // filter function.
+        //
+        // WebRequest<()> -> WebRequest<Option<User>>
+        .filter(fn_service_st(authenticate))
+        // App routes now require handlers that accept `Option<User>`.
+        .route("/", web::get().to_with_state(index))
+        .route("/stats", web::get().to_with_state(stats))
+        .route("/users/{name}", web::get().to_with_state(user_info))
+        .service(
+            web::scope("/admin")
+                // Scope filters run only for requests that match the
+                // scope.
+                //
+                // WebRequest<Option<User>> -> WebRequest<User>
+                .filter(fn_service_st(require_admin))
+                // Scope routes require handlers that accept `User`.
+                .route("/users", web::get().to_with_state(admin_users)),
+        )
+        .build()
+}
+
+#[ntex::main]
+async fn main() -> io::Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("ntex=info,web_state=info"));
+
+    // Shared, read-only data. It is created once, outside of the state
+    // factory, so all workers use the same map.
+    let users = users();
 
     web::server_with_config(
         // State factory. It is called once in every worker thread.
-        async move || {
-            Ok(AppState {
-                name: "web-state",
-                users: users.clone(),
-                // Created here, so every worker gets its own counter.
-                requests: Rc::new(Cell::new(0)),
-            })
-        },
+        async move || Ok(AppState::new(users.clone())),
         // Application factory. It is called once in every worker thread,
         // after the state factory, with a reference to the worker's state.
-        async |_: &AppState| {
-            App::new()
-                // Middleware runs first and gets `WebRequest<()>`.
-                // Logger is registered first, so it wraps everything,
-                // including `RequestCounter`.
-                .middleware(web::middleware::Logger::default())
-                .middleware(RequestCounter)
-                // Filters run after the middleware and before routing.
-                // `fn_service_st()` passes the application state to the
-                // filter function.
-                //
-                // WebRequest<()> -> WebRequest<Option<User>>
-                .filter(fn_service_st(authenticate))
-                // App routes now require handlers that accept `Option<User>`.
-                .route("/", web::get().to_with_state(index))
-                .route("/stats", web::get().to_with_state(stats))
-                .route("/users/{name}", web::get().to_with_state(user_info))
-                .service(
-                    web::scope("/admin")
-                        // Scope filters run only for requests that match the
-                        // scope.
-                        //
-                        // WebRequest<Option<User>> -> WebRequest<User>
-                        .filter(fn_service_st(require_admin))
-                        // Scope routes require handlers that accept `User`.
-                        .route("/users", web::get().to_with_state(admin_users)),
-                )
-        },
+        async |_: &AppState| app(),
     )
     .bind("127.0.0.1:8080", SharedCfg::new("WEB-STATE"))?
     .run()
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use ntex::http::StatusCode;
+    use ntex::web::test::{self, TestRequest};
+
+    use super::*;
+
+    /// STATEMENT: Authentication changes the greeting while middleware counts every request.
+    ///
+    /// HOW:
+    /// - Initialize the real app with a cloned `AppState`.
+    /// - Request `/` anonymously and with Bob's token; check bodies, middleware headers and state.
+    #[ntex::test]
+    async fn greetings_use_authentication_and_count_requests() {
+        let state = AppState::new(users());
+        let app = test::init_service_st(state.clone(), app()).await;
+
+        for (token, name, count) in [("", "anonymous", 1), ("bob-token", "bob", 2)] {
+            let response = test::call_service(
+                &app,
+                TestRequest::get()
+                    .uri("/")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .to_request(),
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers().get("x-served-by").unwrap(), "web-state");
+            assert_eq!(
+                response.headers().get("x-request-count").unwrap(),
+                count.to_string().as_str()
+            );
+            assert_eq!(
+                test::read_body(response).await,
+                format!("Hello {name}, welcome to web-state!\n")
+            );
+            assert_eq!(state.requests.get(), count);
+        }
+    }
+
+    /// STATEMENT: The admin scope rejects anonymous and non-administrator users.
+    ///
+    /// HOW:
+    /// - Request `/admin/users` without a token and then with Bob's token.
+    /// - Check `401` and its challenge, `403`, error bodies, omitted success headers and state counts.
+    #[ntex::test]
+    async fn admin_rejects_anonymous_and_regular_users() {
+        let state = AppState::new(users());
+        let app = test::init_service_st(state.clone(), app()).await;
+        let response =
+            test::call_service(&app, TestRequest::get().uri("/admin/users").to_request()).await;
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response.headers().get(header::WWW_AUTHENTICATE).unwrap(),
+            "Bearer realm=\"web-state\""
+        );
+        assert!(!response.headers().contains_key("x-request-count"));
+        assert_eq!(test::read_body(response).await, "authentication required\n");
+
+        let response = test::call_service(
+            &app,
+            TestRequest::get()
+                .uri("/admin/users")
+                .header(header::AUTHORIZATION, "Bearer bob-token")
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(!response.headers().contains_key("x-request-count"));
+        assert_eq!(
+            test::read_body(response).await,
+            "bob is not an administrator\n"
+        );
+        assert_eq!(state.requests.get(), 2);
+    }
+
+    /// STATEMENT: An administrator can list users through the protected scope.
+    ///
+    /// HOW:
+    /// - Request `/admin/users` with Alice's token on the real stateful app.
+    /// - Check `200 OK`, the sorted list, and the worker request counter.
+    #[ntex::test]
+    async fn admin_lists_users() {
+        let state = AppState::new(users());
+        let app = test::init_service_st(state.clone(), app()).await;
+        let response = test::call_service(
+            &app,
+            TestRequest::get()
+                .uri("/admin/users")
+                .header(header::AUTHORIZATION, "Bearer alice-token")
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            test::read_body(response).await,
+            "2 users, requested by alice: alice, bob\n"
+        );
+        assert_eq!(state.requests.get(), 1);
+    }
+
+    /// STATEMENT: User lookup identifies the authenticated user and reports missing users.
+    ///
+    /// HOW:
+    /// - Request `/users/bob` with Bob's token, then `/users/missing`.
+    /// - Check the self-identification body, the `404` error body, and state updates.
+    #[ntex::test]
+    async fn user_lookup_identifies_self_and_reports_missing_users() {
+        let state = AppState::new(users());
+        let app = test::init_service_st(state.clone(), app()).await;
+        let response = test::call_service(
+            &app,
+            TestRequest::get()
+                .uri("/users/bob")
+                .header(header::AUTHORIZATION, "Bearer bob-token")
+                .to_request(),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(test::read_body(response).await, "bob (user), this is you\n");
+        let response =
+            test::call_service(&app, TestRequest::get().uri("/users/missing").to_request()).await;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        assert_eq!(test::read_body(response).await, "user missing not found\n");
+        assert_eq!(state.requests.get(), 2);
+    }
+
+    /// STATEMENT: The stats response includes its own request in the worker counter.
+    ///
+    /// HOW:
+    /// - Call `/stats` twice using one explicitly initialized state.
+    /// - Check `200 OK`, each count in the response body and the retained state handle.
+    #[ntex::test]
+    async fn stats_includes_current_request() {
+        let state = AppState::new(users());
+        let app = test::init_service_st(state.clone(), app()).await;
+        for count in 1..=2 {
+            let response =
+                test::call_service(&app, TestRequest::get().uri("/stats").to_request()).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                test::read_body(response).await,
+                format!("requests served by this worker: {count}\n")
+            );
+            assert_eq!(state.requests.get(), count);
+        }
+    }
 }

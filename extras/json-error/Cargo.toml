@@ -1,6 +1,7 @@
 [package]
 name = "json-error"
 version = "4.0.0"
+description = "Return custom JSON error responses with WebResponseError"
 authors = ["Kai Yao <kai.b.yao@gmail.com>"]
 edition = "2024"
 

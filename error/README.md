@@ -1,13 +1,8 @@
-Error handling
---------------
+# Error handling
 
 Shows how to define a custom error domain and render every error the
 application returns, including errors of ntex extractors, as a uniform JSON
 document. See `src/main.rs` for detailed comments.
-
-See also the [Errors](https://ntex.rs/docs/errors/) and
-[Application state](https://ntex.rs/docs/application/) sections of the ntex
-guide.
 
 ## What it shows
 
@@ -26,7 +21,7 @@ guide.
 - **Hiding internals.** The `500` response only says "internal server error";
   the real cause is written to the log.
 
-## Running the example
+## Run the example
 
 ```bash
 cargo run -p error_handling
@@ -60,3 +55,17 @@ curl -i -H 'content-type: application/json' -d '{"dummy": 1}' http://127.0.0.1:8
 curl -H 'content-type: application/json' -d '{bad' http://127.0.0.1:8088/something
 # {"service":"error-example","status":400,"error":"Json deserialize error: key must be a string at line 1 column 2"}
 ```
+
+## Tests
+
+```sh
+cargo test -p error_handling
+```
+
+Covers malformed JSON in the real app and deterministic rendering of every business error, without relying on random outcomes.
+
+## Learn more
+
+- [Custom error domains](https://docs.ntex.rs/8.5-web-app.html#custom-error-domains)
+- [Where error responses travel](https://docs.ntex.rs/8.5-web-app.html#where-error-responses-travel)
+- [The `web::State` trait](https://docs.ntex.rs/8.2-web-app.html#the-webstate-trait)
