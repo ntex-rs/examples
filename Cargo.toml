@@ -29,6 +29,7 @@ members = [
    "protocols/grpc-routing-client",
    "protocols/grpc-server",
    "protocols/grpc-tls",
+   "protocols/http2",
    "state/process",
    "state/state-accumulation",
    "state/web-state",
