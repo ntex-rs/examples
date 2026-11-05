@@ -35,6 +35,7 @@ below to pair each chapter with examples.
 | [Service State](https://docs.ntex.rs/3-state.html#testing-state-aware-function-services) | [tests/mockall](tests/mockall), [tests/shimforge](tests/shimforge) |
 | [Securing Connections with TLS](https://docs.ntex.rs/10-tls.html) | [tls/x509](tls/x509), [tls/openssl](tls/openssl), [tls/rustls](tls/rustls), [tls/schannel](tls/schannel) |
 | [Building gRPC Services and Clients](https://docs.ntex.rs/11-grpc.html) | [protocols/grpc-helloworld](protocols/grpc-helloworld), [protocols/grpc-custom-types](protocols/grpc-custom-types), [protocols/grpc-routing-client](protocols/grpc-routing-client), [protocols/grpc-server](protocols/grpc-server), [protocols/grpc-tls](protocols/grpc-tls) |
+| [HTTP/2 with ntex-h2](https://docs.ntex.rs/14-h2.html) | [protocols/http2](protocols/http2) |
 
 The examples' tests follow the guide's testing advice; see
 [testing routes](https://docs.ntex.rs/8.1-web-app.html#testing-routes),
@@ -171,6 +172,14 @@ Guide: [Building gRPC Services and Clients](https://docs.ntex.rs/11-grpc.html).
 | [protocols/grpc-routing-client](protocols/grpc-routing-client) | A custom client transport that routes calls across backends |
 | [protocols/grpc-server](protocols/grpc-server) | Streaming methods, errors, several services, limits and HTTP/2 configuration |
 | [protocols/grpc-tls](protocols/grpc-tls) | gRPC server and client over TLS with rustls |
+
+### HTTP/2
+
+Guide: [HTTP/2 with ntex-h2](https://docs.ntex.rs/14-h2.html).
+
+| Example | Description |
+| --- | --- |
+| [protocols/http2](protocols/http2) | Standalone HTTP/2 server and client: per-stream state, flow control, backpressure and trailers |
 
 ### Testing
 

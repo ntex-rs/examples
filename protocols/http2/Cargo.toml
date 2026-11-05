@@ -1,0 +1,21 @@
+[package]
+name = "http2"
+version = "0.1.0"
+description = "A standalone HTTP/2 server and client with ntex-h2"
+edition.workspace = true
+rust-version.workspace = true
+default-run = "http2-server"
+
+[[bin]]
+name = "http2-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "http2-client"
+path = "src/client.rs"
+
+[dependencies]
+ntex = { workspace = true }
+ntex-h2 = { workspace = true }
+env_logger = { workspace = true }
+log = { workspace = true }
