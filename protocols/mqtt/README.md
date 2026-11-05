@@ -10,14 +10,14 @@ or forwarding.
 From the examples repository, start the server:
 
 ```sh
-cd websockets/mqtt
+cd protocols/mqtt
 cargo run --bin websocket-mqtt-server
 ```
 
 In another terminal:
 
 ```sh
-cd websockets/mqtt
+cd protocols/mqtt
 cargo run --bin websocket-mqtt-client
 ```
 

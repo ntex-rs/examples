@@ -30,6 +30,7 @@ members = [
    "protocols/grpc-server",
    "protocols/grpc-tls",
    "protocols/http2",
+   "protocols/mqtt",
    "state/process",
    "state/state-accumulation",
    "state/web-state",
@@ -51,7 +52,6 @@ members = [
    "websockets/basic",
    "websockets/chat",
    "websockets/lowlevel",
-   "websockets/mqtt",
    "websockets/tcp-chat",
 ]
 

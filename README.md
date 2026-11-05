@@ -28,7 +28,7 @@ below to pair each chapter with examples.
 | [Filters and Middleware](https://docs.ntex.rs/8.3-web-app.html) | [middleware](middleware), [extras/cookie-auth](extras/cookie-auth) |
 | [Extractors and Responders](https://docs.ntex.rs/8.4-web-app.html) | [extractors/json](extractors/json), [extractors/form](extractors/form), [extractors/multipart](extractors/multipart) |
 | [Error Handling](https://docs.ntex.rs/8.5-web-app.html) | [error](error), [extras/json-error](extras/json-error) |
-| [WebSocket Support](https://docs.ntex.rs/8.6-web-app.html) | [websockets/basic](websockets/basic), [websockets/chat](websockets/chat), [websockets/lowlevel](websockets/lowlevel), [websockets/mqtt](websockets/mqtt) |
+| [WebSocket Support](https://docs.ntex.rs/8.6-web-app.html) | [websockets/basic](websockets/basic), [websockets/chat](websockets/chat), [websockets/lowlevel](websockets/lowlevel), [protocols/mqtt](protocols/mqtt) |
 | [Server](https://docs.ntex.rs/5-server.html) | [server/shutdown](server/shutdown), [server/run-in-thread](server/run-in-thread), [server/unix-socket](server/unix-socket) |
 | [Runtime](https://docs.ntex.rs/4-runtime.html) | [server/tokio](server/tokio), [db/async-db](db/async-db) |
 | [Worker and Request State](https://docs.ntex.rs/6-server-app.html) | [state/process](state/process), [state/state-accumulation](state/state-accumulation) |
@@ -36,6 +36,7 @@ below to pair each chapter with examples.
 | [Securing Connections with TLS](https://docs.ntex.rs/10-tls.html) | [tls/x509](tls/x509), [tls/openssl](tls/openssl), [tls/rustls](tls/rustls), [tls/schannel](tls/schannel) |
 | [Building gRPC Services and Clients](https://docs.ntex.rs/11-grpc.html) | [protocols/grpc-helloworld](protocols/grpc-helloworld), [protocols/grpc-custom-types](protocols/grpc-custom-types), [protocols/grpc-routing-client](protocols/grpc-routing-client), [protocols/grpc-server](protocols/grpc-server), [protocols/grpc-tls](protocols/grpc-tls) |
 | [HTTP/2 with ntex-h2](https://docs.ntex.rs/14-h2.html) | [protocols/http2](protocols/http2) |
+| [MQTT with ntex-mqtt](https://docs.ntex.rs/15-mqtt.html) | [protocols/mqtt](protocols/mqtt) |
 
 The examples' tests follow the guide's testing advice; see
 [testing routes](https://docs.ntex.rs/8.1-web-app.html#testing-routes),
@@ -157,7 +158,6 @@ Guide: [WebSocket Support](https://docs.ntex.rs/8.6-web-app.html).
 | --- | --- |
 | [websockets/basic](websockets/basic) | WebSocket echo server and client, over plain TCP or TLS |
 | [websockets/lowlevel](websockets/lowlevel) | WebSocket server and client using the low-level API |
-| [websockets/mqtt](websockets/mqtt) | MQTT server and client over a binary WebSocket transport |
 | [websockets/chat](websockets/chat) | Multi-room WebSocket chat server with a browser client |
 | [websockets/tcp-chat](websockets/tcp-chat) | Chat server with WebSocket and TCP clients |
 
@@ -180,6 +180,14 @@ Guide: [HTTP/2 with ntex-h2](https://docs.ntex.rs/14-h2.html).
 | Example | Description |
 | --- | --- |
 | [protocols/http2](protocols/http2) | Standalone HTTP/2 server and client: per-stream state, flow control, backpressure and trailers |
+
+### MQTT
+
+Guide: [MQTT with ntex-mqtt](https://docs.ntex.rs/15-mqtt.html).
+
+| Example | Description |
+| --- | --- |
+| [protocols/mqtt](protocols/mqtt) | MQTT server and client over a binary WebSocket transport |
 
 ### Testing
 
