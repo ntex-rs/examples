@@ -39,6 +39,7 @@ members = [
    "server/tokio",
    "server/shutdown",
    "server/unix-socket",
+   "service/readiness",
    "templates/askama",
    "templates/handlebars",
    "templates/tera",
