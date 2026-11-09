@@ -1,0 +1,9 @@
+[package]
+name = "service-readiness"
+version = "4.0.0"
+description = "Service readiness and backpressure: a concurrency limit and a gate"
+authors = ["Nikolay Kim <fafhrd91@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+ntex = { workspace = true }

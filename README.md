@@ -23,6 +23,7 @@ below to pair each chapter with examples.
 
 | Guide chapter | Examples |
 | --- | --- |
+| [Service Pipelines](https://docs.ntex.rs/2-pipeline.html#readiness-and-backpressure) | [service/readiness](service/readiness) |
 | [Applications and Routing](https://docs.ntex.rs/8.1-web-app.html) | [basics](basics), [extras/async-ex2](extras/async-ex2) |
 | [Application State](https://docs.ntex.rs/8.2-web-app.html) | [state/web-state](state/web-state), [db/async-db](db/async-db), [db/r2d2](db/r2d2) |
 | [Filters and Middleware](https://docs.ntex.rs/8.3-web-app.html) | [middleware](middleware), [extras/cookie-auth](extras/cookie-auth) |
@@ -78,6 +79,14 @@ Building `extras/todo` and `extras/simple-auth-server` requires the
 PostgreSQL client library (`libpq`).
 
 ## Examples
+
+### Services
+
+Guide: [Services](https://docs.ntex.rs/1-service.html) and [Service Pipelines](https://docs.ntex.rs/2-pipeline.html).
+
+| Example | Description |
+| --- | --- |
+| [service/readiness](service/readiness) | Readiness and backpressure: a concurrency limit and a gate that fails readiness |
 
 ### Basics
 
