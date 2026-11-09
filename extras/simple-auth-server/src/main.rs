@@ -69,7 +69,7 @@ async fn main() -> std::io::Result<()> {
                     .secure(false), // Enable this when serving over HTTPS.
             ))
             .with_config(
-                web::WebAppConfig::new().set_state(web::types::JsonConfig::default().limit(4096)),
+                web::WebAppConfig::new().set_value(web::types::JsonConfig::default().limit(4096)),
             )
             .configure(config)
             .build_with(AppState::new(pool.clone()))

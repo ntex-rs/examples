@@ -82,7 +82,7 @@ async fn main() -> std::io::Result<()> {
 
     let cfg = ntex::SharedCfg::new("JSON")
         .add(
-            web::WebAppConfig::new().set_state(types::JsonConfig::default().limit(4096)), // <- limit size of the payload (global configuration)
+            web::WebAppConfig::new().set_value(types::JsonConfig::default().limit(4096)), // <- limit size of the payload (global configuration)
         )
         .build();
     let cfg2 = cfg.clone();
