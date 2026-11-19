@@ -83,8 +83,8 @@ impl Broadcaster {
 
     fn spawn_ping(me: Arc<Mutex<Self>>) {
         ntex::rt::spawn(async move {
+            let task = interval(Duration::from_secs(10));
             loop {
-                let task = interval(Duration::from_secs(10));
                 task.tick().await;
                 me.lock().unwrap().remove_stale_clients();
             }
